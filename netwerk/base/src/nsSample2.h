@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef nsSample_h
-#define nsSample_h
+#ifndef nsSample2_h
+#define nsSample2_h
 
 /**
  * A sample of XPConnect. This file is the header of an implementation
@@ -12,7 +12,7 @@
  *
  */
 
-#include "nsISample.h"
+#include "nsISample2.h"
 #include "mozilla/Attributes.h"
 
 /**
@@ -32,10 +32,10 @@
 #define NS_SAMPLE_CONTRACTID "@mozilla.org/sample;2"
 
 
-class nsSampleImpl MOZ_FINAL : public nsISample
+class nsSample2Impl MOZ_FINAL : public nsISample2
 {
 public:
-  nsSampleImpl();
+  nsSample2Impl();
 
   /**
    * This macro expands into a declaration of the nsISupports interface.
@@ -57,7 +57,7 @@ public:
    * The methods of nsISample are discussed individually below, but
    * commented out (because this macro already defines them.)
    */
-  NS_DECL_NSISAMPLE
+  NS_DECL_NSISAMPLE2
 
   /**
    * The following is an explanation of how the interface header
@@ -95,7 +95,7 @@ public:
   /* NS_IMETHOD Poke(const char* aValue); */
 
 private:
-  ~nsSampleImpl();
+  ~nsSample2Impl();
 
   char* mValue;
 };

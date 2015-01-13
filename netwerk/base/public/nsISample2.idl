@@ -24,7 +24,7 @@
  */
 
 [scriptable, uuid(EB7460B5-BB48-4979-A5AB-B0AFF012920C)]
-interface nsISample : nsISupports
+interface nsISample2 : nsISupports
 {
     attribute string value;
     void writeValue(in string aPrefix);
