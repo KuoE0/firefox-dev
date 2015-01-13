@@ -55,7 +55,7 @@ UNIFIED_SOURCES += [
     'nsProtocolProxyService.cpp',
     'nsProxyInfo.cpp',
     'nsRequestObserverProxy.cpp',
-    # 'nsSample.cpp',
+    'nsSample2.cpp',
     'nsSerializationHelper.cpp',
     'nsServerSocket.cpp',
     'nsSimpleNestedURI.cpp',

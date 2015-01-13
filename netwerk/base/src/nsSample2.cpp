@@ -12,19 +12,18 @@
  */
 #include <stdio.h>
 
-#include "nsSample.h"
+#include "nsSample2.h"
 #include "nsMemory.h"
 
-#include "nsEmbedString.h"
 #include "nsIClassInfoImpl.h"
 ////////////////////////////////////////////////////////////////////////
 
-nsSampleImpl::nsSampleImpl() : mValue(nullptr)
+nsSample2Impl::nsSample2Impl() : mValue(nullptr)
 {
   mValue = (char*)nsMemory::Clone("initial value", 14);
 }
 
-nsSampleImpl::~nsSampleImpl()
+nsSample2Impl::~nsSample2Impl()
 {
   if (mValue) {
     nsMemory::Free(mValue);
@@ -45,15 +44,15 @@ nsSampleImpl::~nsSampleImpl()
  * The _CI variant adds support for nsIClassInfo, which permits introspection
  * and interface flattening.
  */
-NS_IMPL_CLASSINFO(nsSampleImpl, nullptr, 0, NS_SAMPLE_CID)
-NS_IMPL_ISUPPORTS_CI(nsSampleImpl, nsISample)
+NS_IMPL_CLASSINFO(nsSample2Impl, nullptr, 0, NS_SAMPLE_CID)
+NS_IMPL_ISUPPORTS_CI(nsSample2Impl, nsISample2)
 /**
  * Notice that in the protoype for this function, the NS_IMETHOD macro was
  * used to declare the return type.  For the implementation, the return
  * type is declared by NS_IMETHODIMP
  */
 NS_IMETHODIMP
-nsSampleImpl::GetValue(char** aValue)
+nsSample2Impl::GetValue(char** aValue)
 {
   NS_PRECONDITION(aValue != nullptr, "null ptr");
   if (!aValue) {
@@ -85,7 +84,7 @@ nsSampleImpl::GetValue(char** aValue)
 }
 
 NS_IMETHODIMP
-nsSampleImpl::SetValue(const char* aValue)
+nsSample2Impl::SetValue(const char* aValue)
 {
   NS_PRECONDITION(aValue != nullptr, "null ptr");
   if (!aValue) {
@@ -107,20 +106,15 @@ nsSampleImpl::SetValue(const char* aValue)
 }
 
 NS_IMETHODIMP
-nsSampleImpl::Poke(const char* aValue)
+nsSample2Impl::Poke(const char* aValue)
 {
   return SetValue((char*)aValue);
 }
 
 
-static void
-GetStringValue(nsACString& aValue)
-{
-  NS_CStringSetData(aValue, "GetValue");
-}
 
 NS_IMETHODIMP
-nsSampleImpl::WriteValue(const char* aPrefix)
+nsSample2Impl::WriteValue(const char* aPrefix)
 {
   NS_PRECONDITION(aPrefix != nullptr, "null ptr");
   if (!aPrefix) {
@@ -128,28 +122,6 @@ nsSampleImpl::WriteValue(const char* aPrefix)
   }
 
   printf("%s %s\n", aPrefix, mValue);
-
-  // This next part illustrates the nsEmbedString:
-  nsEmbedString foopy;
-  foopy.Append(char16_t('f'));
-  foopy.Append(char16_t('o'));
-  foopy.Append(char16_t('o'));
-  foopy.Append(char16_t('p'));
-  foopy.Append(char16_t('y'));
-
-  const char16_t* f = foopy.get();
-  uint32_t l = foopy.Length();
-  printf("%c%c%c%c%c %d\n",
-         char(f[0]), char(f[1]), char(f[2]), char(f[3]), char(f[4]), l);
-
-  nsEmbedCString foopy2;
-  GetStringValue(foopy2);
-
-  //foopy2.AppendLiteral("foopy");
-  const char* f2 = foopy2.get();
-  uint32_t l2 = foopy2.Length();
-
-  printf("%s %d\n", f2, l2);
 
   return NS_OK;
 }
