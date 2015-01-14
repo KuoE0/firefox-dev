@@ -1,13 +1,7 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-
-
 /**
  *
- * A sample of XPConnect. This file contains an implementation nsSample
- * of the interface nsISample.
+ * A sample of XPCOM. This file contains an implementation nsSample2
+ * of the interface nsISample2.
  *
  */
 #include <stdio.h>
@@ -44,8 +38,9 @@ nsSample2Impl::~nsSample2Impl()
  * The _CI variant adds support for nsIClassInfo, which permits introspection
  * and interface flattening.
  */
-NS_IMPL_CLASSINFO(nsSample2Impl, nullptr, 0, NS_SAMPLE_CID)
+NS_IMPL_CLASSINFO(nsSample2Impl, nullptr, 0, NS_SAMPLE2_CID)
 NS_IMPL_ISUPPORTS_CI(nsSample2Impl, nsISample2)
+
 /**
  * Notice that in the protoype for this function, the NS_IMETHOD macro was
  * used to declare the return type.  For the implementation, the return
@@ -106,12 +101,7 @@ nsSample2Impl::SetValue(const char* aValue)
 }
 
 NS_IMETHODIMP
-nsSample2Impl::Poke(const char* aValue)
-{
-  return SetValue((char*)aValue);
-}
-
-
+nsSample2Impl::Poke(const char* aValue) { return SetValue((char*)aValue); }
 
 NS_IMETHODIMP
 nsSample2Impl::WriteValue(const char* aPrefix)

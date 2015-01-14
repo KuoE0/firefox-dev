@@ -26,11 +26,15 @@
  * {EB7460B5-BB48-4979-A5AB-B0AFF012920C}
  */
 
-#define NS_SAMPLE_CID \
-   { 0xeb7460b5, 0xbb48, 0x4979, { 0xa5, 0xab, 0xb0, 0xaf, 0xf0, 0x12, 0x92, 0xc} }
+#define NS_SAMPLE2_CID                                                         \
+  {                                                                            \
+    0xeb7460b5, 0xbb48, 0x4979,                                                \
+    {                                                                          \
+      0xa5, 0xab, 0xb0, 0xaf, 0xf0, 0x12, 0x92, 0xc                            \
+    }                                                                          \
+  }
 
-#define NS_SAMPLE_CONTRACTID "@mozilla.org/sample;2"
-
+#define NS_SAMPLE2_CONTRACTID "@mozilla.org/sample2;1"
 
 class nsSample2Impl MOZ_FINAL : public nsISample2
 {
