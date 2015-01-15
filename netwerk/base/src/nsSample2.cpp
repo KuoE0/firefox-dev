@@ -5,24 +5,15 @@
  *
  */
 #include <stdio.h>
-
 #include "nsSample2.h"
 #include "nsMemory.h"
 
 #include "nsIClassInfoImpl.h"
 ////////////////////////////////////////////////////////////////////////
 
-nsSample2Impl::nsSample2Impl() : mValue(nullptr)
-{
-  mValue = (char*)nsMemory::Clone("initial value", 14);
-}
+nsSample2Impl::nsSample2Impl() : mValue(NS_LITERAL_CSTRING("initial value")) {}
 
-nsSample2Impl::~nsSample2Impl()
-{
-  if (mValue) {
-    nsMemory::Free(mValue);
-  }
-}
+nsSample2Impl::~nsSample2Impl() {}
 
 /**
  * NS_IMPL_ISUPPORTS expands to a simple implementation of the nsISupports
@@ -47,71 +38,25 @@ NS_IMPL_ISUPPORTS_CI(nsSample2Impl, nsISample2)
  * type is declared by NS_IMETHODIMP
  */
 NS_IMETHODIMP
-nsSample2Impl::GetValue(char** aValue)
+nsSample2Impl::GetValue(nsACString &aValue)
 {
-  NS_PRECONDITION(aValue != nullptr, "null ptr");
-  if (!aValue) {
-    return NS_ERROR_NULL_POINTER;
-  }
-
-  if (mValue) {
-    /**
-     * GetValue's job is to return data known by an instance of
-     * nsSampleImpl to the outside world.  If we  were to simply return
-     * a pointer to data owned by this instance, and the client were to
-     * free it, bad things would surely follow.
-     * On the other hand, if we create a new copy of the data for our
-     * client, and it turns out that client is implemented in JavaScript,
-     * there would be no way to free the buffer.  The solution to the
-     * buffer ownership problem is the nsMemory singleton.  Any buffer
-     * returned by an XPCOM method should be allocated by the nsMemory.
-     * This convention lets things like JavaScript reflection do their
-     * job, and simplifies the way C++ clients deal with returned buffers.
-     */
-    *aValue = (char*)nsMemory::Clone(mValue, strlen(mValue) + 1);
-    if (!*aValue) {
-      return NS_ERROR_NULL_POINTER;
-    }
-  } else {
-    *aValue = nullptr;
-  }
+  aValue = mValue;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsSample2Impl::SetValue(const char* aValue)
+nsSample2Impl::SetValue(const nsACString &aValue)
 {
-  NS_PRECONDITION(aValue != nullptr, "null ptr");
-  if (!aValue) {
-    return NS_ERROR_NULL_POINTER;
-  }
-
-  if (mValue) {
-    nsMemory::Free(mValue);
-  }
-
-  /**
-   * Another buffer passing convention is that buffers passed INTO your
-   * object ARE NOT YOURS.  Keep your hands off them, unless they are
-   * declared "inout".  If you want to keep the value for posterity,
-   * you will have to make a copy of it.
-   */
-  mValue = (char*)nsMemory::Clone(aValue, strlen(aValue) + 1);
+  mValue = aValue;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsSample2Impl::Poke(const char* aValue) { return SetValue((char*)aValue); }
+nsSample2Impl::Poke(const nsACString &aValue) { return SetValue(aValue); }
 
 NS_IMETHODIMP
-nsSample2Impl::WriteValue(const char* aPrefix)
+nsSample2Impl::WriteValue(const nsACString &aPrefix)
 {
-  NS_PRECONDITION(aPrefix != nullptr, "null ptr");
-  if (!aPrefix) {
-    return NS_ERROR_NULL_POINTER;
-  }
-
-  printf("%s %s\n", aPrefix, mValue);
-
+  printf("%s %s\n", ToNewCString(aPrefix), ToNewCString(mValue));
   return NS_OK;
 }

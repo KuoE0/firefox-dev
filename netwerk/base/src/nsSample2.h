@@ -79,15 +79,15 @@ public:
    * calls as Getter/Setter ops, so that they can be called transparently
    * as "sample.Value='foo';" and "var val = sample.Value"
    */
-  /* NS_IMETHOD GetValue(char** aValue); */
-  /* NS_IMETHOD SetValue(char* aValue); */
+  /* NS_IMETHOD GetValue(nsACString &); */
+  /* NS_IMETHOD SetValue(const nsACString &); */
 
   /**
    * The const came from the "in" specifier in nsISample.idl.  "in"
    * specifies that the value of this parameter is used only for input,
    * this method is not allowed to modify the contents of the buffer.
    */
-  /* NS_IMETHOD WriteValue(const char* aPrefix); */
+  /* NS_IMETHOD WriteValue(const nsACString &aPrefix); */
 
   /**
    * nsISample.idl specifies all of its string types as string, instead
@@ -96,12 +96,12 @@ public:
    * If this type had been specified as wstring, it would appear as
    * char16_t * in C++, which is the NSPR type for unicode characters.
    */
-  /* NS_IMETHOD Poke(const char* aValue); */
+  /* NS_IMETHOD Poke(const nsACString &aValue); */
 
 private:
   ~nsSample2Impl();
 
-  char* mValue;
+  nsCString mValue;
 };
 
 #endif
