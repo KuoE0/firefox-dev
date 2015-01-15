@@ -56,6 +56,10 @@ main()
     return -4;
   }
 
+  size_t len = 0;
+  rv = sample->Strlen(&len);
+  printf("Length: %zu\n", len);
+
   rv = sample->WriteValue(NS_LITERAL_CSTRING("Final print :"));
   printf("Test passed.\n");
 

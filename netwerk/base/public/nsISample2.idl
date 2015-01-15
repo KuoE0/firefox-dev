@@ -29,6 +29,7 @@ interface nsISample2 : nsISupports
     attribute ACString value;
     void writeValue(in ACString aPrefix);
     void poke(in ACString aValue);
+	size_t strlen();
 };
 
 

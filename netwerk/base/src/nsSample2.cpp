@@ -60,3 +60,10 @@ nsSample2Impl::WriteValue(const nsACString &aPrefix)
   printf("%s %s\n", ToNewCString(aPrefix), ToNewCString(mValue));
   return NS_OK;
 }
+
+NS_IMETHODIMP
+nsSample2Impl::Strlen(size_t *_retval)
+{
+	*_retval = mValue.Length();
+	return NS_OK;
+}
