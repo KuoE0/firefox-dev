@@ -26,9 +26,9 @@
 [scriptable, uuid(EB7460B5-BB48-4979-A5AB-B0AFF012920C)]
 interface nsISample2 : nsISupports
 {
-    attribute string value;
-    void writeValue(in string aPrefix);
-    void poke(in string aValue);
+    attribute ACString value;
+    void writeValue(in ACString aPrefix);
+    void poke(in ACString aValue);
 };
 
 
