@@ -1,5 +1,4 @@
 
-#include "TestCommon.h"
 #include "TestHarness.h"
 #include "nsISample2.h"
 #include "prerror.h"
@@ -16,18 +15,21 @@ main()
     return -1;
   }
 
-  nsCOMPtr<nsISample2> sample = do_CreateInstance("@mozilla.org/sample2;1");
-  if (!sample) {
+  nsresult rv;
+
+  nsCOMPtr<nsISample2> sample = do_CreateInstance("@mozilla.org/sample2;1", &rv);
+  if (NS_FAILED(rv)) {
     fail("Failed to create sample2.");
+	printf("Error code: 0x%X\n", rv);
     return -1;
   }
 
-  nsresult rv;
 
   rv = sample->WriteValue("Inital print:");
   if (NS_FAILED(rv)) {
     printf("ERROR: Calling nsISample2::WriteValue() [%x]\n",
            static_cast<uint32_t>(rv));
+	printf("Error code: 0x%X\n", rv);
     return -3;
   }
 
@@ -36,6 +38,7 @@ main()
   if (NS_FAILED(rv)) {
     printf("ERROR: Calling nsISample2::SetValue() [%x]\n",
            static_cast<uint32_t>(rv));
+	printf("Error code: 0x%X\n", rv);
     return -3;
   }
   printf("Set value to: %s\n", testValue);
@@ -45,6 +48,7 @@ main()
   if (NS_FAILED(rv)) {
     printf("ERROR: Calling nsISample2::GetValue() [%x]\n",
            static_cast<uint32_t>(rv));
+	printf("Error code: 0x%X\n", rv);
     return -3;
   }
   if (strcmp(str, testValue)) {
