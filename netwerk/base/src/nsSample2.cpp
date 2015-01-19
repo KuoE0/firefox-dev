@@ -64,6 +64,6 @@ nsSample2Impl::WriteValue(const nsACString &aPrefix)
 NS_IMETHODIMP
 nsSample2Impl::Strlen(size_t *_retval)
 {
-	*_retval = mValue.Length();
-	return NS_OK;
+  *_retval = mValue.Length();
+  return NS_OK;
 }
