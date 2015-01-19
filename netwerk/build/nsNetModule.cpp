@@ -138,8 +138,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsSample2Impl)
 #include "nsWebLock.h"
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsWebLock)
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 
 extern nsresult
@@ -1008,7 +1006,7 @@ static const mozilla::Module::CIDEntry kNeckoCIDs[] = {
     CacheStorageServiceConstructor },
   { &kNS_NETWORKPREDICTOR_CID, false, nullptr,
     mozilla::net::Predictor::Create },
-  { &kNS_SAMPLE2_CID, false, nullptr, nsSample2ImplConstructor }, 
+  { &kNS_SAMPLE2_CID, false, nullptr, nsSample2ImplConstructor },
   { &kNS_WEBLOCK_CID, false, nullptr, nsWebLockConstructor }, { nullptr }
 };
 
@@ -1183,7 +1181,7 @@ static const mozilla::Module::ContractIDEntry kNeckoContracts[] = {
   { NS_CACHE_STORAGE_SERVICE_CONTRACTID, &kNS_CACHE_STORAGE_SERVICE_CID },
   { NS_CACHE_STORAGE_SERVICE_CONTRACTID2, &kNS_CACHE_STORAGE_SERVICE_CID },
   { NS_NETWORKPREDICTOR_CONTRACTID, &kNS_NETWORKPREDICTOR_CID },
-  { NS_SAMPLE2_CONTRACTID, &kNS_SAMPLE2_CID }, 
+  { NS_SAMPLE2_CONTRACTID, &kNS_SAMPLE2_CID },
   { NS_WEBLOCK_CONTRACTID, &kNS_WEBLOCK_CID }, { nullptr }
 };
 
