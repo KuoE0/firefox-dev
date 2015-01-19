@@ -1,0 +1,16 @@
+
+FAIL_ON_WARNINGS = True
+
+DIRS += [ 
+    'interface', 
+    'src', 
+    ]
+
+SOURCES += ['nsMineModule.cpp']
+
+LOCAL_INCLUDES += [ 'src', ]
+
+TEST_DIRS += ['test']
+
+FINAL_LIBRARY = 'xul'
+
