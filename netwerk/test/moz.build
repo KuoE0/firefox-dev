@@ -52,6 +52,7 @@ CppUnitTests([
     'TestSample2',
     'TestSTSParser',
     'TestUDPSocket',
+    'TestWebLock',
 ])
 
 RESOURCE_FILES += [
