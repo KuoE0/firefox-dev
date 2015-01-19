@@ -1,0 +1,16 @@
+
+#include "nsISupports.idl"
+interface nsIMutableArray;
+
+[scriptable, uuid(EA54EEE4-9548-4B63-B94D-C519FFC91D09)]
+interface nsIWebLock : nsISupports
+{
+	void lock();
+	void unlock();
+
+	// assume strings are UTF-8
+	void addSite(in AString url);
+	void removeSite(in AString url);
+	readonly attribute nsIMutableArray sites;
+};
+
