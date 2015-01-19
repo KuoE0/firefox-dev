@@ -1,0 +1,4 @@
+
+CppUnitTests([
+    'TestWebLock',
+])
