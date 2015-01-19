@@ -126,6 +126,7 @@ XPIDL_SOURCES += [
     'nsIURIWithPrincipal.idl',
     'nsIURL.idl',
     'nsIURLParser.idl',
+    'nsIWebLock.idl',
     'nsPILoadGroupInternal.idl',
     'nsPISocketTransportService.idl',
 ]

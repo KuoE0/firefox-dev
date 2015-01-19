@@ -1,5 +1,0 @@
-
-XPIDL_SOURCES += [ 'nsIWebLock.idl' ]
-
-XPIDL_MODULE = 'mine'
-
