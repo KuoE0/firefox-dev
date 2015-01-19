@@ -12,5 +12,6 @@ interface nsIWebLock : nsISupports
 	void addSite(in AString url);
 	void removeSite(in AString url);
 	readonly attribute nsIMutableArray sites;
+	readonly attribute boolean stat;
 };
 

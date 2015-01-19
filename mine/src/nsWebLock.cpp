@@ -13,7 +13,7 @@
 
 NS_IMPL_ISUPPORTS(nsWebLock, nsIWebLock)
 
-nsWebLock::nsWebLock() {}
+nsWebLock::nsWebLock() :mLocked(false) {}
 
 nsWebLock::~nsWebLock() {}
 
@@ -73,3 +73,11 @@ nsWebLock::GetSites(nsIMutableArray **aSites)
   NS_ADDREF(*aSites);
   return NS_OK;
 }
+
+NS_IMETHODIMP
+nsWebLock::GetStat(bool *aStat)
+{
+	*aStat = (bool)mLocked;
+	return NS_OK;
+}
+
