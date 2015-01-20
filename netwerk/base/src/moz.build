@@ -76,7 +76,6 @@ UNIFIED_SOURCES += [
     'nsURIChecker.cpp',
     'nsURLHelper.cpp',
     'nsURLParsers.cpp',
-    'nsWebLock.cpp',
     'OfflineObserver.cpp',
     'Predictor.cpp',
     'ProxyAutoConfig.cpp',
