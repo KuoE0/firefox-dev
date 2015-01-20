@@ -49,6 +49,7 @@ GeckoSimplePrograms([
 CppUnitTests([
     'TestBind',
     'TestCookie',
+    'TestJSWebLock',
     'TestSample2',
     'TestSTSParser',
     'TestUDPSocket',
