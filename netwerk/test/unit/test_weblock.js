@@ -47,6 +47,7 @@ function run_test() {
 	}
 	catch (e) {
 		dump(e);
+		ok(false);
 	}
 
 	ok(true);
