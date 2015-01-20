@@ -45,8 +45,5 @@ nsWebLock.prototype = {
 	get stat() { return this.mLock; },
 };
 
-if (XPCOMUtils.generateNSGetFactory)
-    this.NSGetFactory = XPCOMUtils.generateNSGetFactory([nsWebLock]);
-else
-    var NSGetModule = XPCOMUtils.generateNSGetModule([nsWebLock]);
+this.NSGetFactory = XPCOMUtils.generateNSGetFactory([nsWebLock]);
 
