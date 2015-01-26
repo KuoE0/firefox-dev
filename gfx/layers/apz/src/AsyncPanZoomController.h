@@ -20,6 +20,7 @@
 #include "InputData.h"
 #include "Axis.h"
 #include "InputQueue.h"
+#include "APZUtils.h"
 #include "LayersTypes.h"
 #include "TaskThrottler.h"
 #include "mozilla/gfx/Matrix.h"
@@ -218,6 +219,12 @@ public:
   ViewTransform GetCurrentAsyncTransform() const;
 
   /**
+   * Returns the same transform as GetCurrentAsyncTransform(), but includes
+   * any transform due to axis over-scroll.
+   */
+  Matrix4x4 GetCurrentAsyncTransformWithOverscroll() const;
+
+  /**
    * Returns the transform to take something from the coordinate space of the
    * last thing we know gecko painted, to the coordinate space of the last thing
    * we asked gecko to paint. In cases where that last request has not yet been
@@ -253,9 +260,9 @@ public:
 
   /**
    * Handler for events which should not be intercepted by the touch listener.
-   * Does the work for ReceiveInputEvent().
    */
-  nsEventStatus HandleInputEvent(const InputData& aEvent);
+  nsEventStatus HandleInputEvent(const InputData& aEvent,
+                                 const Matrix4x4& aTransformToApzc);
 
   /**
    * Handler for gesture events.
@@ -285,8 +292,10 @@ public:
 
   /**
    * Cancels any currently running animation.
+   * aFlags is a bit-field to provide specifics of how to cancel the animation.
+   * See CancelAnimationFlags.
    */
-  void CancelAnimation();
+  void CancelAnimation(CancelAnimationFlags aFlags = Default);
 
   /**
    * Clear any overscroll on this APZC.
@@ -327,6 +336,14 @@ public:
    * only one touch.
    */
   int32_t GetLastTouchIdentifier() const;
+
+  /**
+   * Returns the matrix that transforms points from global screen space into
+   * this APZC's ParentLayer space.
+   * To respect the lock ordering, mMonitor must NOT be held when calling
+   * this function (since this function acquires the tree lock).
+   */
+  Matrix4x4 GetTransformToThis() const;
 
   /**
    * Convert the vector |aVector|, rooted at the point |aAnchor|, from

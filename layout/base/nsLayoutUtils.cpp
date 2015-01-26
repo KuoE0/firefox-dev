@@ -2818,7 +2818,7 @@ CalculateFrameMetricsForDisplayPort(nsIScrollableFrame* aScrollFrame) {
 
   LayerToParentLayerScale layerToParentLayerScale(1.0f);
   metrics.SetDevPixelsPerCSSPixel(deviceScale);
-  metrics.mPresShellResolution = resolution;
+  metrics.SetPresShellResolution(resolution);
   metrics.SetCumulativeResolution(cumulativeResolution);
   metrics.SetZoom(deviceScale * cumulativeResolution * layerToParentLayerScale);
 
@@ -3239,9 +3239,8 @@ nsLayoutUtils::PaintFrame(nsRenderingContext* aRenderingContext, nsIFrame* aFram
       widget->UpdateOpaqueRegion(
         opaqueRegion.ToNearestPixels(presContext->AppUnitsPerDevPixel()));
 
-      const nsRegion& draggingRegion = builder.GetWindowDraggingRegion();
-      widget->UpdateWindowDraggingRegion(
-        draggingRegion.ToNearestPixels(presContext->AppUnitsPerDevPixel()));
+      const nsIntRegion& draggingRegion = builder.GetWindowDraggingRegion();
+      widget->UpdateWindowDraggingRegion(draggingRegion);
     }
   }
 
@@ -7796,8 +7795,7 @@ nsLayoutUtils::IsOutlineStyleAutoEnabled()
 /* static */ void
 nsLayoutUtils::SetBSizeFromFontMetrics(const nsIFrame* aFrame,
                                        nsHTMLReflowMetrics& aMetrics,
-                                       const nsHTMLReflowState& aReflowState,
-                                       LogicalMargin aFramePadding, 
+                                       const LogicalMargin& aFramePadding,
                                        WritingMode aLineWM,
                                        WritingMode aFrameWM)
 {
@@ -7825,6 +7823,5 @@ nsLayoutUtils::SetBSizeFromFontMetrics(const nsIFrame* aFrame,
   }
   aMetrics.SetBlockStartAscent(aMetrics.BlockStartAscent() +
                                aFramePadding.BStart(aFrameWM));
-  aMetrics.BSize(aLineWM) +=
-    aReflowState.ComputedLogicalBorderPadding().BStartEnd(aFrameWM);
+  aMetrics.BSize(aLineWM) += aFramePadding.BStartEnd(aFrameWM);
 }

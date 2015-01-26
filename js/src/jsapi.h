@@ -1042,6 +1042,19 @@ JS_GetEmptyStringValue(JSContext *cx);
 extern JS_PUBLIC_API(JSString *)
 JS_GetEmptyString(JSRuntime *rt);
 
+struct CompartmentTimeStats {
+    char compartmentName[1024];
+    JSAddonId *addonId;
+    JSCompartment *compartment;
+    uint64_t time;  // microseconds
+    uint64_t cpowTime; // microseconds
+};
+
+typedef js::Vector<CompartmentTimeStats, 0, js::SystemAllocPolicy> CompartmentStatsVector;
+
+extern JS_PUBLIC_API(bool)
+JS_GetCompartmentStats(JSRuntime *rt, CompartmentStatsVector &stats);
+
 /*
  * Format is a string of the following characters (spaces are insignificant),
  * specifying the tabulated type conversions:
@@ -1186,7 +1199,8 @@ ToObject(JSContext *cx, HandleValue vp)
  * as a fallback.
  */
 extern JS_PUBLIC_API(bool)
-OrdinaryToPrimitive(JSContext *cx, HandleObject obj, JSType type, MutableHandleValue vp);
+OrdinaryToPrimitive(JSContext *cx, JS::HandleObject obj, JSType type,
+                    JS::MutableHandleValue vp);
 
 } /* namespace JS */
 
@@ -1982,83 +1996,6 @@ JS_strdup(JSContext *cx, const char *s);
 extern JS_PUBLIC_API(char *)
 JS_strdup(JSRuntime *rt, const char *s);
 
-namespace JS {
-
-/*
- * A GC root is a pointer to a jsval, JSObject * or JSString * that itself
- * points into the GC heap. JS_AddValueRoot takes a pointer to a jsval and
- * JS_AddGCThingRoot takes a pointer to a JSObject * or JString *.
- *
- * Note that, since JS_Add*Root stores the address of a variable (of type
- * jsval, JSString *, or JSObject *), that variable must live until
- * JS_Remove*Root is called to remove that variable. For example, after:
- *
- *   void some_function() {
- *     jsval v;
- *     JS_AddNamedValueRoot(cx, &v, "name");
- *
- * the caller must perform
- *
- *     JS_RemoveValueRoot(cx, &v);
- *
- * before some_function() returns.
- *
- * Also, use JS_AddNamed*Root(cx, &structPtr->memberObj, "structPtr->memberObj")
- * in preference to JS_Add*Root(cx, &structPtr->memberObj), in order to identify
- * roots by their source callsites.  This way, you can find the callsite while
- * debugging if you should fail to do JS_Remove*Root(cx, &structPtr->memberObj)
- * before freeing structPtr's memory.
- */
-extern JS_PUBLIC_API(bool)
-AddValueRoot(JSContext *cx, JS::Heap<JS::Value> *vp);
-
-extern JS_PUBLIC_API(bool)
-AddStringRoot(JSContext *cx, JS::Heap<JSString *> *rp);
-
-extern JS_PUBLIC_API(bool)
-AddObjectRoot(JSContext *cx, JS::Heap<JSObject *> *rp);
-
-extern JS_PUBLIC_API(bool)
-AddNamedValueRoot(JSContext *cx, JS::Heap<JS::Value> *vp, const char *name);
-
-extern JS_PUBLIC_API(bool)
-AddNamedValueRootRT(JSRuntime *rt, JS::Heap<JS::Value> *vp, const char *name);
-
-extern JS_PUBLIC_API(bool)
-AddNamedStringRoot(JSContext *cx, JS::Heap<JSString *> *rp, const char *name);
-
-extern JS_PUBLIC_API(bool)
-AddNamedObjectRoot(JSContext *cx, JS::Heap<JSObject *> *rp, const char *name);
-
-extern JS_PUBLIC_API(bool)
-AddNamedScriptRoot(JSContext *cx, JS::Heap<JSScript *> *rp, const char *name);
-
-extern JS_PUBLIC_API(void)
-RemoveValueRoot(JSContext *cx, JS::Heap<JS::Value> *vp);
-
-extern JS_PUBLIC_API(void)
-RemoveStringRoot(JSContext *cx, JS::Heap<JSString *> *rp);
-
-extern JS_PUBLIC_API(void)
-RemoveObjectRoot(JSContext *cx, JS::Heap<JSObject *> *rp);
-
-extern JS_PUBLIC_API(void)
-RemoveScriptRoot(JSContext *cx, JS::Heap<JSScript *> *rp);
-
-extern JS_PUBLIC_API(void)
-RemoveValueRootRT(JSRuntime *rt, JS::Heap<JS::Value> *vp);
-
-extern JS_PUBLIC_API(void)
-RemoveStringRootRT(JSRuntime *rt, JS::Heap<JSString *> *rp);
-
-extern JS_PUBLIC_API(void)
-RemoveObjectRootRT(JSRuntime *rt, JS::Heap<JSObject *> *rp);
-
-extern JS_PUBLIC_API(void)
-RemoveScriptRootRT(JSRuntime *rt, JS::Heap<JSScript *> *rp);
-
-} /* namespace JS */
-
 /*
  * Register externally maintained GC roots.
  *
@@ -2072,29 +2009,6 @@ JS_AddExtraGCRootsTracer(JSRuntime *rt, JSTraceDataOp traceOp, void *data);
 /* Undo a call to JS_AddExtraGCRootsTracer. */
 extern JS_PUBLIC_API(void)
 JS_RemoveExtraGCRootsTracer(JSRuntime *rt, JSTraceDataOp traceOp, void *data);
-
-#ifdef JS_DEBUG
-
-/*
- * Debug-only method to dump the object graph of heap-allocated things.
- *
- * fp:              file for the dump output.
- * start:           when non-null, dump only things reachable from start
- *                  thing. Otherwise dump all things reachable from the
- *                  runtime roots.
- * startKind:       trace kind of start if start is not null. Must be
- *                  JSTRACE_OBJECT when start is null.
- * thingToFind:     dump only paths in the object graph leading to thingToFind
- *                  when non-null.
- * maxDepth:        the upper bound on the number of edges to descend from the
- *                  graph roots.
- * thingToIgnore:   thing to ignore during the graph traversal when non-null.
- */
-extern JS_PUBLIC_API(bool)
-JS_DumpHeap(JSRuntime *rt, FILE *fp, void* startThing, JSGCTraceKind kind,
-            void *thingToFind, size_t maxDepth, void *thingToIgnore);
-
-#endif
 
 /*
  * Garbage collector API.
@@ -2386,17 +2300,6 @@ JS_PropertyStub(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
 extern JS_PUBLIC_API(bool)
 JS_StrictPropertyStub(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool strict,
                       JS::MutableHandleValue vp);
-
-#if defined(__GNUC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 4
-/*
- * This is here because GCC 4.4 for Android ICS can't compile the JS engine
- * without it. The function is unused, but if you delete it, we'll trigger a
- * compiler bug. When we no longer support ICS, this can be deleted.
- * See bug 1103152.
- */
-extern JS_PUBLIC_API(bool)
-JS_ResolveStub(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp);
-#endif  /* GCC 4.4 */
 
 template<typename T>
 struct JSConstScalarSpec {
@@ -2889,6 +2792,10 @@ JS_GetObjectRuntime(JSObject *obj);
 extern JS_PUBLIC_API(JSObject *)
 JS_NewObjectWithGivenProto(JSContext *cx, const JSClass *clasp, JS::Handle<JSObject*> proto,
                            JS::Handle<JSObject*> parent);
+
+// Creates a new plain object, like `new Object()`, with Object.prototype as [[Prototype]].
+extern JS_PUBLIC_API(JSObject *)
+JS_NewPlainObject(JSContext *cx);
 
 /*
  * Freeze obj, and all objects it refers to, recursively. This will not recurse

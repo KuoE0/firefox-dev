@@ -1029,14 +1029,16 @@ AsyncPanZoomController::ArePointerEventsConsumable(TouchBlockState* aBlock, uint
   return true;
 }
 
-nsEventStatus AsyncPanZoomController::HandleInputEvent(const InputData& aEvent) {
+nsEventStatus AsyncPanZoomController::HandleInputEvent(const InputData& aEvent,
+                                                       const Matrix4x4& aTransformToApzc) {
   AssertOnControllerThread();
 
   nsEventStatus rv = nsEventStatus_eIgnore;
 
   switch (aEvent.mInputType) {
   case MULTITOUCH_INPUT: {
-    const MultiTouchInput& multiTouchInput = aEvent.AsMultiTouchInput();
+    MultiTouchInput multiTouchInput = aEvent.AsMultiTouchInput();
+    multiTouchInput.TransformToLocal(aTransformToApzc);
 
     nsRefPtr<GestureEventListener> listener = GetGestureEventListener();
     if (listener) {
@@ -1056,7 +1058,9 @@ nsEventStatus AsyncPanZoomController::HandleInputEvent(const InputData& aEvent) 
     break;
   }
   case PANGESTURE_INPUT: {
-    const PanGestureInput& panGestureInput = aEvent.AsPanGestureInput();
+    PanGestureInput panGestureInput = aEvent.AsPanGestureInput();
+    panGestureInput.TransformToLocal(aTransformToApzc);
+
     switch (panGestureInput.mType) {
       case PanGestureInput::PANGESTURE_MAYSTART: rv = OnPanMayBegin(panGestureInput); break;
       case PanGestureInput::PANGESTURE_CANCELLED: rv = OnPanCancelled(panGestureInput); break;
@@ -1071,11 +1075,27 @@ nsEventStatus AsyncPanZoomController::HandleInputEvent(const InputData& aEvent) 
     break;
   }
   case SCROLLWHEEL_INPUT: {
-    const ScrollWheelInput& scrollInput = aEvent.AsScrollWheelInput();
+    ScrollWheelInput scrollInput = aEvent.AsScrollWheelInput();
+    scrollInput.TransformToLocal(aTransformToApzc);
+
     rv = OnScrollWheel(scrollInput);
     break;
   }
-  default: return HandleGestureEvent(aEvent);
+  case PINCHGESTURE_INPUT: {
+    PinchGestureInput pinchInput = aEvent.AsPinchGestureInput();
+    pinchInput.TransformToLocal(aTransformToApzc);
+
+    rv = HandleGestureEvent(pinchInput);
+    break;
+  }
+  case TAPGESTURE_INPUT: {
+    TapGestureInput tapInput = aEvent.AsTapGestureInput();
+    tapInput.TransformToLocal(aTransformToApzc);
+
+    rv = HandleGestureEvent(tapInput);
+    break;
+  }
+  default: NS_WARNING("Unhandled input event type"); break;
   }
 
   return rv;
@@ -1126,7 +1146,8 @@ nsEventStatus AsyncPanZoomController::OnTouchStart(const MultiTouchInput& aEvent
     case FLING:
     case ANIMATING_ZOOM:
     case SMOOTH_SCROLL:
-      CurrentTouchBlock()->GetOverscrollHandoffChain()->CancelAnimations();
+    case OVERSCROLL_ANIMATION:
+      CurrentTouchBlock()->GetOverscrollHandoffChain()->CancelAnimations(ExcludeOverscroll);
       // Fall through.
     case NOTHING: {
       mX.StartTouch(point.x, aEvent.mTime);
@@ -1206,8 +1227,8 @@ nsEventStatus AsyncPanZoomController::OnTouchMove(const MultiTouchInput& aEvent)
 
     case OVERSCROLL_ANIMATION:
       // Should not receive a touch-move in the OVERSCROLL_ANIMATION state
-      // as touch blocks that begin in an overscrolled state
-      // are ignored.
+      // as touch blocks that begin in an overscrolled state cancel the
+      // animation.
       NS_WARNING("Received impossible touch in OnTouchMove");
       break;
   }
@@ -1249,7 +1270,11 @@ nsEventStatus AsyncPanZoomController::OnTouchEnd(const MultiTouchInput& aEvent) 
     // that were not big enough to trigger scrolling. Clear that out.
     mX.SetVelocity(0);
     mY.SetVelocity(0);
-    SetState(NOTHING);
+    // It's possible we may be overscrolled if the user tapped during a
+    // previous overscroll pan. Make sure to snap back in this situation.
+    if (!SnapBackIfOverscrolled()) {
+      SetState(NOTHING);
+    }
     return nsEventStatus_eIgnore;
 
   case PANNING:
@@ -1290,9 +1315,9 @@ nsEventStatus AsyncPanZoomController::OnTouchEnd(const MultiTouchInput& aEvent) 
     return nsEventStatus_eIgnore;
 
   case OVERSCROLL_ANIMATION:
-    // Should not receive a touch-move in the OVERSCROLL_ANIMATION state
-    // as touch blocks that begin in an overscrolled state
-    // are ignored.
+    // Should not receive a touch-end in the OVERSCROLL_ANIMATION state
+    // as touch blocks that begin in an overscrolled state cancel the
+    // animation.
     NS_WARNING("Received impossible touch in OnTouchEnd");
     break;
   }
@@ -1757,22 +1782,21 @@ nsEventStatus AsyncPanZoomController::OnCancelTap(const TapGestureInput& aEvent)
 }
 
 
+Matrix4x4 AsyncPanZoomController::GetTransformToThis() const {
+  if (APZCTreeManager* treeManagerLocal = GetApzcTreeManager()) {
+    return treeManagerLocal->GetScreenToApzcTransform(this);
+  }
+  return Matrix4x4();
+}
+
 ScreenPoint AsyncPanZoomController::ToScreenCoordinates(const ParentLayerPoint& aVector,
                                                         const ParentLayerPoint& aAnchor) const {
-  if (APZCTreeManager* treeManagerLocal = GetApzcTreeManager()) {
-    Matrix4x4 apzcToScreen = treeManagerLocal->GetScreenToApzcTransform(this).Inverse();
-    return TransformVector<ScreenPixel>(apzcToScreen, aVector, aAnchor);
-  }
-  return ViewAs<ScreenPixel>(aVector, PixelCastJustification::TransformNotAvailable);
+  return TransformVector<ScreenPixel>(GetTransformToThis().Inverse(), aVector, aAnchor);
 }
 
 ParentLayerPoint AsyncPanZoomController::ToParentLayerCoordinates(const ScreenPoint& aVector,
                                                                   const ScreenPoint& aAnchor) const {
-  if (APZCTreeManager* treeManagerLocal = GetApzcTreeManager()) {
-    Matrix4x4 transform = treeManagerLocal->GetScreenToApzcTransform(this);
-    return TransformVector<ParentLayerPixel>(transform, aVector, aAnchor);
-  }
-  return ViewAs<ParentLayerPixel>(aVector, PixelCastJustification::TransformNotAvailable);
+  return TransformVector<ParentLayerPixel>(GetTransformToThis(), aVector, aAnchor);
 }
 
 ScreenCoord AsyncPanZoomController::PanDistance() const {
@@ -2145,7 +2169,7 @@ void AsyncPanZoomController::StartAnimation(AsyncPanZoomAnimation* aAnimation)
   ScheduleComposite();
 }
 
-void AsyncPanZoomController::CancelAnimation() {
+void AsyncPanZoomController::CancelAnimation(CancelAnimationFlags aFlags) {
   ReentrantMonitorAutoEnter lock(mMonitor);
   APZC_LOG("%p running CancelAnimation in state %d\n", this, mState);
   SetState(NOTHING);
@@ -2157,7 +2181,7 @@ void AsyncPanZoomController::CancelAnimation() {
   // Setting the state to nothing and cancelling the animation can
   // preempt normal mechanisms for relieving overscroll, so we need to clear
   // overscroll here.
-  if (mX.IsOverscrolled() || mY.IsOverscrolled()) {
+  if (!(aFlags & ExcludeOverscroll) && IsOverscrolled()) {
     ClearOverscroll();
     RequestContentRepaint();
     ScheduleComposite();
@@ -2494,30 +2518,19 @@ Matrix4x4 AsyncPanZoomController::GetOverscrollTransform() const {
   float scaleX = 1 + kStretchFactor * fabsf(mX.GetOverscroll()) / mX.GetCompositionLength();
   float scaleY = 1 + kStretchFactor * fabsf(mY.GetOverscroll()) / mY.GetCompositionLength();
 
-  // If an axis is in underscroll, the interpretation of its overscroll
-  // amount changes: instead of stretching along that axis, we compress.
-  if (mX.IsInUnderscroll()) {
-    scaleX = 1 / scaleX;
-  }
-  if (mY.IsInUnderscroll()) {
-    scaleY = 1 / scaleY;
-  }
-
   // The scale is applied relative to the origin of the composition bounds, i.e.
   // it keeps the top-left corner of the content in place. This is fine if we
   // are overscrolling at the top or on the left, but if we are overscrolling
   // at the bottom or on the right, we want the bottom or right edge of the
   // content to stay in place instead, so we add a translation to compensate.
   ParentLayerPoint translation;
-  bool overscrolledOnRight = (mX.GetOverscroll() > 0 && !mX.IsInUnderscroll())
-                          || (mX.GetOverscroll() < 0 && mX.IsInUnderscroll());
+  bool overscrolledOnRight = mX.GetOverscroll() > 0;
   if (overscrolledOnRight) {
     ParentLayerCoord overscrolledCompositionWidth = scaleX * compositionSize.width;
     ParentLayerCoord extraCompositionWidth = overscrolledCompositionWidth - compositionSize.width;
     translation.x = -extraCompositionWidth;
   }
-  bool overscrolledAtBottom = (mY.GetOverscroll() > 0 && !mY.IsInUnderscroll())
-                           || (mY.GetOverscroll() < 0 && mY.IsInUnderscroll());
+  bool overscrolledAtBottom = mY.GetOverscroll() > 0;
   if (overscrolledAtBottom) {
     ParentLayerCoord overscrolledCompositionHeight = scaleY * compositionSize.height;
     ParentLayerCoord extraCompositionHeight = overscrolledCompositionHeight - compositionSize.height;
@@ -2645,6 +2658,10 @@ ViewTransform AsyncPanZoomController::GetCurrentAsyncTransform() const {
   return ViewTransform(mFrameMetrics.GetAsyncZoom(), -translation);
 }
 
+Matrix4x4 AsyncPanZoomController::GetCurrentAsyncTransformWithOverscroll() const {
+  return Matrix4x4(GetCurrentAsyncTransform()) * GetOverscrollTransform();
+}
+
 Matrix4x4 AsyncPanZoomController::GetTransformToLastDispatchedPaint() const {
   ReentrantMonitorAutoEnter lock(mMonitor);
 
@@ -2756,8 +2773,8 @@ void AsyncPanZoomController::NotifyLayersUpdated(const FrameMetrics& aLayerMetri
       // since the repaint request.
       float totalResolutionChange = aLayerMetrics.GetCumulativeResolution().scale
                                   / mFrameMetrics.GetCumulativeResolution().scale;
-      float presShellResolutionChange = aLayerMetrics.mPresShellResolution
-                                      / mFrameMetrics.mPresShellResolution;
+      float presShellResolutionChange = aLayerMetrics.GetPresShellResolution()
+                                      / mFrameMetrics.GetPresShellResolution();
       mFrameMetrics.ZoomBy(totalResolutionChange / presShellResolutionChange);
     } else {
       // Take the new zoom as either device scale or composition width or
@@ -2772,7 +2789,7 @@ void AsyncPanZoomController::NotifyLayersUpdated(const FrameMetrics& aLayerMetri
     }
     mFrameMetrics.mCompositionBounds = aLayerMetrics.mCompositionBounds;
     mFrameMetrics.SetRootCompositionSize(aLayerMetrics.GetRootCompositionSize());
-    mFrameMetrics.mPresShellResolution = aLayerMetrics.mPresShellResolution;
+    mFrameMetrics.SetPresShellResolution(aLayerMetrics.GetPresShellResolution());
     mFrameMetrics.SetCumulativeResolution(aLayerMetrics.GetCumulativeResolution());
     mFrameMetrics.SetHasScrollgrab(aLayerMetrics.GetHasScrollgrab());
 

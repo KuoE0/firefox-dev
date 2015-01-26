@@ -59,6 +59,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "CustomizationTabPreloader",
 XPCOMUtils.defineLazyModuleGetter(this, "PdfJs",
                                   "resource://pdf.js/PdfJs.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "ProcessHangMonitor",
+                                  "resource:///modules/ProcessHangMonitor.jsm");
+
 #ifdef NIGHTLY_BUILD
 XPCOMUtils.defineLazyModuleGetter(this, "ShumwayUtils",
                                   "resource://shumway/ShumwayUtils.jsm");
@@ -131,6 +134,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "FormValidationHandler",
 
 XPCOMUtils.defineLazyModuleGetter(this, "WebChannel",
                                   "resource://gre/modules/WebChannel.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "ReaderParent",
+                                  "resource:///modules/ReaderParent.jsm");
 
 const PREF_PLUGINS_NOTIFYUSER = "plugins.update.notifyUser";
 const PREF_PLUGINS_UPDATEURL  = "plugins.update.url";
@@ -590,6 +596,7 @@ BrowserGlue.prototype = {
     ContentPrefServiceParent.init();
 
     LoginManagerParent.init();
+    ReaderParent.init();
 
 #ifdef NIGHTLY_BUILD
     Services.prefs.addObserver(POLARIS_ENABLED, this, false);
@@ -759,6 +766,8 @@ BrowserGlue.prototype = {
       temp.WinTaskbarJumpList.startup();
     }
 #endif
+
+    ProcessHangMonitor.init();
 
     // A channel for "remote troubleshooting" code...
     let channel = new WebChannel("remote-troubleshooting", "remote-troubleshooting");
@@ -2469,19 +2478,19 @@ let DefaultBrowserCheck = {
       let promptTitle = shellBundle.getString("setDefaultBrowserTitle");
       let promptMessage = shellBundle.getFormattedString("setDefaultBrowserMessage",
                                                          [brandShortName]);
-      let dontAskLabel = shellBundle.getFormattedString("setDefaultBrowserDontAsk",
-                                                        [brandShortName]);
+      let askLabel = shellBundle.getFormattedString("setDefaultBrowserDontAsk",
+                                                    [brandShortName]);
 
       let ps = Services.prompt;
-      let dontAsk = { value: false };
+      let shouldAsk = { value: true };
       let buttonFlags = (ps.BUTTON_TITLE_IS_STRING * ps.BUTTON_POS_0) +
                         (ps.BUTTON_TITLE_IS_STRING * ps.BUTTON_POS_1) +
                         ps.BUTTON_POS_0_DEFAULT;
       let rv = ps.confirmEx(win, promptTitle, promptMessage, buttonFlags,
-                            yesButton, notNowButton, null, dontAskLabel, dontAsk);
+                            yesButton, notNowButton, null, askLabel, shouldAsk);
       if (rv == 0) {
         this.setAsDefault();
-      } else if (dontAsk.value) {
+      } else if (!shouldAsk.value) {
         ShellService.shouldCheckDefaultBrowser = false;
       }
     }
@@ -2502,7 +2511,7 @@ let DefaultBrowserCheck = {
 let E10SUINotification = {
   // Increase this number each time we want to roll out an
   // e10s testing period to Nightly users.
-  CURRENT_NOTICE_COUNT: 3,
+  CURRENT_NOTICE_COUNT: 4,
   CURRENT_PROMPT_PREF: "browser.displayedE10SPrompt.1",
   PREVIOUS_PROMPT_PREF: "browser.displayedE10SPrompt",
 
@@ -2531,7 +2540,8 @@ let E10SUINotification = {
       // e10s doesn't work with accessibility, so we prompt to disable
       // e10s if a11y is enabled, now or in the future.
       Services.obs.addObserver(this, "a11y-init-or-shutdown", true);
-      if (Services.appinfo.accessibilityEnabled) {
+      if (Services.appinfo.accessibilityEnabled &&
+          !Services.appinfo.accessibilityIsUIA) {
         this._showE10sAccessibilityWarning();
       }
     } else {

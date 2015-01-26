@@ -10,6 +10,7 @@
 #include "nsThreadUtils.h"
 #include "mozilla/MouseEvents.h"
 #include "mozilla/TouchEvents.h"
+#include "UnitTransforms.h"
 
 namespace mozilla {
 
@@ -157,6 +158,17 @@ MultiTouchInput::ToWidgetMouseEvent(nsIWidget* aWidget) const
   return event;
 }
 
+int32_t
+MultiTouchInput::IndexOfTouch(int32_t aTouchIdentifier)
+{
+  for (size_t i = 0; i < mTouches.Length(); i++) {
+    if (mTouches[i].mIdentifier == aTouchIdentifier) {
+      return (int32_t)i;
+    }
+  }
+  return -1;
+}
+
 // This conversion from WidgetMouseEvent to MultiTouchInput is needed because on
 // the B2G emulator we can only receive mouse events, but we need to be able
 // to pan correctly. To do this, we convert the events into a format that the
@@ -199,4 +211,38 @@ MultiTouchInput::MultiTouchInput(const WidgetMouseEvent& aMouseEvent)
                                          180.0f,
                                          1.0f));
 }
+
+void
+MultiTouchInput::TransformToLocal(const gfx::Matrix4x4& aTransform)
+{
+  for (size_t i = 0; i < mTouches.Length(); i++) {
+    mTouches[i].mLocalScreenPoint = TransformTo<ParentLayerPixel>(aTransform, ScreenPoint(mTouches[i].mScreenPoint));
+  }
 }
+
+void
+PanGestureInput::TransformToLocal(const gfx::Matrix4x4& aTransform)
+{
+  mLocalPanStartPoint = TransformTo<ParentLayerPixel>(aTransform, mPanStartPoint);
+  mLocalPanDisplacement = TransformVector<ParentLayerPixel>(aTransform, mPanDisplacement, mPanStartPoint);
+}
+
+void
+PinchGestureInput::TransformToLocal(const gfx::Matrix4x4& aTransform)
+{
+  mLocalFocusPoint = TransformTo<ParentLayerPixel>(aTransform, mFocusPoint);
+}
+
+void
+TapGestureInput::TransformToLocal(const gfx::Matrix4x4& aTransform)
+{
+  mLocalPoint = TransformTo<ParentLayerPixel>(aTransform, mPoint);
+}
+
+void
+ScrollWheelInput::TransformToLocal(const gfx::Matrix4x4& aTransform)
+{
+  mLocalOrigin = TransformTo<ParentLayerPixel>(aTransform, mOrigin);
+}
+
+} // namespace mozilla

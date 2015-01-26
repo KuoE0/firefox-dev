@@ -23,7 +23,7 @@ Zone * const Zone::NotOnList = reinterpret_cast<Zone *>(1);
 
 JS::Zone::Zone(JSRuntime *rt)
   : JS::shadow::Zone(rt, &rt->gc.marker),
-    allocator(this),
+    arenas(rt),
     types(this),
     compartments(),
     gcGrayRoots(),
@@ -316,7 +316,8 @@ ZoneList::check() const
 #endif
 }
 
-bool ZoneList::isEmpty() const
+bool
+ZoneList::isEmpty() const
 {
     return head == nullptr;
 }

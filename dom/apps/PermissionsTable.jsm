@@ -306,15 +306,6 @@ this.PermissionsTable =  { geolocation: {
                              privileged: ALLOW_ACTION,
                              certified: ALLOW_ACTION
                            },
-                           "storage": {
-                             app: ALLOW_ACTION,
-                             trusted: ALLOW_ACTION,
-                             privileged: ALLOW_ACTION,
-                             certified: ALLOW_ACTION,
-                             substitute: [
-                               "indexedDB-unlimited"
-                             ]
-                           },
                            "background-sensors": {
                              app: DENY_ACTION,
                              trusted: DENY_ACTION,
@@ -505,7 +496,7 @@ this.PermissionsTable =  { geolocation: {
                            "settings:wallpaper.image": {
                              app: DENY_ACTION,
                              trusted: DENY_ACTION,
-                             privileged: PROMPT_ACTION,
+                             privileged: ALLOW_ACTION,
                              certified: ALLOW_ACTION,
                              access: ["read", "write"],
                              additional: ["settings-api"]
@@ -523,6 +514,12 @@ this.PermissionsTable =  { geolocation: {
                              certified: ALLOW_ACTION
                            },
                            "before-after-keyboard-event": {
+                             app: DENY_ACTION,
+                             trusted: DENY_ACTION,
+                             privileged: DENY_ACTION,
+                             certified: ALLOW_ACTION
+                           },
+                           "presentation-device-manage": {
                              app: DENY_ACTION,
                              trusted: DENY_ACTION,
                              privileged: DENY_ACTION,

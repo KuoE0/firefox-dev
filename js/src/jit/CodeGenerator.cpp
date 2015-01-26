@@ -38,7 +38,6 @@
 
 #include "jsboolinlines.h"
 
-#include "jit/ExecutionMode-inl.h"
 #include "jit/shared/CodeGenerator-shared-inl.h"
 #include "vm/Interpreter-inl.h"
 
@@ -723,9 +722,14 @@ CodeGenerator::visitFunctionDispatch(LFunctionDispatch *lir)
     // Compare function pointers, except for the last case.
     for (size_t i = 0; i < casesWithFallback - 1; i++) {
         MOZ_ASSERT(i < mir->numCases());
-        JSFunction *func = mir->getCase(i);
         LBlock *target = skipTrivialBlocks(mir->getCaseBlock(i))->lir();
-        masm.branchPtr(Assembler::Equal, input, ImmGCPtr(func), target->label());
+        if (types::TypeObject *funcType = mir->getCaseTypeObject(i)) {
+            masm.branchPtr(Assembler::Equal, Address(input, JSObject::offsetOfType()),
+                           ImmGCPtr(funcType), target->label());
+        } else {
+            JSFunction *func = mir->getCase(i);
+            masm.branchPtr(Assembler::Equal, input, ImmGCPtr(func), target->label());
+        }
     }
 
     // Jump to the last case.
@@ -1188,17 +1192,17 @@ CreateDependentString(MacroAssembler &masm, const JSAtomState &names,
     masm.branch32(Assembler::Above, temp1, Imm32(maxInlineLength), &notInline);
 
     {
-        // Make a normal or fat inline string.
+        // Make a thin or fat inline string.
         Label stringAllocated, fatInline;
 
-        int32_t maxNormalInlineLength = latin1
-                                        ? (int32_t) JSInlineString::MAX_LENGTH_LATIN1
-                                        : (int32_t) JSInlineString::MAX_LENGTH_TWO_BYTE;
-        masm.branch32(Assembler::Above, temp1, Imm32(maxNormalInlineLength), &fatInline);
+        int32_t maxThinInlineLength = latin1
+                                      ? (int32_t) JSThinInlineString::MAX_LENGTH_LATIN1
+                                      : (int32_t) JSThinInlineString::MAX_LENGTH_TWO_BYTE;
+        masm.branch32(Assembler::Above, temp1, Imm32(maxThinInlineLength), &fatInline);
 
-        int32_t normalFlags = (latin1 ? JSString::LATIN1_CHARS_BIT : 0) | JSString::INIT_INLINE_FLAGS;
+        int32_t thinFlags = (latin1 ? JSString::LATIN1_CHARS_BIT : 0) | JSString::INIT_THIN_INLINE_FLAGS;
         masm.newGCString(string, temp2, failure);
-        masm.store32(Imm32(normalFlags), Address(string, JSString::offsetOfFlags()));
+        masm.store32(Imm32(thinFlags), Address(string, JSString::offsetOfFlags()));
         masm.jump(&stringAllocated);
 
         masm.bind(&fatInline);
@@ -1982,6 +1986,8 @@ CodeGenerator::visitReturn(LReturn *lir)
 void
 CodeGenerator::visitOsrEntry(LOsrEntry *lir)
 {
+    Register temp = ToRegister(lir->temp());
+
     // Remember the OSR entry offset into the code buffer.
     masm.flushBuffer();
     setOsrEntryOffset(masm.size());
@@ -1990,6 +1996,10 @@ CodeGenerator::visitOsrEntry(LOsrEntry *lir)
     emitTracelogStopEvent(TraceLogger_Baseline);
     emitTracelogStartEvent(TraceLogger_IonMonkey);
 #endif
+
+    // If profiling, save the current frame pointer to a per-thread global field.
+    if (isProfilerInstrumentationEnabled())
+        masm.profilerEnterFrame(StackPointer, temp);
 
     // Allocate the full frame for this function
     // Note we have a new entry here. So we reset MacroAssembler::framePushed()
@@ -2066,10 +2076,6 @@ CodeGenerator::visitStackArgT(LStackArgT *lir)
         masm.storeValue(ValueTypeFromMIRType(argType), ToRegister(arg), dest);
     else
         masm.storeValue(*(arg->toConstant()), dest);
-
-    uint32_t slot = StackOffsetToSlot(stack_offset);
-    MOZ_ASSERT(slot - 1u < graph.totalSlotCount());
-    masm.propagateOOM(pushedArgumentSlots_.append(slot));
 }
 
 void
@@ -2082,10 +2088,6 @@ CodeGenerator::visitStackArgV(LStackArgV *lir)
     int32_t stack_offset = StackOffsetOfPassedArg(argslot);
 
     masm.storeValue(val, Address(StackPointer, stack_offset));
-
-    uint32_t slot = StackOffsetToSlot(stack_offset);
-    MOZ_ASSERT(slot - 1u < graph.totalSlotCount());
-    masm.propagateOOM(pushedArgumentSlots_.append(slot));
 }
 
 void
@@ -2654,8 +2656,6 @@ CodeGenerator::visitCallNative(LCallNative *call)
     // Move the StackPointer back to its original location, unwinding the native exit frame.
     masm.adjustStack(NativeExitFrameLayout::Size() - unusedStack);
     MOZ_ASSERT(masm.framePushed() == initialStack);
-
-    dropArguments(call->numStackArgs() + 1);
 }
 
 static void
@@ -2785,8 +2785,6 @@ CodeGenerator::visitCallDOMNative(LCallDOMNative *call)
     // Move the StackPointer back to its original location, unwinding the native exit frame.
     masm.adjustStack(IonDOMMethodExitFrameLayout::Size() - unusedStack);
     MOZ_ASSERT(masm.framePushed() == initialStack);
-
-    dropArguments(call->numStackArgs() + 1);
 }
 
 typedef bool (*GetIntrinsicValueFn)(JSContext *cx, HandlePropertyName, MutableHandleValue);
@@ -2903,8 +2901,6 @@ CodeGenerator::visitCallGeneric(LCallGeneric *call)
         masm.loadValue(Address(StackPointer, unusedStack), JSReturnOperand);
         masm.bind(&notPrimitive);
     }
-
-    dropArguments(call->numStackArgs() + 1);
 }
 
 void
@@ -2971,8 +2967,6 @@ CodeGenerator::visitCallKnown(LCallKnown *call)
         masm.loadValue(Address(StackPointer, unusedStack), JSReturnOperand);
         masm.bind(&notPrimitive);
     }
-
-    dropArguments(call->numStackArgs() + 1);
 }
 
 void
@@ -3610,6 +3604,14 @@ CodeGenerator::emitObjectOrStringResultChecks(LInstruction *lir, MDefinition *mi
         masm.jump(&ok);
 
         masm.bind(&miss);
+
+        // Type set guards might miss when an object's type changes and its
+        // properties become unknown, so check for this case.
+        masm.loadPtr(Address(output, JSObject::offsetOfType()), temp);
+        masm.branchTestPtr(Assembler::NonZero,
+                           Address(temp, types::TypeObject::offsetOfFlags()),
+                           Imm32(types::OBJECT_FLAG_UNKNOWN_PROPERTIES), &ok);
+
         masm.assumeUnreachable("MIR instruction returned object with unexpected type");
 
         masm.bind(&ok);
@@ -3640,7 +3642,7 @@ CodeGenerator::emitObjectOrStringResultChecks(LInstruction *lir, MDefinition *mi
         MOZ_CRASH();
     }
 
-    masm.callWithABINoProfiling(callee);
+    masm.callWithABI(callee);
     restoreVolatile();
 
     masm.bind(&done);
@@ -3679,6 +3681,18 @@ CodeGenerator::emitValueResultChecks(LInstruction *lir, MDefinition *mir)
         masm.jump(&ok);
 
         masm.bind(&miss);
+
+        // Type set guards might miss when an object's type changes and its
+        // properties become unknown, so check for this case.
+        Label realMiss;
+        masm.branchTestObject(Assembler::NotEqual, output, &realMiss);
+        Register payload = masm.extractObject(output, temp1);
+        masm.loadPtr(Address(payload, JSObject::offsetOfType()), temp1);
+        masm.branchTestPtr(Assembler::NonZero,
+                           Address(temp1, types::TypeObject::offsetOfFlags()),
+                           Imm32(types::OBJECT_FLAG_UNKNOWN_PROPERTIES), &ok);
+        masm.bind(&realMiss);
+
         masm.assumeUnreachable("MIR instruction returned value with unexpected type");
 
         masm.bind(&ok);
@@ -3694,7 +3708,7 @@ CodeGenerator::emitValueResultChecks(LInstruction *lir, MDefinition *mir)
     masm.loadJSContext(temp2);
     masm.passABIArg(temp2);
     masm.passABIArg(temp1);
-    masm.callWithABINoProfiling(JS_FUNC_TO_DATA_PTR(void *, AssertValidValue));
+    masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, AssertValidValue));
     masm.popValue(output);
     restoreVolatile();
 
@@ -3789,11 +3803,6 @@ CodeGenerator::generateBody()
             if (counts)
                 blockCounts->visitInstruction(*iter);
 
-            if (iter->safepoint() && pushedArgumentSlots_.length()) {
-                if (!markArgumentSlots(iter->safepoint()))
-                    return false;
-            }
-
 #ifdef CHECK_OSIPOINT_REGISTERS
             if (iter->safepoint())
                 resetOsiPointRegs(iter->safepoint());
@@ -3822,7 +3831,6 @@ CodeGenerator::generateBody()
 #endif
     }
 
-    MOZ_ASSERT(pushedArgumentSlots_.empty());
     return true;
 }
 
@@ -4030,9 +4038,9 @@ class OutOfLineNewObject : public OutOfLineCodeBase<CodeGenerator>
 typedef JSObject *(*NewInitObjectFn)(JSContext *, HandlePlainObject);
 static const VMFunction NewInitObjectInfo = FunctionInfo<NewInitObjectFn>(NewInitObject);
 
-typedef JSObject *(*NewInitObjectWithClassPrototypeFn)(JSContext *, HandlePlainObject);
-static const VMFunction NewInitObjectWithClassPrototypeInfo =
-    FunctionInfo<NewInitObjectWithClassPrototypeFn>(NewInitObjectWithClassPrototype);
+typedef PlainObject *(*ObjectCreateWithTemplateFn)(JSContext *, HandlePlainObject);
+static const VMFunction ObjectCreateWithTemplateInfo =
+    FunctionInfo<ObjectCreateWithTemplateFn>(ObjectCreateWithTemplate);
 
 void
 CodeGenerator::visitNewObjectVMCall(LNewObject *lir)
@@ -4048,10 +4056,12 @@ CodeGenerator::visitNewObjectVMCall(LNewObject *lir)
     // that derives its class from its prototype instead of being
     // JSObject::class_'d) from self-hosted code, we need a different init
     // function.
-    if (lir->mir()->templateObjectIsClassPrototype())
-        callVM(NewInitObjectWithClassPrototypeInfo, lir);
-    else
+    if (lir->mir()->mode() == MNewObject::ObjectLiteral) {
         callVM(NewInitObjectInfo, lir);
+    } else {
+        MOZ_ASSERT(lir->mir()->mode() == MNewObject::ObjectCreate);
+        callVM(ObjectCreateWithTemplateInfo, lir);
+    }
 
     if (ReturnReg != objReg)
         masm.movePtr(ReturnReg, objReg);
@@ -5408,9 +5418,9 @@ CopyStringCharsMaybeInflate(MacroAssembler &masm, Register input, Register destC
 }
 
 static void
-ConcatFatInlineString(MacroAssembler &masm, Register lhs, Register rhs, Register output,
-                      Register temp1, Register temp2, Register temp3,
-                      Label *failure, Label *failurePopTemps, bool isTwoByte)
+ConcatInlineString(MacroAssembler &masm, Register lhs, Register rhs, Register output,
+                   Register temp1, Register temp2, Register temp3,
+                   Label *failure, Label *failurePopTemps, bool isTwoByte)
 {
     // State: result length in temp2.
 
@@ -5418,14 +5428,17 @@ ConcatFatInlineString(MacroAssembler &masm, Register lhs, Register rhs, Register
     masm.branchIfRope(lhs, failure);
     masm.branchIfRope(rhs, failure);
 
-    // Allocate a JSInlineString or JSFatInlineString.
-    size_t maxLengthInline = isTwoByte
-                             ? JSInlineString::MAX_LENGTH_TWO_BYTE
-                             : JSInlineString::MAX_LENGTH_LATIN1;
+    // Allocate a JSThinInlineString or JSFatInlineString.
+    size_t maxThinInlineLength;
+    if (isTwoByte)
+        maxThinInlineLength = JSThinInlineString::MAX_LENGTH_TWO_BYTE;
+    else
+        maxThinInlineLength = JSThinInlineString::MAX_LENGTH_LATIN1;
+
     Label isFat, allocDone;
-    masm.branch32(Assembler::Above, temp2, Imm32(maxLengthInline), &isFat);
+    masm.branch32(Assembler::Above, temp2, Imm32(maxThinInlineLength), &isFat);
     {
-        uint32_t flags = JSString::INIT_INLINE_FLAGS;
+        uint32_t flags = JSString::INIT_THIN_INLINE_FLAGS;
         if (!isTwoByte)
             flags |= JSString::LATIN1_CHARS_BIT;
         masm.newGCString(output, temp1, failure);
@@ -5674,12 +5687,12 @@ JitCompartment::generateStringConcatStub(JSContext *cx)
     masm.ret();
 
     masm.bind(&isFatInlineTwoByte);
-    ConcatFatInlineString(masm, lhs, rhs, output, temp1, temp2, temp3,
-                          &failure, &failurePopTemps, true);
+    ConcatInlineString(masm, lhs, rhs, output, temp1, temp2, temp3,
+                       &failure, &failurePopTemps, true);
 
     masm.bind(&isFatInlineLatin1);
-    ConcatFatInlineString(masm, lhs, rhs, output, temp1, temp2, temp3,
-                          &failure, &failurePopTemps, false);
+    ConcatInlineString(masm, lhs, rhs, output, temp1, temp2, temp3,
+                       &failure, &failurePopTemps, false);
 
     masm.bind(&failurePopTemps);
     masm.pop(temp2);
@@ -6904,9 +6917,6 @@ CodeGenerator::generateAsmJS(AsmJSFunctionLabels *labels)
 {
     JitSpew(JitSpew_Codegen, "# Emitting asm.js code");
 
-    // AsmJS doesn't do SPS instrumentation.
-    sps_.disable();
-
     if (!omitOverRecursedCheck())
         labels->overflowThunk.emplace();
 
@@ -6997,13 +7007,6 @@ CodeGenerator::generate()
 
     masm.bind(&skipPrologue);
 
-#ifdef JS_TRACE_LOGGING
-    if (!gen->compilingAsmJS()) {
-        emitTracelogScriptStart();
-        emitTracelogStartEvent(TraceLogger_IonMonkey);
-    }
-#endif
-
 #ifdef DEBUG
     // Assert that the argument types are correct.
     generateArgumentsChecks(/* bailout = */ false);
@@ -7079,13 +7082,12 @@ bool
 CodeGenerator::link(JSContext *cx, types::CompilerConstraintList *constraints)
 {
     RootedScript script(cx, gen->info().script());
-    ExecutionMode executionMode = gen->info().executionMode();
     OptimizationLevel optimizationLevel = gen->optimizationInfo().level();
 
     // We finished the new IonScript. Invalidate the current active IonScript,
     // so we can replace it with this new (probably higher optimized) version.
-    if (HasIonScript(script, executionMode)) {
-        MOZ_ASSERT(GetIonScript(script, executionMode)->isRecompiling());
+    if (script->hasIonScript()) {
+        MOZ_ASSERT(script->ionScript()->isRecompiling());
         // Do a normal invalidate, except don't cancel offThread compilations,
         // since that will cancel this compilation too.
         if (!Invalidate(cx, script, /* resetUses */ false, /* cancelOffThread*/ false))
@@ -7099,7 +7101,7 @@ CodeGenerator::link(JSContext *cx, types::CompilerConstraintList *constraints)
     // will trickle to jit::Compile() and return Method_Skipped.
     uint32_t warmUpCount = script->getWarmUpCount();
     types::RecompileInfo recompileInfo;
-    if (!types::FinishCompilation(cx, script, executionMode, constraints, &recompileInfo))
+    if (!types::FinishCompilation(cx, script, constraints, &recompileInfo))
         return true;
 
     // IonMonkey could have inferred better type information during
@@ -7109,6 +7111,7 @@ CodeGenerator::link(JSContext *cx, types::CompilerConstraintList *constraints)
     if (warmUpCount > script->getWarmUpCount())
         script->incWarmUpCounter(warmUpCount - script->getWarmUpCount());
 
+    uint32_t argumentSlots = (gen->info().nargs() + 1) * sizeof(Value);
     uint32_t scriptFrameSize = frameClass_ == FrameSizeClass::None()
                            ? frameDepth_
                            : FrameSizeClass::FromDepth(frameDepth_).frameSize();
@@ -7120,7 +7123,7 @@ CodeGenerator::link(JSContext *cx, types::CompilerConstraintList *constraints)
 
     IonScript *ionScript =
       IonScript::New(cx, recompileInfo,
-                     graph.totalSlotCount(), scriptFrameSize,
+                     graph.totalSlotCount(), argumentSlots, scriptFrameSize,
                      snapshots_.listSize(), snapshots_.RVATableSize(),
                      recovers_.size(), bailouts_.length(), graph.numConstants(),
                      safepointIndices_.length(), osiIndices_.length(),
@@ -7140,7 +7143,7 @@ CodeGenerator::link(JSContext *cx, types::CompilerConstraintList *constraints)
         return false;
 
     // Encode native to bytecode map if profiling is enabled.
-    if (isNativeToBytecodeMapEnabled()) {
+    if (isProfilerInstrumentationEnabled()) {
         // Generate native-to-bytecode main table.
         if (!generateCompactNativeToBytecodeMap(cx, code))
             return false;
@@ -7163,7 +7166,22 @@ CodeGenerator::link(JSContext *cx, types::CompilerConstraintList *constraints)
 
         // Add entry to the global table.
         JitcodeGlobalTable *globalTable = cx->runtime()->jitRuntime()->getJitcodeGlobalTable();
-        if (!globalTable->addEntry(entry)) {
+        if (!globalTable->addEntry(entry, cx->runtime())) {
+            // Memory may have been allocated for the entry.
+            entry.destroy();
+            return false;
+        }
+
+        // Mark the jitcode as having a bytecode map.
+        code->setHasBytecodeMap();
+    } else {
+        // Add a dumy jitcodeGlobalTable entry.
+        JitcodeGlobalEntry::DummyEntry entry;
+        entry.init(code->raw(), code->rawEnd());
+
+        // Add entry to the global table.
+        JitcodeGlobalTable *globalTable = cx->runtime()->jitRuntime()->getJitcodeGlobalTable();
+        if (!globalTable->addEntry(entry, cx->runtime())) {
             // Memory may have been allocated for the entry.
             entry.destroy();
             return false;
@@ -7173,27 +7191,14 @@ CodeGenerator::link(JSContext *cx, types::CompilerConstraintList *constraints)
         code->setHasBytecodeMap();
     }
 
-    if (cx->runtime()->spsProfiler.enabled()) {
-        const char *filename = script->filename();
-        if (filename == nullptr)
-            filename = "<unknown>";
-        unsigned len = strlen(filename) + 50;
-        char *buf = js_pod_malloc<char>(len);
-        if (!buf)
-            return false;
-        JS_snprintf(buf, len, "Ion compiled %s:%d", filename, (int) script->lineno());
-        cx->runtime()->spsProfiler.markEvent(buf);
-        js_free(buf);
-    }
-
     ionScript->setMethod(code);
     ionScript->setSkipArgCheckEntryOffset(getSkipArgCheckEntryOffset());
 
     // If SPS is enabled, mark IonScript as having been instrumented with SPS
-    if (sps_.enabled())
-        ionScript->setHasSPSInstrumentation();
+    if (isProfilerInstrumentationEnabled())
+        ionScript->setHasProfilingInstrumentation();
 
-    SetIonScript(cx, script, executionMode, ionScript);
+    script->setIonScript(cx, ionScript);
 
     invalidateEpilogueData_.fixup(&masm);
     Assembler::PatchDataWithValueCheck(CodeLocationLabel(code, invalidateEpilogueData_),
@@ -8875,49 +8880,6 @@ CodeGenerator::visitSetDOMProperty(LSetDOMProperty *ins)
     masm.adjustStack(IonDOMExitFrameLayout::Size());
 
     MOZ_ASSERT(masm.framePushed() == initialStack);
-}
-
-typedef bool(*SPSFn)(JSContext *, HandleScript);
-static const VMFunction SPSEnterInfo = FunctionInfo<SPSFn>(SPSEnter);
-static const VMFunction SPSExitInfo = FunctionInfo<SPSFn>(SPSExit);
-
-void
-CodeGenerator::visitProfilerStackOp(LProfilerStackOp *lir)
-{
-    Register temp = ToRegister(lir->temp()->output());
-
-    switch (lir->type()) {
-        case MProfilerStackOp::Enter:
-            if (gen->options.spsSlowAssertionsEnabled()) {
-                saveLive(lir);
-                pushArg(ImmGCPtr(lir->script()));
-                callVM(SPSEnterInfo, lir);
-                restoreLive(lir);
-                sps_.pushManual(lir->script(), masm, temp, /* inlinedFunction = */ false);
-            } else {
-                masm.propagateOOM(sps_.push(lir->script(), masm, temp,
-                                            /* inlinedFunction = */ false));
-            }
-            return;
-
-        case MProfilerStackOp::Exit:
-            if (gen->options.spsSlowAssertionsEnabled()) {
-                saveLive(lir);
-                pushArg(ImmGCPtr(lir->script()));
-                // Once we've exited, then we shouldn't emit instrumentation for
-                // the corresponding reenter() because we no longer have a
-                // frame.
-                sps_.skipNextReenter();
-                callVM(SPSExitInfo, lir);
-                restoreLive(lir);
-            } else {
-                sps_.pop(masm, temp, /* inlinedFunction = */ false);
-            }
-            return;
-
-        default:
-            MOZ_CRASH("invalid LProfilerStackOp type");
-    }
 }
 
 class OutOfLineIsCallable : public OutOfLineCodeBase<CodeGenerator>

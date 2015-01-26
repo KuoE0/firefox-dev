@@ -44,8 +44,15 @@ CodeGeneratorX86Shared::generatePrologue()
     MOZ_ASSERT(masm.framePushed() == 0);
     MOZ_ASSERT(!gen->compilingAsmJS());
 
+    // If profiling, save the current frame pointer to a per-thread global field.
+    if (isProfilerInstrumentationEnabled())
+        masm.profilerEnterFrame(StackPointer, CallTempReg0);
+
     // Note that this automatically sets MacroAssembler::framePushed().
     masm.reserveStack(frameSize());
+
+    emitTracelogIonStart();
+
     return true;
 }
 
@@ -56,16 +63,16 @@ CodeGeneratorX86Shared::generateEpilogue()
 
     masm.bind(&returnLabel_);
 
-#ifdef JS_TRACE_LOGGING
-    if (gen->info().executionMode() == SequentialExecution) {
-        emitTracelogStopEvent(TraceLogger_IonMonkey);
-        emitTracelogScriptStop();
-    }
-#endif
+    emitTracelogIonStop();
 
     // Pop the stack we allocated at the start of the function.
     masm.freeStack(frameSize());
     MOZ_ASSERT(masm.framePushed() == 0);
+
+    // If profiling, reset the per-thread global lastJitFrame to point to
+    // the previous frame.
+    if (isProfilerInstrumentationEnabled())
+        masm.profilerExitFrame();
 
     masm.ret();
     return true;

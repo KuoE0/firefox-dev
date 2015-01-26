@@ -52,14 +52,13 @@ CodeGeneratorShared::CodeGeneratorShared(MIRGenerator *gen, LIRGraph *graph, Mac
     pushedArgs_(0),
 #endif
     lastOsiPointOffset_(0),
-    safepoints_(graph->totalSlotCount()),
+    safepoints_(graph->totalSlotCount(), (gen->info().nargs() + 1) * sizeof(Value)),
     nativeToBytecodeMap_(nullptr),
     nativeToBytecodeMapSize_(0),
     nativeToBytecodeTableOffset_(0),
     nativeToBytecodeNumRegions_(0),
     nativeToBytecodeScriptList_(nullptr),
     nativeToBytecodeScriptListLength_(0),
-    sps_(&GetJitContext()->runtime->spsProfiler(), &lastNotInlinedPC_),
     osrEntryOffset_(0),
     skipArgCheckEntryOffset_(0),
 #ifdef CHECK_OSIPOINT_REGISTERS
@@ -68,8 +67,8 @@ CodeGeneratorShared::CodeGeneratorShared(MIRGenerator *gen, LIRGraph *graph, Mac
     frameDepth_(graph->paddedLocalSlotsSize() + graph->argumentsSize()),
     frameInitialAdjustment_(0)
 {
-    if (!gen->compilingAsmJS())
-        masm.setInstrumentation(&sps_);
+    if (gen->isProfilerInstrumentationEnabled())
+        masm.enableProfilingInstrumentation();
 
     if (gen->compilingAsmJS()) {
         // Since asm.js uses the system ABI which does not necessarily use a
@@ -107,7 +106,6 @@ CodeGeneratorShared::CodeGeneratorShared(MIRGenerator *gen, LIRGraph *graph, Mac
 bool
 CodeGeneratorShared::generateOutOfLineCode()
 {
-    JSScript *topScript = sps_.getPushed();
     for (size_t i = 0; i < outOfLineCode_.length(); i++) {
         // Add native => bytecode mapping entries for OOL sites.
         // Not enabled on asm.js yet since asm doesn't contain bytecode mappings.
@@ -123,16 +121,11 @@ CodeGeneratorShared::generateOutOfLineCode()
 
         masm.setFramePushed(outOfLineCode_[i]->framePushed());
         lastPC_ = outOfLineCode_[i]->pc();
-        if (!sps_.prepareForOOL())
-            return false;
-        sps_.setPushed(outOfLineCode_[i]->script());
         outOfLineCode_[i]->bind(&masm);
 
         oolIns = outOfLineCode_[i];
         outOfLineCode_[i]->generate(this);
-        sps_.finishOOL();
     }
-    sps_.setPushed(topScript);
     oolIns = nullptr;
 
     return true;
@@ -158,7 +151,7 @@ bool
 CodeGeneratorShared::addNativeToBytecodeEntry(const BytecodeSite *site)
 {
     // Skip the table entirely if profiling is not enabled.
-    if (!isNativeToBytecodeMapEnabled())
+    if (!isProfilerInstrumentationEnabled())
         return true;
 
     MOZ_ASSERT(site);
@@ -276,7 +269,6 @@ ToStackIndex(LAllocation *a)
         MOZ_ASSERT(a->toStackSlot()->slot() >= 1);
         return a->toStackSlot()->slot();
     }
-    MOZ_ASSERT(-int32_t(sizeof(JitFrameLayout)) <= a->toArgument()->index());
     return -int32_t(sizeof(JitFrameLayout) + a->toArgument()->index());
 }
 
@@ -996,9 +988,6 @@ CodeGeneratorShared::resetOsiPointRegs(LSafepoint *safepoint)
 void
 CodeGeneratorShared::callVM(const VMFunction &fun, LInstruction *ins, const Register *dynStack)
 {
-    // Different execution modes have different sets of VM functions.
-    MOZ_ASSERT(fun.executionMode == gen->info().executionMode());
-
     // If we're calling a function with an out parameter type of double, make
     // sure we have an FPU.
     MOZ_ASSERT_IF(fun.outParam == Type_Double, GetJitContext()->runtime->jitSupportsFloatingPoint());
@@ -1214,22 +1203,6 @@ void
 CodeGeneratorShared::emitPreBarrier(Address address)
 {
     masm.patchableCallPreBarrier(address, MIRType_Value);
-}
-
-void
-CodeGeneratorShared::dropArguments(unsigned argc)
-{
-    pushedArgumentSlots_.shrinkBy(argc);
-}
-
-bool
-CodeGeneratorShared::markArgumentSlots(LSafepoint *safepoint)
-{
-    for (size_t i = 0; i < pushedArgumentSlots_.length(); i++) {
-        if (!safepoint->addValueSlot(pushedArgumentSlots_[i]))
-            return false;
-    }
-    return true;
 }
 
 Label *

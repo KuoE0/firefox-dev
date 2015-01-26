@@ -214,6 +214,8 @@ static nsIProfileLock* gProfileLock;
 int    gRestartArgc;
 char **gRestartArgv;
 
+bool gIsGtest = false;
+
 #ifdef MOZ_WIDGET_QT
 static int    gQtOnlyArgc;
 static char **gQtOnlyArgv;
@@ -887,6 +889,21 @@ NS_IMETHODIMP
 nsXULAppInfo::GetKeyboardMayHaveIME(bool* aResult)
 {
   *aResult = KeyboardMayHaveIME();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsXULAppInfo::GetAccessibilityIsUIA(bool* aResult)
+{
+  *aResult = false;
+#if defined(ACCESSIBILITY) && defined(XP_WIN)
+  // This is the same check the a11y service does to identify uia clients.
+  if (GetAccService() != nullptr &&
+      (::GetModuleHandleW(L"uiautomation") ||
+       ::GetModuleHandleW(L"uiautomationcore"))) {
+    *aResult = true;
+  }
+#endif
   return NS_OK;
 }
 
@@ -3559,7 +3576,9 @@ XREMain::XRE_mainStartup(bool* aExitFlag)
 #endif
     // RunGTest will only be set if we're in xul-unit
     if (mozilla::RunGTest) {
+      gIsGtest = true;
       result = mozilla::RunGTest();
+      gIsGtest = false;
     } else {
       result = 1;
       printf("TEST-UNEXPECTED-FAIL | gtest | Not compiled with enable-tests\n");

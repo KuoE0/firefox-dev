@@ -53,6 +53,24 @@ NS_QUERYFRAME_HEAD(nsCanvasFrame)
   NS_QUERYFRAME_ENTRY(nsIAnonymousContentCreator)
 NS_QUERYFRAME_TAIL_INHERITING(nsContainerFrame)
 
+void
+nsCanvasFrame::ShowCustomContentContainer()
+{
+  if (mCustomContentContainer) {
+    mCustomContentContainer->UnsetAttr(kNameSpaceID_None, nsGkAtoms::hidden, true);
+  }
+}
+
+void
+nsCanvasFrame::HideCustomContentContainer()
+{
+  if (mCustomContentContainer) {
+    mCustomContentContainer->SetAttr(kNameSpaceID_None, nsGkAtoms::hidden,
+                                     NS_LITERAL_STRING("true"),
+                                     true);
+  }
+}
+
 nsresult
 nsCanvasFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
 {
@@ -120,10 +138,15 @@ nsCanvasFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Append all existing AnonymousContent nodes stored at document level if any.
-  int32_t anonymousContentCount = doc->GetAnonymousContents().Length();
-  for (int32_t i = 0; i < anonymousContentCount; ++i) {
+  size_t len = doc->GetAnonymousContents().Length();
+  for (size_t i = 0; i < len; ++i) {
     nsCOMPtr<Element> node = doc->GetAnonymousContents()[i]->GetContentNode();
     mCustomContentContainer->AppendChildTo(node->AsContent(), true);
+  }
+
+  // Only create a frame for mCustomContentContainer if it has some children.
+  if (len == 0) {
+    HideCustomContentContainer();
   }
 
   return NS_OK;
@@ -167,8 +190,10 @@ nsCanvasFrame::DestroyFrom(nsIFrame* aDestructRoot)
     nsCOMPtr<nsIDocument> doc = mContent->OwnerDoc();
     ErrorResult rv;
 
-    for (int32_t i = doc->GetAnonymousContents().Length() - 1; i >= 0; --i) {
-      AnonymousContent* content = doc->GetAnonymousContents()[i];
+    nsTArray<nsRefPtr<mozilla::dom::AnonymousContent>>& docAnonContents =
+      doc->GetAnonymousContents();
+    for (size_t i = 0, len = docAnonContents.Length(); i < len; ++i) {
+      AnonymousContent* content = docAnonContents[i];
       nsCOMPtr<nsINode> clonedElement = content->GetContentNode()->CloneNode(true, rv);
       content->SetContentNode(clonedElement->AsElement());
     }

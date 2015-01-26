@@ -149,6 +149,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "Social",
 XPCOMUtils.defineLazyModuleGetter(this, "PageThumbs",
   "resource://gre/modules/PageThumbs.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "ProcessHangMonitor",
+  "resource:///modules/ProcessHangMonitor.jsm");
+
 #ifdef MOZ_SAFE_BROWSING
 XPCOMUtils.defineLazyModuleGetter(this, "SafeBrowsing",
   "resource://gre/modules/SafeBrowsing.jsm");
@@ -194,6 +197,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "CastingApps",
 
 XPCOMUtils.defineLazyModuleGetter(this, "SimpleServiceDiscovery",
   "resource://gre/modules/SimpleServiceDiscovery.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "ReaderParent",
+  "resource:///modules/ReaderParent.jsm");
 
 let gInitialPages = [
   "about:blank",
@@ -1095,9 +1101,6 @@ var gBrowserInit = {
     socialBrowser.addEventListener("MozApplicationManifest",
                               OfflineApps, false);
 
-    let uriToLoad = this._getUriToLoad();
-    var isLoadingBlank = isBlankPageURL(uriToLoad);
-
     // This pageshow listener needs to be registered before we may call
     // swapBrowsersAndCloseOther() to receive pageshow events fired by that.
     let mm = window.messageManager;
@@ -1135,6 +1138,7 @@ var gBrowserInit = {
       SessionStore.reviveCrashedTab(tab);
     }, false, true);
 
+    let uriToLoad = this._getUriToLoad();
     if (uriToLoad && uriToLoad != "about:blank") {
       if (uriToLoad instanceof Ci.nsISupportsArray) {
         let count = uriToLoad.Count();
@@ -1219,8 +1223,10 @@ var gBrowserInit = {
 
     UpdateUrlbarSearchSplitterState();
 
-    if (!isLoadingBlank || !focusAndSelectUrlBar())
+    if (!(isBlankPageURL(uriToLoad) || uriToLoad == "about:privatebrowsing") ||
+        !focusAndSelectUrlBar()) {
       gBrowser.selectedBrowser.focus();
+    }
 
     // Set up Sanitize Item
     this._initializeSanitizer();
@@ -2562,7 +2568,7 @@ let BrowserOnClick = {
     let mm = window.messageManager;
     mm.addMessageListener("Browser:CertExceptionError", this);
     mm.addMessageListener("Browser:SiteBlockedError", this);
-    mm.addMessageListener("Browser:NetworkError", this);
+    mm.addMessageListener("Browser:EnableOnlineMode", this);
     mm.addMessageListener("Browser:SendSSLErrorReport", this);
     mm.addMessageListener("Browser:SetSSLErrorReportAuto", this);
   },
@@ -2571,7 +2577,7 @@ let BrowserOnClick = {
     let mm = window.messageManager;
     mm.removeMessageListener("Browser:CertExceptionError", this);
     mm.removeMessageListener("Browser:SiteBlockedError", this);
-    mm.removeMessageListener("Browser:NetworkError", this);
+    mm.removeMessageListener("Browser:EnableOnlineMode", this);
     mm.removeMessageListener("Browser:SendSSLErrorReport", this);
     mm.removeMessageListener("Browser:SetSSLErrorReportAuto", this);
   },
@@ -2605,9 +2611,12 @@ let BrowserOnClick = {
         this.onAboutBlocked(msg.data.elementId, msg.data.isMalware,
                             msg.data.isTopFrame, msg.data.location);
       break;
-      case "Browser:NetworkError":
-        // Reset network state, the error page will refresh on its own.
-        Services.io.offline = false;
+      case "Browser:EnableOnlineMode":
+        if (Services.io.offline) {
+          // Reset network state and refresh the page.
+          Services.io.offline = false;
+          msg.target.reload();
+        }
       break;
       case "Browser:SendSSLErrorReport":
         this.onSSLErrorReport(msg.target, msg.data.elementId,
@@ -2940,7 +2949,7 @@ function BrowserFullScreen()
 
 function mirrorShow(popup) {
   let services = CastingApps.getServicesForMirroring();
-  popup.ownerDocument.getElementById("menu_mirrorTabCmd").disabled = !services.length;
+  popup.ownerDocument.getElementById("menu_mirrorTabCmd").hidden = !services.length;
 }
 
 function mirrorMenuItemClicked(event) {
@@ -4328,6 +4337,7 @@ var XULBrowserWindow = {
       }
     }
     UpdateBackForwardCommands(gBrowser.webNavigation);
+    ReaderParent.updateReaderButton(gBrowser.selectedBrowser);
 
     gGestureSupport.restoreRotationState();
 
@@ -6284,31 +6294,21 @@ var IndexedDBPromptHelper = {
   _permissionsPrompt: "indexedDB-permissions-prompt",
   _permissionsResponse: "indexedDB-permissions-response",
 
-  _quotaPrompt: "indexedDB-quota-prompt",
-  _quotaResponse: "indexedDB-quota-response",
-  _quotaCancel: "indexedDB-quota-cancel",
-
   _notificationIcon: "indexedDB-notification-icon",
 
   init:
   function IndexedDBPromptHelper_init() {
     Services.obs.addObserver(this, this._permissionsPrompt, false);
-    Services.obs.addObserver(this, this._quotaPrompt, false);
-    Services.obs.addObserver(this, this._quotaCancel, false);
   },
 
   uninit:
   function IndexedDBPromptHelper_uninit() {
     Services.obs.removeObserver(this, this._permissionsPrompt);
-    Services.obs.removeObserver(this, this._quotaPrompt);
-    Services.obs.removeObserver(this, this._quotaCancel);
   },
 
   observe:
   function IndexedDBPromptHelper_observe(subject, topic, data) {
-    if (topic != this._permissionsPrompt &&
-        topic != this._quotaPrompt &&
-        topic != this._quotaCancel) {
+    if (topic != this._permissionsPrompt) {
       throw new Error("Unexpected topic!");
     }
 
@@ -6335,14 +6335,6 @@ var IndexedDBPromptHelper = {
       message = gNavigatorBundle.getFormattedString("offlineApps.available",
                                                     [ host ]);
       responseTopic = this._permissionsResponse;
-    }
-    else if (topic == this._quotaPrompt) {
-      message = gNavigatorBundle.getFormattedString("indexedDB.usage",
-                                                    [ host, data ]);
-      responseTopic = this._quotaResponse;
-    }
-    else if (topic == this._quotaCancel) {
-      responseTopic = this._quotaResponse;
     }
 
     const hiddenTimeoutDuration = 30000; // 30 seconds
@@ -6374,9 +6366,7 @@ var IndexedDBPromptHelper = {
       }
     ];
 
-    // This will be set to the result of PopupNotifications.show() below, or to
-    // the result of PopupNotifications.getNotification() if this is a
-    // quotaCancel notification.
+    // This will be set to the result of PopupNotifications.show().
     var notification;
 
     function timeoutNotification() {
@@ -6416,13 +6406,6 @@ var IndexedDBPromptHelper = {
       }
     };
 
-    if (topic == this._quotaCancel) {
-      notification = PopupNotifications.getNotification(this._quotaPrompt,
-                                                        browser);
-      timeoutNotification();
-      return;
-    }
-
     notification = PopupNotifications.show(browser, topic, message,
                                            this._notificationIcon, mainAction,
                                            secondaryActions, options);
@@ -6450,8 +6433,18 @@ function WindowIsClosing()
 
   for (let browser of gBrowser.browsers) {
     let ds = browser.docShell;
-    if (ds.contentViewer && !ds.contentViewer.permitUnload())
+    // Passing true to permitUnload indicates we plan on closing the window.
+    // This means that once unload is permitted, all further calls to
+    // permitUnload will be ignored. This avoids getting multiple prompts
+    // to unload the page.
+    if (ds.contentViewer && !ds.contentViewer.permitUnload(true)) {
+      // ... however, if the user aborts closing, we need to undo that,
+      // to ensure they get prompted again when we next try to close the window.
+      // We do this on the window's toplevel docshell instead of on the tab, so
+      // that all tabs we iterated before will get this reset.
+      window.getInterface(Ci.nsIDocShell).contentViewer.resetCloseWindow();
       return false;
+    }
   }
 
   return true;

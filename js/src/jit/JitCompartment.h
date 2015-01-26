@@ -158,6 +158,9 @@ class JitRuntime
     // Shared post-bailout-handler tail.
     JitCode *bailoutTail_;
 
+    // Shared profiler exit frame tail.
+    JitCode *profilerExitFrameTail_;
+
     // Trampoline for entering JIT code. Contains OSR prologue.
     JitCode *enterJIT_;
 
@@ -234,6 +237,7 @@ class JitRuntime
 
   private:
     JitCode *generateLazyLinkStub(JSContext *cx);
+    JitCode *generateProfilerExitFrameTailStub(JSContext *cx);
     JitCode *generateExceptionTailStub(JSContext *cx, void *handler);
     JitCode *generateBailoutTailStub(JSContext *cx);
     JitCode *generateEnterJIT(JSContext *cx, EnterJitType type);
@@ -323,6 +327,10 @@ class JitRuntime
         return bailoutTail_;
     }
 
+    JitCode *getProfilerExitFrameTail() const {
+        return profilerExitFrameTail_;
+    }
+
     JitCode *getBailoutTable(const FrameSizeClass &frameClass) const;
 
     JitCode *getArgumentsRectifier() const {
@@ -391,12 +399,8 @@ class JitRuntime
         return jitcodeGlobalTable_;
     }
 
-    bool isNativeToBytecodeMapEnabled(JSRuntime *rt) {
-#ifdef DEBUG
-        return true;
-#else // DEBUG
+    bool isProfilerInstrumentationEnabled(JSRuntime *rt) {
         return rt->spsProfiler.enabled();
-#endif // DEBUG
     }
 };
 
@@ -434,13 +438,6 @@ class JitCompartment
     JitCode *stringConcatStub_;
     JitCode *regExpExecStub_;
     JitCode *regExpTestStub_;
-
-    // Set of JSScripts invoked by ForkJoin (i.e. the entry script). These
-    // scripts are marked if their respective parallel IonScripts' age is less
-    // than a certain amount. See IonScript::parallelAge_.
-    typedef HashSet<PreBarrieredScript, DefaultHasher<PreBarrieredScript>, SystemAllocPolicy>
-        ScriptSet;
-    ScriptSet *activeParallelEntryScripts_;
 
     JitCode *generateStringConcatStub(JSContext *cx);
     JitCode *generateRegExpExecStub(JSContext *cx);
@@ -485,9 +482,6 @@ class JitCompartment
         MOZ_ASSERT(baselineSetPropReturnAddr_ != nullptr);
         return baselineSetPropReturnAddr_;
     }
-
-    bool notifyOfActiveParallelEntryScript(JSContext *cx, HandleScript script);
-    bool hasRecentParallelActivity() const;
 
     void toggleBarriers(bool enabled);
 

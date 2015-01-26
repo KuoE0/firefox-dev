@@ -45,9 +45,16 @@ CodeGeneratorMIPS::generatePrologue()
     MOZ_ASSERT(masm.framePushed() == 0);
     MOZ_ASSERT(!gen->compilingAsmJS());
 
+    // If profiling, save the current frame pointer to a per-thread global field.
+    if (isProfilerInstrumentationEnabled())
+        masm.profilerEnterFrame(StackPointer, CallTempReg0);
+
     // Note that this automatically sets MacroAssembler::framePushed().
     masm.reserveStack(frameSize());
     masm.checkStackAlignment();
+
+    emitTracelogIonStart();
+
     return true;
 }
 
@@ -57,15 +64,16 @@ CodeGeneratorMIPS::generateEpilogue()
     MOZ_ASSERT(!gen->compilingAsmJS());
     masm.bind(&returnLabel_);
 
-#ifdef JS_TRACE_LOGGING
-    if (gen->info().executionMode() == SequentialExecution) {
-        emitTracelogStopEvent(TraceLogger::IonMonkey);
-        emitTracelogScriptStop();
-    }
-#endif
+    emitTracelogIonStop();
 
     masm.freeStack(frameSize());
     MOZ_ASSERT(masm.framePushed() == 0);
+
+    // If profiling, reset the per-thread global lastJitFrame to point to
+    // the previous frame.
+    if (isProfilerInstrumentationEnabled())
+        masm.profilerExitFrame();
+
     masm.ret();
     return true;
 }
@@ -2093,8 +2101,7 @@ CodeGeneratorMIPS::visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar *ins)
 {
     const MAsmJSStoreGlobalVar *mir = ins->mir();
 
-    MIRType type = mir->value()->type();
-    MOZ_ASSERT(IsNumberType(type));
+    MOZ_ASSERT(IsNumberType(mir->value()->type()));
     unsigned addr = mir->globalDataOffset() - AsmJSGlobalRegBias;
     if (mir->value()->type() == MIRType_Int32)
         masm.store32(ToRegister(ins->value()), Address(GlobalReg, addr));

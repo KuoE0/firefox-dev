@@ -59,10 +59,7 @@ public:
   virtual void ReadUpdatedMetadata(MediaInfo* aInfo) MOZ_OVERRIDE;
 
   virtual nsRefPtr<SeekPromise>
-  Seek(int64_t aTime,
-       int64_t aStartTime,
-       int64_t aEndTime,
-       int64_t aCurrentTime) MOZ_OVERRIDE;
+  Seek(int64_t aTime, int64_t aEndTime) MOZ_OVERRIDE;
 
   virtual bool IsMediaSeekable() MOZ_OVERRIDE;
 
@@ -81,6 +78,8 @@ public:
   virtual nsresult ResetDecode() MOZ_OVERRIDE;
 
   virtual nsRefPtr<ShutdownPromise> Shutdown() MOZ_OVERRIDE;
+
+  virtual bool IsAsync() const MOZ_OVERRIDE { return true; }
 
 private:
 
@@ -121,6 +120,9 @@ private:
   void RequestCodecResource();
   bool IsWaitingOnCodecResource();
   virtual bool IsWaitingOnCDMResource() MOZ_OVERRIDE;
+
+  Microseconds GetNextKeyframeTime();
+  bool ShouldSkip(bool aSkipToNextKeyframe, int64_t aTimeThreshold);
 
   size_t SizeOfQueue(TrackType aTrack);
 

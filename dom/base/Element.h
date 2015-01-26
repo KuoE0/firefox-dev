@@ -55,6 +55,7 @@ class nsFocusManager;
 class nsGlobalWindow;
 class nsICSSDeclaration;
 class nsISMILAttr;
+class nsDocument;
 
 namespace mozilla {
 namespace dom {
@@ -284,6 +285,11 @@ public:
   virtual bool IsLabelable() const;
 
   /**
+   * Returns if the element is interactive content as per HTML specification.
+   */
+  virtual bool IsInteractiveHTMLContent() const;
+
+  /**
    * Is the attribute named stored in the mapped attributes?
    *
    * // XXXbz we use this method in HasAttributeDependentStyle, so svg
@@ -398,6 +404,7 @@ private:
   friend class mozilla::EventStateManager;
   friend class ::nsGlobalWindow;
   friend class ::nsFocusManager;
+  friend class ::nsDocument;
 
   // Also need to allow Link to call UpdateLinkState.
   friend class Link;
@@ -1294,7 +1301,7 @@ public:
                                    nsIContent* aContent,
                                    nsIDocument* aDoc);
 
-  NS_IMETHOD Run();
+  NS_IMETHOD Run() MOZ_OVERRIDE;
 private:
   virtual ~RemoveFromBindingManagerRunnable();
   nsRefPtr<nsBindingManager> mManager;

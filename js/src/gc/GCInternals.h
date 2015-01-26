@@ -118,7 +118,9 @@ class AutoStopVerifyingBarriers
         gcstats::Phase outer = gc->stats.currentPhase();
         if (outer != gcstats::PHASE_NONE)
             gc->stats.endPhase(outer);
-        MOZ_ASSERT(gc->stats.currentPhase() == gcstats::PHASE_NONE);
+        MOZ_ASSERT((gc->stats.currentPhase() == gcstats::PHASE_NONE) ||
+                   (gc->stats.currentPhase() == gcstats::PHASE_GC_BEGIN) ||
+                   (gc->stats.currentPhase() == gcstats::PHASE_GC_END));
 
         if (restartPreVerifier)
             gc->startVerifyPreBarriers();
@@ -141,16 +143,14 @@ void
 CheckHashTablesAfterMovingGC(JSRuntime *rt);
 #endif
 
-#ifdef JSGC_COMPACTING
 struct MovingTracer : JSTracer {
-    MovingTracer(JSRuntime *rt) : JSTracer(rt, Visit, TraceWeakMapKeysValues) {}
+    explicit MovingTracer(JSRuntime *rt) : JSTracer(rt, Visit, TraceWeakMapKeysValues) {}
 
     static void Visit(JSTracer *jstrc, void **thingp, JSGCTraceKind kind);
     static bool IsMovingTracer(JSTracer *trc) {
         return trc->callback == Visit;
     }
 };
-#endif
 
 } /* namespace gc */
 } /* namespace js */

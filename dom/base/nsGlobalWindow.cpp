@@ -67,6 +67,7 @@
 #include "mozilla/EventListenerManager.h"
 #include "mozilla/EventStates.h"
 #include "mozilla/MouseEvents.h"
+#include "mozilla/ProcessHangMonitor.h"
 #include "AudioChannelService.h"
 #include "MessageEvent.h"
 #include "nsAboutProtocolUtils.h"
@@ -784,6 +785,14 @@ nsOuterWindowProxy::defineProperty(JSContext* cx,
     // throwing in strict mode (FIXME: Bug 828137), doing nothing in
     // non-strict mode.
     return true;
+  }
+
+  // For now, allow chrome code to define non-configurable properties
+  // on windows, until we sort out what exactly the addon SDK is
+  // doing.  In the meantime, this still allows us to test web compat
+  // behavior.
+  if (false && desc.isPermanent() && !nsContentUtils::IsCallerChrome()) {
+    return ThrowErrorMessage(cx, MSG_DEFINE_NON_CONFIGURABLE_PROP_ON_WINDOW);
   }
 
   return js::Wrapper::defineProperty(cx, proxy, id, desc);
@@ -2299,9 +2308,9 @@ CreateNativeGlobalForInner(JSContext* aCx,
   uint32_t flags = needComponents ? 0 : nsIXPConnect::OMIT_COMPONENTS_OBJECT;
   flags |= nsIXPConnect::DONT_FIRE_ONNEWGLOBALHOOK;
 
-  aGlobal.set(WindowBinding::Wrap(aCx, aNewInner, aNewInner, options,
-                                  nsJSPrincipals::get(aPrincipal), false));
-  if (!aGlobal || !xpc::InitGlobalObject(aCx, aGlobal, flags)) {
+  if (!WindowBinding::Wrap(aCx, aNewInner, aNewInner, options,
+                           nsJSPrincipals::get(aPrincipal), false, aGlobal) ||
+      !xpc::InitGlobalObject(aCx, aGlobal, flags)) {
     return NS_ERROR_FAILURE;
   }
 
@@ -10969,16 +10978,44 @@ nsGlobalWindow::ShowSlowScriptDialog()
     return KillSlowScript;
   }
 
+  // Check if we should offer the option to debug
+  JS::AutoFilename filename;
+  unsigned lineno;
+  bool hasFrame = JS::DescribeScriptedCaller(cx, &filename, &lineno);
+
+  if (XRE_GetProcessType() == GeckoProcessType_Content &&
+      ProcessHangMonitor::Get()) {
+    ProcessHangMonitor::SlowScriptAction action;
+    nsRefPtr<ProcessHangMonitor> monitor = ProcessHangMonitor::Get();
+    nsCOMPtr<nsITabChild> child = do_GetInterface(GetDocShell());
+    action = monitor->NotifySlowScript(child,
+                                       filename.get(),
+                                       lineno);
+    if (action == ProcessHangMonitor::Terminate) {
+      return KillSlowScript;
+    }
+
+    if (action == ProcessHangMonitor::StartDebugger) {
+      // Spin a nested event loop so that the debugger in the parent can fetch
+      // any information it needs. Once the debugger has started, return to the
+      // script.
+      nsRefPtr<nsGlobalWindow> outer = GetOuterWindowInternal();
+      outer->EnterModalState();
+      while (!monitor->IsDebuggerStartupComplete()) {
+        NS_ProcessNextEvent(nullptr, true);
+      }
+      outer->LeaveModalState();
+      return ContinueSlowScript;
+    }
+
+    return ContinueSlowScriptAndKeepNotifying;
+  }
+
   // Get the nsIPrompt interface from the docshell
   nsCOMPtr<nsIDocShell> ds = GetDocShell();
   NS_ENSURE_TRUE(ds, KillSlowScript);
   nsCOMPtr<nsIPrompt> prompt = do_GetInterface(ds);
   NS_ENSURE_TRUE(prompt, KillSlowScript);
-
-  // Check if we should offer the option to debug
-  JS::AutoFilename filename;
-  unsigned lineno;
-  bool hasFrame = JS::DescribeScriptedCaller(cx, &filename, &lineno);
 
   // Prioritize the SlowScriptDebug interface over JSD1.
   nsCOMPtr<nsISlowScriptDebugCallback> debugCallback;
@@ -13237,7 +13274,12 @@ nsGlobalWindow::AddSizeOfIncludingThis(nsWindowSizes* aWindowSizes) const
         elm->ListenerCount();
     }
     if (mDoc) {
-      mDoc->DocAddSizeOfIncludingThis(aWindowSizes);
+      // Multiple global windows can share a document. So only measure the
+      // document if it (a) doesn't have a global window, or (b) it's the
+      // primary document for the window.
+      if (!mDoc->GetInnerWindow() || mDoc->GetInnerWindow() == this) {
+        mDoc->DocAddSizeOfIncludingThis(aWindowSizes);
+      }
     }
   }
 

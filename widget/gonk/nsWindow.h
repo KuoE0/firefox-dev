@@ -50,7 +50,6 @@ public:
     nsWindow();
     virtual ~nsWindow();
 
-    static void NotifyVsync(mozilla::TimeStamp aVsyncTimestamp);
     static void DoDraw(void);
     static nsEventStatus DispatchInputEvent(mozilla::WidgetGUIEvent& aEvent);
     static void DispatchTouchInput(mozilla::MultiTouchInput& aInput);
@@ -91,6 +90,12 @@ public:
     void DispatchTouchInputViaAPZ(mozilla::MultiTouchInput& aInput);
     NS_IMETHOD DispatchEvent(mozilla::WidgetGUIEvent* aEvent,
                              nsEventStatus& aStatus);
+    virtual nsresult SynthesizeNativeTouchPoint(uint32_t aPointerId,
+                                                TouchPointerState aPointerState,
+                                                nsIntPoint aPointerScreenPoint,
+                                                double aPointerPressure,
+                                                uint32_t aPointerOrientation) MOZ_OVERRIDE;
+
     NS_IMETHOD CaptureRollupEvents(nsIRollupListener *aListener,
                                    bool aDoCapture)
     {
@@ -148,6 +153,11 @@ protected:
     // Call this function when the users activity is the direct cause of an
     // event (like a keypress or mouse click).
     void UserActivity();
+
+private:
+    // This is used by SynthesizeNativeTouchPoint to maintain state between
+    // multiple synthesized points
+    nsAutoPtr<mozilla::MultiTouchInput> mSynthesizedTouchInput;
 };
 
 #endif /* nsWindow_h */

@@ -101,7 +101,7 @@ pref("network.buffer.cache.count", 24);
 pref("network.buffer.cache.size",  16384);
 
 // predictive actions
-pref("network.predictor.enabled", false);
+pref("network.predictor.enabled", true);
 pref("network.predictor.max-db-size", 2097152); // bytes
 pref("network.predictor.preserve", 50); // percentage of predictor data to keep when cleaning up
 
@@ -123,6 +123,7 @@ pref("browser.sessionstore.interval", 10000); // milliseconds
 pref("browser.sessionstore.max_tabs_undo", 5);
 pref("browser.sessionstore.max_resumed_crashes", 1);
 pref("browser.sessionstore.recent_crashes", 0);
+pref("browser.sessionstore.privacy_level", 0); // saving data: 0 = all, 1 = unencrypted sites, 2 = never
 
 /* these should help performance */
 pref("mozilla.widget.force-24bpp", true);
@@ -537,7 +538,6 @@ pref("dom.webnotifications.enabled", true);
 
 // prevent tooltips from showing up
 pref("browser.chrome.toolbar_tips", false);
-pref("dom.indexedDB.warningQuota", 5);
 
 // prevent video elements from preloading too much data
 pref("media.preload.default", 1); // default to preload none
@@ -696,26 +696,6 @@ pref("network.manage-offline-status", true);
 
 // increase the timeout clamp for background tabs to 15 minutes
 pref("dom.min_background_timeout_value", 900000);
-
-// The default state of reader mode works on loaded a page.
-pref("reader.parse-on-load.enabled", true);
-
-// Force to enable reader mode to parse on loaded a page.
-// Allow reader mode even on low-memory platforms
-pref("reader.parse-on-load.force-enabled", false);
-
-// The default of font size in reader (1-5)
-pref("reader.font_size", 3);
-
-// The default color scheme in reader (light, dark, sepia, auto)
-// auto = color automatically adjusts according to ambient light level
-pref("reader.color_scheme", "auto");
-
-// The font type in reader (sans-serif, serif)
-pref("reader.font_type", "sans-serif");
-
-// Used to show a first-launch tip in reader
-pref("reader.has_used_toolbar", false);
 
 // Media plugins for libstagefright playback on android
 pref("media.plugins.enabled", true);

@@ -238,7 +238,7 @@ class IonBuilder
 
     JSFunction *getSingleCallTarget(types::TemporaryTypeSet *calleeTypes);
     bool getPolyCallTargets(types::TemporaryTypeSet *calleeTypes, bool constructing,
-                            ObjectVector &targets, uint32_t maxTargets, bool *gotLambda);
+                            ObjectVector &targets, uint32_t maxTargets);
 
     void popCfgStack();
     DeferredEdge *filterDeadDeferredEdges(DeferredEdge *edge);
@@ -708,7 +708,7 @@ class IonBuilder
     // Oracles.
     InliningDecision canInlineTarget(JSFunction *target, CallInfo &callInfo);
     InliningDecision makeInliningDecision(JSObject *target, CallInfo &callInfo);
-    bool selectInliningTargets(ObjectVector &targets, CallInfo &callInfo,
+    bool selectInliningTargets(const ObjectVector &targets, CallInfo &callInfo,
                                BoolVector &choiceSet, uint32_t *numInlineable);
 
     // Native inlining helpers.
@@ -754,6 +754,9 @@ class IonBuilder
     // RegExp natives.
     InliningStatus inlineRegExpExec(CallInfo &callInfo);
     InliningStatus inlineRegExpTest(CallInfo &callInfo);
+
+    // Object natives.
+    InliningStatus inlineObjectCreate(CallInfo &callInfo);
 
     // Atomics natives.
     InliningStatus inlineAtomicsCompareExchange(CallInfo &callInfo);
@@ -816,9 +819,9 @@ class IonBuilder
     InliningStatus inlineSingleCall(CallInfo &callInfo, JSObject *target);
 
     // Call functions
-    InliningStatus inlineCallsite(ObjectVector &targets, ObjectVector &originals,
-                                  bool lambda, CallInfo &callInfo);
-    bool inlineCalls(CallInfo &callInfo, ObjectVector &targets, ObjectVector &originals,
+    InliningStatus inlineCallsite(const ObjectVector &targets, ObjectVector &originals,
+                                  CallInfo &callInfo);
+    bool inlineCalls(CallInfo &callInfo, const ObjectVector &targets, ObjectVector &originals,
                      BoolVector &choiceSet, MGetPropertyCache *maybeCache);
 
     // Inlining helpers.
@@ -1112,9 +1115,9 @@ class CallInfo
         return argc() + 2;
     }
 
-    void setArgs(MDefinitionVector *args) {
+    bool setArgs(const MDefinitionVector &args) {
         MOZ_ASSERT(args_.empty());
-        args_.appendAll(*args);
+        return args_.appendAll(args);
     }
 
     MDefinitionVector &argv() {

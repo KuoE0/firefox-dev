@@ -7,6 +7,7 @@
 #include "MP4Reader.h"
 #include "MP4Stream.h"
 #include "MediaResource.h"
+#include "nsPrintfCString.h"
 #include "nsSize.h"
 #include "VideoUtils.h"
 #include "mozilla/dom/HTMLMediaElement.h"
@@ -88,37 +89,23 @@ InvokeAndRetry(ThisType* aThisVal, ReturnType(ThisType::*aMethod)(), MP4Stream* 
       return result;
     }
     MP4Stream::ReadRecord failure(-1, 0);
-    if (!stream->LastReadFailed(&failure) || failure == prevFailure) {
+    if (NS_WARN_IF(!stream->LastReadFailed(&failure))) {
       return result;
     }
-    prevFailure = failure;
+    stream->ClearFailedRead();
 
-    // Our goal here is to forcibly read the data we want into the cache: since
-    // the stream is pinned, the data is guaranteed to stay in the cache once
-    // it's there, which means that retrying the non-blocking read from inside
-    // the demuxer should succeed.
-    //
-    // But there's one wrinkle: if we read less than an entire cache line and
-    // the data ends up in MediaCacheStream's mPartialBlockBuffer, the data can
-    // be returned by a blocking read but never actually committed to the cache,
-    // and abandoned by a subsequent seek (possibly by another stream accessing
-    // the same underlying resource).
-    //
-    // The way to work around this problem is to round our "priming" read up to the
-    // size of an entire cache block. Note that this may hit EOS for bytes that the
-    // original demuxer read never actually requested. This is OK though because the
-    // call to BlockingReadAt will still return true (just with a less-than-expected
-    // number of actually read bytes, which we ignore).
-    size_t bufferSize = failure.mCount + (MediaCacheStream::BLOCK_SIZE - failure.mCount % MediaCacheStream::BLOCK_SIZE);
-    nsAutoArrayPtr<uint8_t> dummyBuffer(new uint8_t[bufferSize]);
-    MonitorAutoUnlock unlock(*aMonitor);
-    size_t ignored;
-    if (NS_WARN_IF(!stream->BlockingReadAt(failure.mOffset, dummyBuffer, bufferSize, &ignored))) {
+    if (NS_WARN_IF(failure == prevFailure)) {
+      NS_WARNING(nsPrintfCString("Failed reading the same block twice: offset=%lld, count=%lu",
+                                 failure.mOffset, failure.mCount).get());
+      return result;
+    }
+
+    prevFailure = failure;
+    if (NS_WARN_IF(!stream->BlockingReadIntoCache(failure.mOffset, failure.mCount, aMonitor))) {
       return result;
     }
   }
 }
-
 
 MP4Reader::MP4Reader(AbstractMediaDecoder* aDecoder)
   : MediaDecoderReader(aDecoder)
@@ -208,6 +195,7 @@ MP4Reader::InitLayersBackendType()
 }
 
 static bool sIsEMEEnabled = false;
+static bool sDemuxSkipToNextKeyframe = true;
 
 nsresult
 MP4Reader::Init(MediaDecoderReader* aCloneDonor)
@@ -229,6 +217,7 @@ MP4Reader::Init(MediaDecoderReader* aCloneDonor)
   if (!sSetupPrefCache) {
     sSetupPrefCache = true;
     Preferences::AddBoolVarCache(&sIsEMEEnabled, "media.eme.enabled", false);
+    Preferences::AddBoolVarCache(&sDemuxSkipToNextKeyframe, "media.fmp4.demux-skip", true);
   }
 
   return NS_OK;
@@ -531,6 +520,29 @@ MP4Reader::GetDecoderData(TrackType aTrack)
   return mVideo;
 }
 
+Microseconds
+MP4Reader::GetNextKeyframeTime()
+{
+  MonitorAutoLock mon(mDemuxerMonitor);
+  return mDemuxer->GetNextKeyframeTime();
+}
+
+bool
+MP4Reader::ShouldSkip(bool aSkipToNextKeyframe, int64_t aTimeThreshold)
+{
+  // The MP4Reader doesn't do normal skip-to-next-keyframe if the demuxer
+  // has exposes where the next keyframe is. We can then instead skip only
+  // if the time threshold (the current playback position) is after the next
+  // keyframe in the stream. This means we'll only skip frames that we have
+  // no hope of ever playing.
+  Microseconds nextKeyframe = -1;
+  if (!sDemuxSkipToNextKeyframe ||
+      (nextKeyframe = GetNextKeyframeTime()) == -1) {
+    return aSkipToNextKeyframe;
+  }
+  return nextKeyframe < aTimeThreshold;
+}
+
 nsRefPtr<MediaDecoderReader::VideoDataPromise>
 MP4Reader::RequestVideoData(bool aSkipToNextKeyframe,
                             int64_t aTimeThreshold)
@@ -538,10 +550,18 @@ MP4Reader::RequestVideoData(bool aSkipToNextKeyframe,
   MOZ_ASSERT(GetTaskQueue()->IsCurrentThreadIn());
   VLOG("RequestVideoData skip=%d time=%lld", aSkipToNextKeyframe, aTimeThreshold);
 
+  if (mShutdown) {
+    NS_WARNING("RequestVideoData on shutdown MP4Reader!");
+    MonitorAutoLock lock(mVideo.mMonitor);
+    nsRefPtr<VideoDataPromise> p = mVideo.mPromise.Ensure(__func__);
+    p->Reject(CANCELED, __func__);
+    return p;
+  }
+
   MOZ_ASSERT(HasVideo() && mPlatform && mVideo.mDecoder);
 
   bool eos = false;
-  if (aSkipToNextKeyframe) {
+  if (ShouldSkip(aSkipToNextKeyframe, aTimeThreshold)) {
     uint32_t parsed = 0;
     eos = !SkipVideoDemuxToNextKeyFrame(aTimeThreshold, parsed);
     if (!eos && NS_FAILED(mVideo.mDecoder->Flush())) {
@@ -568,7 +588,12 @@ MP4Reader::RequestAudioData()
   VLOG("RequestAudioData");
   MonitorAutoLock lock(mAudio.mMonitor);
   nsRefPtr<AudioDataPromise> p = mAudio.mPromise.Ensure(__func__);
-  ScheduleUpdate(kAudio);
+  if (!mShutdown) {
+    ScheduleUpdate(kAudio);
+  } else {
+    NS_WARNING("RequestAudioData on shutdown MP4Reader!");
+    p->Reject(CANCELED, __func__);
+  }
   return p;
 }
 
@@ -753,12 +778,16 @@ MP4Reader::ResetDecode()
   Flush(kVideo);
   {
     MonitorAutoLock mon(mDemuxerMonitor);
-    mDemuxer->SeekVideo(0);
+    if (mDemuxer) {
+      mDemuxer->SeekVideo(0);
+    }
   }
   Flush(kAudio);
   {
     MonitorAutoLock mon(mDemuxerMonitor);
-    mDemuxer->SeekAudio(0);
+    if (mDemuxer) {
+      mDemuxer->SeekAudio(0);
+    }
   }
   return MediaDecoderReader::ResetDecode();
 }
@@ -893,10 +922,7 @@ MP4Reader::SkipVideoDemuxToNextKeyFrame(int64_t aTimeThreshold, uint32_t& parsed
 }
 
 nsRefPtr<MediaDecoderReader::SeekPromise>
-MP4Reader::Seek(int64_t aTime,
-                int64_t aStartTime,
-                int64_t aEndTime,
-                int64_t aCurrentTime)
+MP4Reader::Seek(int64_t aTime, int64_t aEndTime)
 {
   LOG("MP4Reader::Seek(%lld)", aTime);
   MOZ_ASSERT(GetTaskQueue()->IsCurrentThreadIn());

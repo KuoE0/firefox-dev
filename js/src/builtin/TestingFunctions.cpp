@@ -14,20 +14,18 @@
 #include "jsfriendapi.h"
 #include "jsgc.h"
 #include "jsobj.h"
-#ifndef JS_MORE_DETERMINISTIC
 #include "jsprf.h"
-#endif
 #include "jswrapper.h"
 
 #include "asmjs/AsmJSLink.h"
 #include "asmjs/AsmJSValidate.h"
+#include "jit/JitFrameIterator.h"
 #include "js/Debug.h"
 #include "js/HashTable.h"
 #include "js/StructuredClone.h"
 #include "js/UbiNode.h"
 #include "js/UbiNodeTraverse.h"
 #include "js/Vector.h"
-#include "vm/ForkJoin.h"
 #include "vm/GlobalObject.h"
 #include "vm/Interpreter.h"
 #include "vm/ProxyObject.h"
@@ -53,7 +51,7 @@ static bool
 GetBuildConfiguration(JSContext *cx, unsigned argc, jsval *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RootedObject info(cx, JS_NewObject(cx, nullptr, JS::NullPtr(), JS::NullPtr()));
+    RootedObject info(cx, JS_NewPlainObject(cx));
     if (!info)
         return false;
 
@@ -343,6 +341,30 @@ GCParameter(JSContext *cx, unsigned argc, Value *vp)
     return true;
 }
 
+static void
+SetAllowRelazification(JSContext *cx, bool allow)
+{
+    JSRuntime *rt = cx->runtime();
+    MOZ_ASSERT(rt->allowRelazificationForTesting != allow);
+    rt->allowRelazificationForTesting = allow;
+
+    for (AllFramesIter i(cx); !i.done(); ++i)
+        i.script()->setDoNotRelazify(allow);
+}
+
+static bool
+RelazifyFunctions(JSContext *cx, unsigned argc, Value *vp)
+{
+    // Relazifying functions on GC is usually only done for compartments that are
+    // not active. To aid fuzzing, this testing function allows us to relazify
+    // even if the compartment is active.
+
+    SetAllowRelazification(cx, true);
+    bool res = GC(cx, argc, vp);
+    SetAllowRelazification(cx, false);
+    return res;
+}
+
 static bool
 IsProxy(JSContext *cx, unsigned argc, Value *vp)
 {
@@ -570,6 +592,8 @@ GCState(JSContext *cx, unsigned argc, jsval *vp)
         state = "mark";
     else if (globalState == gc::SWEEP)
         state = "sweep";
+    else if (globalState == gc::COMPACT)
+        state = "compact";
     else
         MOZ_CRASH("Unobserveable global GC state");
 
@@ -598,6 +622,48 @@ DeterministicGC(JSContext *cx, unsigned argc, jsval *vp)
 #endif /* JS_GC_ZEAL */
 
 static bool
+StartGC(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    if (args.length() > 2) {
+        RootedObject callee(cx, &args.callee());
+        ReportUsageError(cx, callee, "Wrong number of arguments");
+        return false;
+    }
+
+    SliceBudget budget;
+    if (args.length() >= 1) {
+        uint32_t work = 0;
+        if (!ToUint32(cx, args[0], &work))
+            return false;
+        budget = SliceBudget(WorkBudget(work));
+    }
+
+    bool shrinking = false;
+    if (args.length() >= 2) {
+        Value arg = args[1];
+        if (arg.isString()) {
+            if (!JS_StringEqualsAscii(cx, arg.toString(), "shrinking", &shrinking))
+                return false;
+        }
+    }
+
+    JSRuntime *rt = cx->runtime();
+    if (rt->gc.isIncrementalGCInProgress()) {
+        RootedObject callee(cx, &args.callee());
+        JS_ReportError(cx, "Incremental GC already in progress");
+        return false;
+    }
+
+    JSGCInvocationKind gckind = shrinking ? GC_SHRINK : GC_NORMAL;
+    rt->gc.startDebugGC(gckind, budget);
+
+    args.rval().setUndefined();
+    return true;
+}
+
+static bool
 GCSlice(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
@@ -616,7 +682,12 @@ GCSlice(JSContext *cx, unsigned argc, Value *vp)
         budget = SliceBudget(WorkBudget(work));
     }
 
-    cx->runtime()->gc.gcDebugSlice(budget);
+    JSRuntime *rt = cx->runtime();
+    if (!rt->gc.isIncrementalGCInProgress())
+        rt->gc.startDebugGC(GC_NORMAL, budget);
+    else
+        rt->gc.debugGCSlice(budget);
+
     args.rval().setUndefined();
     return true;
 }
@@ -1174,18 +1245,6 @@ DisplayName(JSContext *cx, unsigned argc, jsval *vp)
     return true;
 }
 
-bool
-js::testingFunc_inParallelSection(JSContext *cx, unsigned argc, jsval *vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-
-    // If we were actually *in* a parallel section, then this function
-    // would be inlined to TRUE in ion-generated code.
-    MOZ_ASSERT(!InParallelSection());
-    args.rval().setBoolean(false);
-    return true;
-}
-
 static bool
 ShellObjectMetadataCallback(JSContext *cx, JSObject **pmetadata)
 {
@@ -1294,6 +1353,16 @@ js::testingFunc_assertFloat32(JSContext *cx, unsigned argc, jsval *vp)
 }
 
 static bool
+TestingFunc_assertValidJitStack(JSContext *cx, unsigned argc, jsval *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    jit::AssertValidJitStack(cx);
+    args.rval().setUndefined();
+    return true;
+}
+
+static bool
 SetJitCompilerOption(JSContext *cx, unsigned argc, jsval *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
@@ -1356,7 +1425,7 @@ static bool
 GetJitCompilerOptions(JSContext *cx, unsigned argc, jsval *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RootedObject info(cx, JS_NewObject(cx, nullptr, JS::NullPtr(), JS::NullPtr()));
+    RootedObject info(cx, JS_NewPlainObject(cx));
     if (!info)
         return false;
 
@@ -2177,7 +2246,7 @@ SetImmutablePrototype(JSContext *cx, unsigned argc, Value *vp)
     RootedObject obj(cx, &args[0].toObject());
 
     bool succeeded;
-    if (!JSObject::setImmutablePrototype(cx, obj, &succeeded))
+    if (!js::SetImmutablePrototype(cx, obj, &succeeded))
         return false;
 
     args.rval().setBoolean(succeeded);
@@ -2190,7 +2259,7 @@ static const JSFunctionSpecWithHelp TestingFunctions[] = {
 "  Run the garbage collector. When obj is given, GC only its compartment.\n"
 "  If 'compartment' is given, GC any compartments that were scheduled for\n"
 "  GC via schedulegc.\n"
-"  If 'shrinking' is passes as the optional second argument, perform a\n"
+"  If 'shrinking' is passed as the optional second argument, perform a\n"
 "  shrinking GC rather than a normal GC."),
 
     JS_FN_HELP("minorgc", ::MinorGC, 0, 0,
@@ -2201,6 +2270,11 @@ static const JSFunctionSpecWithHelp TestingFunctions[] = {
     JS_FN_HELP("gcparam", GCParameter, 2, 0,
 "gcparam(name [, value])",
 "  Wrapper for JS_[GS]etGCParameter. The name is one of " GC_PARAMETER_ARGS_LIST),
+
+    JS_FN_HELP("relazifyFunctions", RelazifyFunctions, 0, 0,
+"relazifyFunctions(...)",
+"  Perform a GC and allow relazification of functions. Accepts the same\n"
+"  arguments as gc()."),
 
     JS_FN_HELP("getBuildConfiguration", GetBuildConfiguration, 0, 0,
 "getBuildConfiguration()",
@@ -2305,9 +2379,15 @@ gc::ZealModeHelpText),
 "  If true, only allow determinstic GCs to run."),
 #endif
 
+    JS_FN_HELP("startgc", StartGC, 1, 0,
+"startgc([n [, 'shrinking']])",
+"  Start an incremental GC and run a slice that processes about n objects.\n"
+"  If 'shrinking' is passesd as the optional second argument, perform a\n"
+"  shrinking GC rather than a normal GC."),
+
     JS_FN_HELP("gcslice", GCSlice, 1, 0,
-"gcslice(n)",
-"  Run an incremental GC slice that marks about n objects."),
+"gcslice([n])",
+"  Start or continue an an incremental GC, running a slice that processes about n objects."),
 
     JS_FN_HELP("validategc", ValidateGC, 1, 0,
 "validategc(true|false)",
@@ -2403,10 +2483,6 @@ gc::ZealModeHelpText),
 "isRelazifiableFunction(fun)",
 "  Ture if fun is a JSFunction with a relazifiable JSScript."),
 
-    JS_FN_HELP("inParallelSection", testingFunc_inParallelSection, 0, 0,
-"inParallelSection()",
-"  True if this code is executing within a parallel section."),
-
     JS_FN_HELP("setObjectMetadataCallback", SetObjectMetadataCallback, 1, 0,
 "setObjectMetadataCallback(fn)",
 "  Specify function to supply metadata for all newly created objects."),
@@ -2422,6 +2498,10 @@ gc::ZealModeHelpText),
     JS_FN_HELP("bailout", testingFunc_bailout, 0, 0,
 "bailout()",
 "  Force a bailout out of ionmonkey (if running in ionmonkey)."),
+
+    JS_FN_HELP("assertValidJitStack", TestingFunc_assertValidJitStack, 0, 0,
+"assertValidJitStack()",
+"  Iterates the Jit stack and check that stack invariants hold."),
 
     JS_FN_HELP("setJitCompilerOption", SetJitCompilerOption, 2, 0,
 "setCompilerOption(<option>, <number>)",

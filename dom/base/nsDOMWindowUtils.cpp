@@ -2774,18 +2774,10 @@ nsDOMWindowUtils::ComputeAnimationDistance(nsIDOMElement* aElement,
   nsCOMPtr<nsIContent> content = do_QueryInterface(aElement, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Convert direction-dependent properties as appropriate, e.g.,
-  // border-left to border-left-value.
   nsCSSProperty property =
     nsCSSProps::LookupProperty(aProperty, nsCSSProps::eIgnoreEnabledState);
   if (property != eCSSProperty_UNKNOWN && nsCSSProps::IsShorthand(property)) {
-    nsCSSProperty subprop0 = *nsCSSProps::SubpropertyEntryFor(property);
-    if (nsCSSProps::PropHasFlags(subprop0, CSS_PROPERTY_REPORT_OTHER_NAME) &&
-        nsCSSProps::OtherNameFor(subprop0) == property) {
-      property = subprop0;
-    } else {
-      property = eCSSProperty_UNKNOWN;
-    }
+    property = eCSSProperty_UNKNOWN;
   }
 
   NS_ABORT_IF_FALSE(property == eCSSProperty_UNKNOWN ||
@@ -3159,8 +3151,7 @@ nsDOMWindowUtils::GetFileReferences(const nsAString& aDatabaseName, int64_t aId,
 
   nsCString origin;
   nsresult rv =
-    quota::QuotaManager::GetInfoFromWindow(window, nullptr, &origin, nullptr,
-                                           nullptr);
+    quota::QuotaManager::GetInfoFromWindow(window, nullptr, &origin, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   IDBOpenDBOptions options;

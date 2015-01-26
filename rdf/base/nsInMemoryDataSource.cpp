@@ -164,7 +164,7 @@ Assertion::Assertion(nsIRDFResource* aSource)
     NS_ADDREF(mSource);
 
     u.hash.mPropertyHash =
-        PL_NewDHashTable(PL_DHashGetStubOps(), nullptr, sizeof(Entry));
+        PL_NewDHashTable(PL_DHashGetStubOps(), sizeof(Entry));
 }
 
 Assertion::Assertion(nsIRDFResource* aSource,
@@ -334,23 +334,31 @@ public:
 
     void
     SetForwardArcs(nsIRDFResource* u, Assertion* as) {
-        PLDHashEntryHdr* hdr = PL_DHashTableOperate(&mForwardArcs, u,
-                                                    as ? PL_DHASH_ADD : PL_DHASH_REMOVE);
-        if (as && hdr) {
-            Entry* entry = reinterpret_cast<Entry*>(hdr);
-            entry->mNode = u;
-            entry->mAssertions = as;
-        } }
+        if (as) {
+            Entry* entry = reinterpret_cast<Entry*>(PL_DHashTableAdd(&mForwardArcs, u));
+            if (entry) {
+                entry->mNode = u;
+                entry->mAssertions = as;
+            }
+        }
+        else {
+            PL_DHashTableRemove(&mForwardArcs, u);
+        }
+    }
 
     void
     SetReverseArcs(nsIRDFNode* v, Assertion* as) {
-        PLDHashEntryHdr* hdr = PL_DHashTableOperate(&mReverseArcs, v,
-                                                    as ? PL_DHASH_ADD : PL_DHASH_REMOVE);
-        if (as && hdr) {
-            Entry* entry = reinterpret_cast<Entry*>(hdr);
-            entry->mNode = v;
-            entry->mAssertions = as;
-        } }
+        if (as) {
+            Entry* entry = reinterpret_cast<Entry*>(PL_DHashTableAdd(&mReverseArcs, v));
+            if (entry) {
+                entry->mNode = v;
+                entry->mAssertions = as;
+            }
+        }
+        else {
+            PL_DHashTableRemove(&mReverseArcs, v);
+        }
+    }
 
 #ifdef PR_LOGGING
     void
@@ -772,8 +780,6 @@ InMemoryDataSource::InMemoryDataSource(nsISupports* aOuter)
 {
     NS_INIT_AGGREGATED(aOuter);
 
-    mForwardArcs.ops = nullptr;
-    mReverseArcs.ops = nullptr;
     mPropagateChanges = true;
     MOZ_COUNT_CTOR(InMemoryDataSource);
 }
@@ -782,15 +788,8 @@ InMemoryDataSource::InMemoryDataSource(nsISupports* aOuter)
 nsresult
 InMemoryDataSource::Init()
 {
-    PL_DHashTableInit(&mForwardArcs,
-                      PL_DHashGetStubOps(),
-                      nullptr,
-                      sizeof(Entry));
-
-    PL_DHashTableInit(&mReverseArcs,
-                      PL_DHashGetStubOps(),
-                      nullptr,
-                      sizeof(Entry));
+    PL_DHashTableInit(&mForwardArcs, PL_DHashGetStubOps(), sizeof(Entry));
+    PL_DHashTableInit(&mReverseArcs, PL_DHashGetStubOps(), sizeof(Entry));
 
 #ifdef PR_LOGGING
     if (! gLog)
@@ -808,7 +807,7 @@ InMemoryDataSource::~InMemoryDataSource()
     fprintf(stdout, "%d - RDF: InMemoryDataSource\n", gInstanceCount);
 #endif
 
-    if (mForwardArcs.ops) {
+    if (mForwardArcs.IsInitialized()) {
         // This'll release all of the Assertion objects that are
         // associated with this data source. We only need to do this
         // for the forward arcs, because the reverse arcs table
@@ -816,7 +815,7 @@ InMemoryDataSource::~InMemoryDataSource()
         PL_DHashTableEnumerate(&mForwardArcs, DeleteForwardArcsEntry, nullptr);
         PL_DHashTableFinish(&mForwardArcs);
     }
-    if (mReverseArcs.ops)
+    if (mReverseArcs.IsInitialized())
         PL_DHashTableFinish(&mReverseArcs);
 
     PR_LOG(gLog, PR_LOG_NOTICE,

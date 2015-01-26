@@ -195,7 +195,7 @@ class Test:
                     elif name == 'tz-pacific':
                         test.tz_pacific = True
                     elif name == 'test-also-noasmjs':
-                        test.test_also_noasmjs = True
+                        test.test_also_noasmjs = options.can_test_also_noasmjs
                     elif name == 'ion-eager':
                         test.jitflags.append('--ion-eager')
                     elif name == 'dump-bytecode':
@@ -439,7 +439,8 @@ def check_output(out, err, rc, timed_out, test, options):
 
         # Allow a non-zero exit code if we want to allow OOM, but only if we
         # actually got OOM.
-        if test.allow_oom and 'out of memory' in err and 'Assertion failure' not in err:
+        if test.allow_oom and 'out of memory' in err \
+           and 'Assertion failure' not in err and 'MOZ_CRASH' not in err:
             return True
 
         # Allow a non-zero exit code if we want to allow unhandlable OOM, but

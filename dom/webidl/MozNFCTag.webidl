@@ -35,6 +35,8 @@ enum NFCTagType {
   "MIFARE-Classic"
 };
 
+typedef MozIsoDepTech MozTagTech;
+
 [JSImplementation="@mozilla.org/nfc/tag;1", AvailableIn="PrivilegedApps"]
 interface MozNFCTag {
   /**
@@ -45,7 +47,7 @@ interface MozNFCTag {
   /**
    * The identifier of this tag.
    */
-  [Pure, Constant] readonly attribute Uint8Array? id;
+  [Constant] readonly attribute Uint8Array? id;
 
   /**
    * The type of this tag, null if unknown.
@@ -100,6 +102,9 @@ interface MozNFCTag {
    */
   [Throws]
   Promise<void> format();
+
+  [NewObject, Throws]
+  MozTagTech selectTech(NFCTechType tech);
 };
 
 // Mozilla Only
@@ -110,9 +115,6 @@ partial interface MozNFCTag {
   [ChromeOnly]
   void notifyLost();
 
-  /**
-   * Send raw command to tag and receive the response.
-   */
   [ChromeOnly, Throws]
   Promise<Uint8Array> transceive(NFCTechType tech, Uint8Array command);
 };

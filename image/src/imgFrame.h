@@ -159,6 +159,19 @@ public:
                             GraphicsFilter aFilter,
                             uint32_t aImageFlags);
 
+  /**
+   * Reinitializes an existing imgFrame with new parameters. You must be holding
+   * a RawAccessFrameRef to the imgFrame, and it must never have been written
+   * to, marked finished, or aborted.
+   *
+   * XXX(seth): We will remove this in bug 1117607.
+   */
+  nsresult ReinitForDecoder(const nsIntSize& aImageSize,
+                            const nsIntRect& aRect,
+                            SurfaceFormat aFormat,
+                            uint8_t aPaletteDepth = 0,
+                            bool aNonPremult = false);
+
   DrawableFrameRef DrawableRef();
   RawAccessFrameRef RawAccessRef();
 
@@ -282,7 +295,7 @@ private: // methods
 
   uint32_t PaletteDataLength() const
   {
-    return mPaletteDepth ? (1 << mPaletteDepth) * sizeof(uint32_t)
+    return mPaletteDepth ? (size_t(1) << mPaletteDepth) * sizeof(uint32_t)
                          : 0;
   }
 

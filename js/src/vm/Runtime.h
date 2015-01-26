@@ -41,7 +41,6 @@
 #include "vm/SPSProfiler.h"
 #include "vm/Stack.h"
 #include "vm/Symbol.h"
-#include "vm/ThreadPool.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -88,6 +87,7 @@ struct PcScriptCache;
 class Simulator;
 class SimulatorRuntime;
 struct AutoFlushICache;
+class CompileRuntime;
 }
 
 /*
@@ -520,6 +520,12 @@ class PerThreadData : public PerThreadDataFriendFields
      */
     JSContext           *jitJSContext;
 
+     /*
+     * Points to the most recent JitActivation pushed on the thread.
+     * See JitActivation constructor in vm/Stack.cpp
+     */
+    js::jit::JitActivation *jitActivation;
+
     /* See comment for JSRuntime::interrupt_. */
   private:
     mozilla::Atomic<uintptr_t, mozilla::Relaxed> jitStackLimit_;
@@ -527,7 +533,6 @@ class PerThreadData : public PerThreadDataFriendFields
     friend struct ::JSRuntime;
   public:
     void initJitStackLimit();
-    void initJitStackLimitPar(uintptr_t limit);
 
     uintptr_t jitStackLimit() const { return jitStackLimit_; }
 
@@ -547,6 +552,7 @@ class PerThreadData : public PerThreadDataFriendFields
     friend class js::ActivationIterator;
     friend class js::jit::JitActivation;
     friend class js::AsmJSActivation;
+    friend class js::jit::CompileRuntime;
 #ifdef DEBUG
     friend void js::AssertCurrentThreadCanLock(RuntimeLock which);
 #endif
@@ -587,6 +593,12 @@ class PerThreadData : public PerThreadDataFriendFields
 
     js::Activation *profilingActivation() const {
         return profilingActivation_;
+    }
+    void *addressOfProfilingActivation() {
+        return (void*) &profilingActivation_;
+    }
+    static unsigned offsetOfProfilingActivation() {
+        return offsetof(PerThreadData, profilingActivation_);
     }
 
     js::AsmJSActivation *asmJSActivationStack() const {
@@ -703,7 +715,6 @@ struct JSRuntime : public JS::shadow::Runtime,
 
   private:
     mozilla::Atomic<uint32_t, mozilla::Relaxed> interrupt_;
-    mozilla::Atomic<uint32_t, mozilla::Relaxed> interruptPar_;
 
     /* Call this to accumulate telemetry data. */
     JSAccumulateTelemetryDataCallback telemetryCallback;
@@ -745,18 +756,11 @@ struct JSRuntime : public JS::shadow::Runtime,
     MOZ_ALWAYS_INLINE bool hasPendingInterrupt() const {
         return interrupt_;
     }
-    MOZ_ALWAYS_INLINE bool hasPendingInterruptPar() const {
-        return interruptPar_;
-    }
 
     // For read-only JIT use:
     void *addressOfInterruptUint32() {
         static_assert(sizeof(interrupt_) == sizeof(uint32_t), "Assumed by JIT callers");
         return &interrupt_;
-    }
-    void *addressOfInterruptParUint32() {
-        static_assert(sizeof(interruptPar_) == sizeof(uint32_t), "Assumed by JIT callers");
-        return &interruptPar_;
     }
 
     /* Set when handling a signal for a thread associated with this runtime. */
@@ -1028,7 +1032,7 @@ struct JSRuntime : public JS::shadow::Runtime,
 
     /* Whether sampling should be enabled or not. */
   private:
-    bool                suppressProfilerSampling;
+    mozilla::Atomic<bool, mozilla::SequentiallyConsistent> suppressProfilerSampling;
 
   public:
     bool isProfilerSamplingEnabled() const {
@@ -1046,6 +1050,12 @@ struct JSRuntime : public JS::shadow::Runtime,
 
     /* A context has been created on this runtime. */
     bool                haveCreatedContext;
+
+    /*
+     * Allow relazifying functions in compartments that are active. This is
+     * only used by the relazifyFunctions() testing function.
+     */
+    bool                allowRelazificationForTesting;
 
     /* Linked list of all Debugger objects in the runtime. */
     mozilla::LinkedList<js::Debugger> debuggerList;
@@ -1283,15 +1293,9 @@ struct JSRuntime : public JS::shadow::Runtime,
     // Cache for jit::GetPcScript().
     js::jit::PcScriptCache *ionPcScriptCache;
 
-    js::ThreadPool threadPool;
-
     js::DefaultJSContextCallback defaultJSContextCallback;
 
     js::CTypesActivityCallback  ctypesActivityCallback;
-
-    // Non-zero if this is a ForkJoin warmup execution.  See
-    // js::ForkJoin() for more information.
-    uint32_t forkJoinWarmup;
 
   private:
     static mozilla::Atomic<size_t> liveRuntimesCount;
