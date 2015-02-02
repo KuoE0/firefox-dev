@@ -515,6 +515,16 @@ HTMLMediaElement::IsVideo()
   return false;
 }
 
+already_AddRefed<MediaSource>
+HTMLMediaElement::GetMozMediaSourceObject() const
+{
+  nsRefPtr<MediaSource> source;
+  if (IsMediaSourceURI(mLoadingSrc)) {
+    NS_GetSourceForMediaSourceURI(mLoadingSrc, getter_AddRefs(source));
+  }
+  return source.forget();
+}
+
 already_AddRefed<DOMMediaStream>
 HTMLMediaElement::GetMozSrcObject() const
 {
@@ -1879,7 +1889,6 @@ HTMLMediaElement::CaptureStreamInternal(bool aFinishWhenEnded)
   // back into the output stream.
   out->mStream->GetStream()->ChangeExplicitBlockerCount(1);
   if (mDecoder) {
-    mDecoder->SetAudioCaptured(true);
     mDecoder->AddOutputStream(
         out->mStream->GetStream()->AsProcessedStream(), aFinishWhenEnded);
   }
@@ -2069,6 +2078,7 @@ HTMLMediaElement::HTMLMediaElement(already_AddRefed<mozilla::dom::NodeInfo>& aNo
     mCORSMode(CORS_NONE),
     mHasAudio(false),
     mHasVideo(false),
+    mIsEncrypted(false),
     mDownloadSuspendedByCache(false),
     mAudioChannelFaded(false),
     mPlayingThroughTheAudioChannel(false),
@@ -2694,7 +2704,6 @@ nsresult HTMLMediaElement::FinishDecoderSetup(MediaDecoder* aDecoder,
   // available immediately.
   mDecoder->SetResource(aStream);
   mDecoder->SetAudioChannel(mAudioChannel);
-  mDecoder->SetAudioCaptured(mAudioCaptured);
   mDecoder->SetVolume(mMuted ? 0.0 : mVolume);
   mDecoder->SetPreservesPitch(mPreservesPitch);
   mDecoder->SetPlaybackRate(mPlaybackRate);
@@ -3003,6 +3012,7 @@ void HTMLMediaElement::MetadataLoaded(const MediaInfo* aInfo,
 {
   mHasAudio = aInfo->HasAudio();
   mHasVideo = aInfo->HasVideo();
+  mIsEncrypted = aInfo->mIsEncrypted;
   mTags = aTags.forget();
   mLoadedDataFired = false;
   ChangeReadyState(nsIDOMHTMLMediaElement::HAVE_METADATA);
@@ -3299,6 +3309,15 @@ void HTMLMediaElement::DownloadProgressed()
 bool HTMLMediaElement::ShouldCheckAllowOrigin()
 {
   return mCORSMode != CORS_NONE;
+}
+
+bool HTMLMediaElement::IsCORSSameOrigin()
+{
+  bool subsumes;
+  nsRefPtr<nsIPrincipal> principal = GetCurrentPrincipal();
+  return
+    (NS_SUCCEEDED(NodePrincipal()->Subsumes(principal, &subsumes)) && subsumes) ||
+    ShouldCheckAllowOrigin();
 }
 
 void HTMLMediaElement::UpdateReadyStateForData(MediaDecoderOwner::NextFrameStatus aNextFrame)
@@ -3646,22 +3665,13 @@ void HTMLMediaElement::NotifyDecoderPrincipalChanged()
 {
   nsRefPtr<nsIPrincipal> principal = GetCurrentPrincipal();
 
-  bool subsumes;
-  mDecoder->UpdateSameOriginStatus(
-    !principal ||
-    (NS_SUCCEEDED(NodePrincipal()->Subsumes(principal, &subsumes)) && subsumes) ||
-    mCORSMode != CORS_NONE);
+  mDecoder->UpdateSameOriginStatus(!principal || IsCORSSameOrigin());
 
   for (uint32_t i = 0; i < mOutputStreams.Length(); ++i) {
     OutputMediaStream* ms = &mOutputStreams[i];
     ms->mStream->SetCORSMode(mCORSMode);
     ms->mStream->CombineWithPrincipal(principal);
   }
-#ifdef MOZ_EME
-  if (mMediaKeys && NS_FAILED(mMediaKeys->CheckPrincipals())) {
-    mMediaKeys->Shutdown();
-  }
-#endif
 }
 
 void HTMLMediaElement::UpdateMediaSize(nsIntSize size)
@@ -4305,8 +4315,6 @@ HTMLMediaElement::SetMediaKeys(mozilla::dom::MediaKeys* aMediaKeys,
     if (mDecoder) {
       mDecoder->SetCDMProxy(mMediaKeys->GetCDMProxy());
     }
-    // Update the same-origin status.
-    NotifyDecoderPrincipalChanged();
   }
   promise->MaybeResolve(JS::UndefinedHandleValue);
   return promise.forget();
@@ -4339,8 +4347,13 @@ void
 HTMLMediaElement::DispatchEncrypted(const nsTArray<uint8_t>& aInitData,
                                     const nsAString& aInitDataType)
 {
-  nsRefPtr<MediaEncryptedEvent> event(
-    MediaEncryptedEvent::Constructor(this, aInitDataType, aInitData));
+  nsRefPtr<MediaEncryptedEvent> event;
+  if (IsCORSSameOrigin()) {
+    event = MediaEncryptedEvent::Constructor(this, aInitDataType, aInitData);
+  } else {
+    event = MediaEncryptedEvent::Constructor(this);
+  }
+
   nsRefPtr<AsyncEventDispatcher> asyncDispatcher =
     new AsyncEventDispatcher(this, event);
   asyncDispatcher->PostDOMEvent();

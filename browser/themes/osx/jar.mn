@@ -36,6 +36,9 @@ browser.jar:
   skin/classic/browser/Geolocation-16@2x.png
   skin/classic/browser/Geolocation-64.png
   skin/classic/browser/Geolocation-64@2x.png
+  skin/classic/browser/heartbeat-icon.svg                   (../shared/heartbeat-icon.svg)
+  skin/classic/browser/heartbeat-star-lit.svg               (../shared/heartbeat-star-lit.svg)
+  skin/classic/browser/heartbeat-star-off.svg               (../shared/heartbeat-star-off.svg)
   skin/classic/browser/identity.png
   skin/classic/browser/identity@2x.png
   skin/classic/browser/identity-icons-generic.png
@@ -298,6 +301,7 @@ browser.jar:
   skin/classic/browser/tabbrowser/alltabs-box-bkgnd-icon.png             (tabbrowser/alltabs-box-bkgnd-icon.png)
   skin/classic/browser/tabbrowser/alltabs-box-bkgnd-icon-inverted.png    (tabbrowser/alltabs-box-bkgnd-icon-inverted.png)
   skin/classic/browser/tabbrowser/alltabs-box-bkgnd-icon-inverted@2x.png (tabbrowser/alltabs-box-bkgnd-icon-inverted@2x.png)
+  skin/classic/browser/tabbrowser/crashed.svg                            (../shared/tabbrowser/crashed.svg)
   skin/classic/browser/tabbrowser/newtab.png                             (tabbrowser/newtab.png)
   skin/classic/browser/tabbrowser/newtab@2x.png                          (tabbrowser/newtab@2x.png)
   skin/classic/browser/tabbrowser/newtab-inverted.png                    (tabbrowser/newtab-inverted.png)

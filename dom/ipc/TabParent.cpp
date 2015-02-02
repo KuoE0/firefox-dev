@@ -18,6 +18,7 @@
 #include "mozilla/EventStateManager.h"
 #include "mozilla/Hal.h"
 #include "mozilla/ipc/DocumentRendererParent.h"
+#include "mozilla/jsipc/CrossProcessObjectWrappers.h"
 #include "mozilla/layers/CompositorParent.h"
 #include "mozilla/layers/InputAPZContext.h"
 #include "mozilla/layout/RenderFrameParent.h"
@@ -65,7 +66,6 @@
 #include "PermissionMessageUtils.h"
 #include "StructuredCloneUtils.h"
 #include "ColorPickerParent.h"
-#include "JavaScriptParent.h"
 #include "FilePickerParent.h"
 #include "TabChild.h"
 #include "LoadContext.h"
@@ -366,6 +366,15 @@ TabParent::Destroy()
   if (XRE_GetProcessType() == GeckoProcessType_Default) {
     Manager()->AsContentParent()->NotifyTabDestroying(this);
   }
+
+  // Let all PluginWidgets know we are tearing down. Prevents
+  // these objects from sending async events after the child side
+  // is shut down.
+  const nsTArray<PPluginWidgetParent*>& kids = ManagedPPluginWidgetParent();
+  for (uint32_t idx = 0; idx < kids.Length(); ++idx) {
+      static_cast<mozilla::plugins::PluginWidgetParent*>(kids[idx])->ParentDestroy();
+  }
+
   mMarkedDestroying = true;
 }
 
@@ -1348,7 +1357,7 @@ TabParent::RecvSyncMessage(const nsString& aMessage,
   }
 
   StructuredCloneData cloneData = ipc::UnpackClonedMessageDataForParent(aData);
-  CpowIdHolder cpows(Manager(), aCpows);
+  CrossProcessCpowHolder cpows(Manager(), aCpows);
   return ReceiveMessage(aMessage, true, &cloneData, &cpows, aPrincipal, aJSONRetVal);
 }
 
@@ -1370,7 +1379,7 @@ TabParent::RecvRpcMessage(const nsString& aMessage,
   }
 
   StructuredCloneData cloneData = ipc::UnpackClonedMessageDataForParent(aData);
-  CpowIdHolder cpows(Manager(), aCpows);
+  CrossProcessCpowHolder cpows(Manager(), aCpows);
   return ReceiveMessage(aMessage, true, &cloneData, &cpows, aPrincipal, aJSONRetVal);
 }
 
@@ -1391,7 +1400,7 @@ TabParent::RecvAsyncMessage(const nsString& aMessage,
   }
 
   StructuredCloneData cloneData = ipc::UnpackClonedMessageDataForParent(aData);
-  CpowIdHolder cpows(Manager(), aCpows);
+  CrossProcessCpowHolder cpows(Manager(), aCpows);
   return ReceiveMessage(aMessage, false, &cloneData, &cpows, aPrincipal, nullptr);
 }
 
@@ -2117,6 +2126,7 @@ TabParent::RecvGetDefaultScale(double* aValue)
 bool
 TabParent::RecvGetWidgetNativeData(WindowsHandle* aValue)
 {
+  *aValue = 0;
   nsCOMPtr<nsIContent> content = do_QueryInterface(mFrameElement);
   if (content) {
     nsIPresShell* shell = content->OwnerDoc()->GetShell();
@@ -2127,11 +2137,10 @@ TabParent::RecvGetWidgetNativeData(WindowsHandle* aValue)
       if (widget) {
         *aValue = reinterpret_cast<WindowsHandle>(
           widget->GetNativeData(NS_NATIVE_SHAREABLE_WINDOW));
-        return true;
       }
     }
   }
-  return false;
+  return true;
 }
 
 bool

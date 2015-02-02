@@ -245,6 +245,10 @@ public:
   // Check if the media element had crossorigin set when loading started
   bool ShouldCheckAllowOrigin();
 
+  // Returns true if the currently loaded resource is CORS same-origin with
+  // respect to the document.
+  bool IsCORSSameOrigin();
+
   // Is the media element potentially playing as defined by the HTML 5 specification.
   // http://www.whatwg.org/specs/web-apps/current-work/#potentially-playing
   bool IsPotentiallyPlaying() const;
@@ -411,6 +415,11 @@ public:
 
   double Duration() const;
 
+  bool IsEncrypted() const
+  {
+    return mIsEncrypted;
+  }
+
   bool Paused() const
   {
     return mPaused;
@@ -524,6 +533,7 @@ public:
     mIsCasting = aShow;
   }
 
+  already_AddRefed<MediaSource> GetMozMediaSourceObject() const;
   already_AddRefed<DOMMediaStream> GetMozSrcObject() const;
 
   void SetMozSrcObject(DOMMediaStream& aValue);
@@ -1297,6 +1307,9 @@ protected:
 
   // True if the media has a video track
   bool mHasVideo;
+
+  // True if the media has encryption information.
+  bool mIsEncrypted;
 
   // True if the media's channel's download has been suspended.
   bool mDownloadSuspendedByCache;

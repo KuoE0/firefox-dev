@@ -63,13 +63,13 @@ extern mozilla::ThreadLocal<PerThreadData*> TlsPerThreadData;
 
 struct DtoaState;
 
-extern void
+extern MOZ_COLD void
 js_ReportOutOfMemory(js::ExclusiveContext *cx);
 
-extern void
+extern MOZ_COLD void
 js_ReportAllocationOverflow(js::ExclusiveContext *maybecx);
 
-extern void
+extern MOZ_COLD void
 js_ReportOverRecursed(js::ExclusiveContext *cx);
 
 namespace js {
@@ -85,7 +85,6 @@ class JitRuntime;
 class JitActivation;
 struct PcScriptCache;
 class Simulator;
-class SimulatorRuntime;
 struct AutoFlushICache;
 class CompileRuntime;
 }
@@ -496,22 +495,6 @@ class PerThreadData : public PerThreadDataFriendFields
     JSRuntime *runtime_;
 
   public:
-    /*
-     * We save all conservative scanned roots in this vector so that
-     * conservative scanning can be "replayed" deterministically. In DEBUG mode,
-     * this allows us to run a non-incremental GC after every incremental GC to
-     * ensure that no objects were missed.
-     */
-#ifdef DEBUG
-    struct SavedGCRoot {
-        void *thing;
-        JSGCTraceKind kind;
-
-        SavedGCRoot(void *thing, JSGCTraceKind kind) : thing(thing), kind(kind) {}
-    };
-    js::Vector<SavedGCRoot, 0, js::SystemAllocPolicy> gcSavedRoots;
-#endif
-
 #ifdef JS_TRACE_LOGGING
     TraceLoggerThread   *traceLogger;
 #endif
@@ -578,8 +561,6 @@ class PerThreadData : public PerThreadDataFriendFields
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::Simulator *simulator() const;
-    void setSimulator(js::jit::Simulator *sim);
-    js::jit::SimulatorRuntime *simulatorRuntime() const;
 #endif
 };
 
@@ -975,8 +956,6 @@ struct JSRuntime : public JS::shadow::Runtime,
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::Simulator *simulator_;
-    uintptr_t simulatorStackLimit_;
-    js::jit::SimulatorRuntime *simulatorRuntime_;
 #endif
 
   public:
@@ -986,10 +965,7 @@ struct JSRuntime : public JS::shadow::Runtime,
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::Simulator *simulator() const;
-    void setSimulator(js::jit::Simulator *sim);
     uintptr_t *addressOfSimulatorStackLimit();
-    js::jit::SimulatorRuntime *simulatorRuntime() const;
-    void setSimulatorRuntime(js::jit::SimulatorRuntime *srt);
 #endif
 
     /* Strong references on scripts held for PCCount profiling API. */

@@ -9,6 +9,7 @@
 
 #include "jsfriendapi.h"
 #include "jswrapper.h"
+#include "js/Conversions.h"
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/Alignment.h"
 #include "mozilla/Array.h"
@@ -2797,7 +2798,7 @@ public:
                JS::Handle<JSObject*> aProto, JS::Handle<JSObject*> aParent,
                T* aNative, JS::MutableHandle<JSObject*> aReflector)
   {
-    aReflector.set(JS_NewObject(aCx, aClass, aProto, aParent));
+    aReflector.set(JS_NewObjectWithGivenProto(aCx, aClass, aProto, aParent));
     if (aReflector) {
       js::SetReservedSlot(aReflector, DOM_OBJECT_SLOT, JS::PrivateValue(aNative));
       mNative = aNative;

@@ -452,18 +452,6 @@ JS_DoubleIsInt32(double d, int32_t *ip)
     return mozilla::NumberIsInt32(d, ip);
 }
 
-JS_PUBLIC_API(int32_t)
-JS_DoubleToInt32(double d)
-{
-    return ToInt32(d);
-}
-
-JS_PUBLIC_API(uint32_t)
-JS_DoubleToUint32(double d)
-{
-    return ToUint32(d);
-}
-
 JS_PUBLIC_API(JSType)
 JS_TypeOfValue(JSContext *cx, HandleValue value)
 {
@@ -2044,12 +2032,12 @@ JS_FireOnNewGlobalObject(JSContext *cx, JS::HandleObject global)
 }
 
 JS_PUBLIC_API(JSObject *)
-JS_NewObject(JSContext *cx, const JSClass *jsclasp, HandleObject proto, HandleObject parent)
+JS_NewObject(JSContext *cx, const JSClass *jsclasp, HandleObject parent)
 {
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, proto, parent);
+    assertSameCompartment(cx, parent);
 
     const Class *clasp = Valueify(jsclasp);
     if (!clasp)
@@ -2058,7 +2046,7 @@ JS_NewObject(JSContext *cx, const JSClass *jsclasp, HandleObject proto, HandleOb
     MOZ_ASSERT(clasp != &JSFunction::class_);
     MOZ_ASSERT(!(clasp->flags & JSCLASS_IS_GLOBAL));
 
-    JSObject *obj = NewObjectWithClassProto(cx, clasp, proto, parent);
+    JSObject *obj = NewObjectWithClassProto(cx, clasp, nullptr, parent);
     MOZ_ASSERT_IF(obj, obj->getParent());
     return obj;
 }
@@ -2078,10 +2066,7 @@ JS_NewObjectWithGivenProto(JSContext *cx, const JSClass *jsclasp, HandleObject p
     MOZ_ASSERT(clasp != &JSFunction::class_);
     MOZ_ASSERT(!(clasp->flags & JSCLASS_IS_GLOBAL));
 
-    JSObject *obj = NewObjectWithGivenProto(cx, clasp, proto, parent);
-    if (obj)
-        MarkTypeObjectUnknownProperties(cx, obj->type());
-    return obj;
+    return NewObjectWithGivenProto(cx, clasp, proto, parent);
 }
 
 JS_PUBLIC_API(JSObject *)
@@ -4285,8 +4270,7 @@ JS::CloneAndExecuteScript(JSContext *cx, HandleObject obj, HandleScript scriptAr
         if (!script)
             return false;
 
-        Rooted<GlobalObject *> global(cx, script->compileAndGo() ? &script->global() : nullptr);
-        js::Debugger::onNewScript(cx, script, global);
+        js::Debugger::onNewScript(cx, script);
     }
     return ExecuteScript(cx, obj, script, nullptr);
 }
@@ -5942,15 +5926,15 @@ AutoGCRooter::AutoGCRooter(ContextFriendFields *cx, ptrdiff_t tag)
     *stackTop = this;
 }
 
-#ifdef DEBUG
+#ifdef JS_DEBUG
 JS_PUBLIC_API(void)
-JS::AssertArgumentsAreSane(JSContext *cx, HandleValue value)
+JS::detail::AssertArgumentsAreSane(JSContext *cx, HandleValue value)
 {
     AssertHeapIsIdle(cx);
     CHECK_REQUEST(cx);
     assertSameCompartment(cx, value);
 }
-#endif /* DEBUG */
+#endif /* JS_DEBUG */
 
 JS_PUBLIC_API(void *)
 JS_EncodeScript(JSContext *cx, HandleScript scriptArg, uint32_t *lengthp)
