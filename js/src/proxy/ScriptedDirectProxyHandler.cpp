@@ -1103,6 +1103,19 @@ ScriptedDirectProxyHandler::nativeCall(JSContext *cx, IsAcceptableThis test, Nat
 }
 
 bool
+ScriptedDirectProxyHandler::hasInstance(JSContext *cx, HandleObject proxy, MutableHandleValue v,
+                                        bool *bp) const
+{
+    RootedObject handler(cx, GetDirectProxyHandlerObject(proxy));
+    if (!handler) {
+        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_PROXY_REVOKED);
+        return false;
+    }
+
+    return DirectProxyHandler::hasInstance(cx, proxy, v, bp);
+}
+
+bool
 ScriptedDirectProxyHandler::objectClassIs(HandleObject proxy, ESClassValue classValue,
                                           JSContext *cx) const
 {
@@ -1120,6 +1133,25 @@ ScriptedDirectProxyHandler::objectClassIs(HandleObject proxy, ESClassValue class
         return false;
 
     return IsArray(target, cx);
+}
+
+const char *
+ScriptedDirectProxyHandler::className(JSContext *cx, HandleObject proxy) const
+{
+    // Right now the caller is not prepared to handle failures.
+    RootedObject handler(cx, GetDirectProxyHandlerObject(proxy));
+    if (!handler)
+        return BaseProxyHandler::className(cx, proxy);
+
+    return DirectProxyHandler::className(cx, proxy);
+}
+JSString *
+ScriptedDirectProxyHandler::fun_toString(JSContext *cx, HandleObject proxy,
+                                         unsigned indent) const
+{
+    JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_INCOMPATIBLE_PROTO,
+                         js_Function_str, js_toString_str, "object");
+    return nullptr;
 }
 
 bool
@@ -1157,13 +1189,12 @@ ScriptedDirectProxyHandler::isConstructor(JSObject *obj) const
 const char ScriptedDirectProxyHandler::family = 0;
 const ScriptedDirectProxyHandler ScriptedDirectProxyHandler::singleton;
 
-bool
-js::proxy(JSContext *cx, unsigned argc, jsval *vp)
+static bool
+NewScriptedProxy(JSContext *cx, CallArgs &args, const char *callerName)
 {
-    CallArgs args = CallArgsFromVp(argc, vp);
     if (args.length() < 2) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_MORE_ARGS_NEEDED,
-                             "Proxy", "1", "s");
+                             callerName, "1", "s");
         return false;
     }
     RootedObject target(cx, NonNullObject(cx, args[0]));
@@ -1190,6 +1221,19 @@ js::proxy(JSContext *cx, unsigned argc, jsval *vp)
     return true;
 }
 
+bool
+js::proxy(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    if (!args.isConstructing()) {
+        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NOT_FUNCTION, "Proxy");
+        return false;
+    }
+
+    return NewScriptedProxy(cx, args, "Proxy");
+}
+
 static bool
 RevokeProxy(JSContext *cx, unsigned argc, Value *vp)
 {
@@ -1214,9 +1258,9 @@ RevokeProxy(JSContext *cx, unsigned argc, Value *vp)
 bool
 js::proxy_revocable(JSContext *cx, unsigned argc, Value *vp)
 {
-    CallReceiver args = CallReceiverFromVp(vp);
+    CallArgs args = CallArgsFromVp(argc, vp);
 
-    if (!proxy(cx, argc, vp))
+    if (!NewScriptedProxy(cx, args, "Proxy.revocable"))
         return false;
 
     RootedValue proxyVal(cx, args.rval());

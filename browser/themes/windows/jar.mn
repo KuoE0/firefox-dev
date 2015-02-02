@@ -36,6 +36,9 @@ browser.jar:
         skin/classic/browser/fullscreen-darknoise.png
         skin/classic/browser/Geolocation-16.png
         skin/classic/browser/Geolocation-64.png
+        skin/classic/browser/heartbeat-icon.svg                      (../shared/heartbeat-icon.svg)
+        skin/classic/browser/heartbeat-star-lit.svg                  (../shared/heartbeat-star-lit.svg)
+        skin/classic/browser/heartbeat-star-off.svg                  (../shared/heartbeat-star-off.svg)
         skin/classic/browser/Info.png
         skin/classic/browser/identity.png
         skin/classic/browser/identity-icons-generic.png
@@ -216,6 +219,7 @@ browser.jar:
         skin/classic/browser/tabbrowser/newtab.png                   (tabbrowser/newtab-XPVista7.png)
         skin/classic/browser/tabbrowser/newtab-inverted.png          (tabbrowser/newtab-inverted.png)
         skin/classic/browser/tabbrowser/connecting.png               (tabbrowser/connecting.png)
+        skin/classic/browser/tabbrowser/crashed.svg                  (../shared/tabbrowser/crashed.svg)
         skin/classic/browser/tabbrowser/loading.png                  (tabbrowser/loading.png)
         skin/classic/browser/tabbrowser/tab-active-middle.png        (tabbrowser/tab-active-middle.png)
         skin/classic/browser/tabbrowser/tab-active-middle@2x.png     (tabbrowser/tab-active-middle@2x.png)
@@ -494,6 +498,9 @@ browser.jar:
         skin/classic/aero/browser/fullscreen-darknoise.png
         skin/classic/aero/browser/Geolocation-16.png
         skin/classic/aero/browser/Geolocation-64.png
+        skin/classic/aero/browser/heartbeat-icon.svg                 (../shared/heartbeat-icon.svg)
+        skin/classic/aero/browser/heartbeat-star-lit.svg             (../shared/heartbeat-star-lit.svg)
+        skin/classic/aero/browser/heartbeat-star-off.svg             (../shared/heartbeat-star-off.svg)
         skin/classic/aero/browser/Info.png                           (Info-aero.png)
         skin/classic/aero/browser/identity.png                       (identity-aero.png)
         skin/classic/aero/browser/identity-icons-generic.png
@@ -683,6 +690,7 @@ browser.jar:
         skin/classic/aero/browser/tabbrowser/newtab-XPVista7.png     (tabbrowser/newtab-XPVista7.png)
         skin/classic/aero/browser/tabbrowser/newtab-inverted.png     (tabbrowser/newtab-inverted.png)
         skin/classic/aero/browser/tabbrowser/connecting.png          (tabbrowser/connecting.png)
+        skin/classic/aero/browser/tabbrowser/crashed.svg             (../shared/tabbrowser/crashed.svg)
         skin/classic/aero/browser/tabbrowser/loading.png             (tabbrowser/loading.png)
         skin/classic/aero/browser/tabbrowser/tab-active-middle.png   (tabbrowser/tab-active-middle.png)
         skin/classic/aero/browser/tabbrowser/tab-active-middle@2x.png (tabbrowser/tab-active-middle@2x.png)
