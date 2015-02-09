@@ -336,6 +336,8 @@ void
 CodeGeneratorX86Shared::visitOutOfLineLoadTypedArrayOutOfBounds(OutOfLineLoadTypedArrayOutOfBounds *ool)
 {
     switch (ool->viewType()) {
+      case Scalar::Float32x4:
+      case Scalar::Int32x4:
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("unexpected array type");
       case Scalar::Float32:
@@ -343,12 +345,6 @@ CodeGeneratorX86Shared::visitOutOfLineLoadTypedArrayOutOfBounds(OutOfLineLoadTyp
         break;
       case Scalar::Float64:
         masm.loadConstantDouble(GenericNaN(), ool->dest().fpu());
-        break;
-      case Scalar::Float32x4:
-        masm.loadConstantFloat32x4(SimdConstant::SplatX4(float(GenericNaN())), ool->dest().fpu());
-        break;
-      case Scalar::Int32x4:
-        masm.loadConstantInt32x4(SimdConstant::SplatX4(0), ool->dest().fpu());
         break;
       case Scalar::Int8:
       case Scalar::Uint8:
@@ -1978,10 +1974,10 @@ CodeGeneratorX86Shared::visitGuardShape(LGuardShape *guard)
 }
 
 void
-CodeGeneratorX86Shared::visitGuardObjectType(LGuardObjectType *guard)
+CodeGeneratorX86Shared::visitGuardObjectGroup(LGuardObjectGroup *guard)
 {
     Register obj = ToRegister(guard->input());
-    masm.cmpPtr(Operand(obj, JSObject::offsetOfType()), ImmGCPtr(guard->mir()->typeObject()));
+    masm.cmpPtr(Operand(obj, JSObject::offsetOfGroup()), ImmGCPtr(guard->mir()->group()));
 
     Assembler::Condition cond =
         guard->mir()->bailOnEquality() ? Assembler::Equal : Assembler::NotEqual;
@@ -1994,8 +1990,8 @@ CodeGeneratorX86Shared::visitGuardClass(LGuardClass *guard)
     Register obj = ToRegister(guard->input());
     Register tmp = ToRegister(guard->tempInt());
 
-    masm.loadPtr(Address(obj, JSObject::offsetOfType()), tmp);
-    masm.cmpPtr(Operand(tmp, types::TypeObject::offsetOfClasp()), ImmPtr(guard->mir()->getClass()));
+    masm.loadPtr(Address(obj, JSObject::offsetOfGroup()), tmp);
+    masm.cmpPtr(Operand(tmp, ObjectGroup::offsetOfClasp()), ImmPtr(guard->mir()->getClass()));
     bailoutIf(Assembler::NotEqual, guard->snapshot());
 }
 

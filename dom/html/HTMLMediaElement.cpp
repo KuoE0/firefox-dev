@@ -519,7 +519,7 @@ already_AddRefed<MediaSource>
 HTMLMediaElement::GetMozMediaSourceObject() const
 {
   nsRefPtr<MediaSource> source;
-  if (IsMediaSourceURI(mLoadingSrc)) {
+  if (mLoadingSrc && IsMediaSourceURI(mLoadingSrc)) {
     NS_GetSourceForMediaSourceURI(mLoadingSrc, getter_AddRefs(source));
   }
   return source.forget();
@@ -3016,6 +3016,12 @@ void HTMLMediaElement::MetadataLoaded(const MediaInfo* aInfo,
   mTags = aTags.forget();
   mLoadedDataFired = false;
   ChangeReadyState(nsIDOMHTMLMediaElement::HAVE_METADATA);
+
+  if (mIsEncrypted) {
+    nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+    obs->NotifyObservers(static_cast<nsIContent*>(this), "media-eme-metadataloaded", nullptr);
+  }
+
   DispatchAsyncEvent(NS_LITERAL_STRING("durationchange"));
   if (IsVideo() && mHasVideo) {
     mMediaSize = aInfo->mVideo.mDisplay;
@@ -3246,7 +3252,10 @@ void HTMLMediaElement::CheckProgress(bool aHaveNewProgress)
 
   if (now - mDataTime >= TimeDuration::FromMilliseconds(STALL_MS)) {
     DispatchAsyncEvent(NS_LITERAL_STRING("stalled"));
-    ChangeDelayLoadStatus(false);
+
+    if (IsMediaSourceURI(mLoadingSrc)) {
+      ChangeDelayLoadStatus(false);
+    }
 
     NS_ASSERTION(mProgressTimer, "detected stalled without timer");
     // Stop timer events, which prevents repeated stalled events until there
