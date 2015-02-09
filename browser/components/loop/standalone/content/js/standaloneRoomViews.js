@@ -19,7 +19,7 @@ loop.standaloneRoomViews = (function(mozL10n) {
 
   var StandaloneRoomInfoArea = React.createClass({displayName: "StandaloneRoomInfoArea",
     propTypes: {
-      helper: React.PropTypes.instanceOf(loop.shared.utils.Helper).isRequired,
+      isFirefox: React.PropTypes.bool.isRequired,
       activeRoomStore: React.PropTypes.oneOfType([
         React.PropTypes.instanceOf(loop.store.ActiveRoomStore),
         React.PropTypes.instanceOf(loop.store.FxOSActiveRoomStore)
@@ -34,7 +34,7 @@ loop.standaloneRoomViews = (function(mozL10n) {
     },
 
     _renderCallToActionLink: function() {
-      if (this.props.helper.isFirefox(navigator.userAgent)) {
+      if (this.props.isFirefox) {
         return (
           React.createElement("a", {href: loop.config.learnMoreUrl, className: "btn btn-info"}, 
             mozL10n.get("rooms_room_full_call_to_action_label", {
@@ -201,7 +201,7 @@ loop.standaloneRoomViews = (function(mozL10n) {
         React.PropTypes.instanceOf(loop.store.FxOSActiveRoomStore)
       ]).isRequired,
       dispatcher: React.PropTypes.instanceOf(loop.Dispatcher).isRequired,
-      helper: React.PropTypes.instanceOf(loop.shared.utils.Helper).isRequired
+      isFirefox: React.PropTypes.bool.isRequired
     },
 
     getInitialState: function() {
@@ -251,7 +251,8 @@ loop.standaloneRoomViews = (function(mozL10n) {
         this.props.dispatcher.dispatch(new sharedActions.SetupStreamElements({
           publisherConfig: this.getDefaultPublisherConfig({publishVideo: true}),
           getLocalElementFunc: this._getElement.bind(this, ".local"),
-          getRemoteElementFunc: this._getElement.bind(this, ".remote")
+          getRemoteElementFunc: this._getElement.bind(this, ".remote"),
+          getScreenShareElementFunc: this._getElement.bind(this, ".screen")
         }));
       }
 
@@ -339,6 +340,19 @@ loop.standaloneRoomViews = (function(mozL10n) {
         "local-stream-audio": this.state.videoMuted
       });
 
+      var remoteStreamClasses = React.addons.classSet({
+        "video_inner": true,
+        "remote": true,
+        "remote-stream": true,
+        hide: this.state.receivingScreenShare
+      });
+
+      var screenShareStreamClasses = React.addons.classSet({
+        "screen": true,
+        "remote-stream": true,
+        hide: !this.state.receivingScreenShare
+      });
+
       return (
         React.createElement("div", {className: "room-conversation-wrapper"}, 
           React.createElement("div", {className: "beta-logo"}), 
@@ -346,7 +360,7 @@ loop.standaloneRoomViews = (function(mozL10n) {
           React.createElement(StandaloneRoomInfoArea, {roomState: this.state.roomState, 
                                   failureReason: this.state.failureReason, 
                                   joinRoom: this.joinRoom, 
-                                  helper: this.props.helper, 
+                                  isFirefox: this.props.isFirefox, 
                                   activeRoomStore: this.props.activeRoomStore, 
                                   roomUsed: this.state.used}), 
           React.createElement("div", {className: "video-layout-wrapper"}, 
@@ -357,11 +371,13 @@ loop.standaloneRoomViews = (function(mozL10n) {
                   mozL10n.get("self_view_hidden_message")
                 ), 
                 React.createElement("div", {className: "video_wrapper remote_wrapper"}, 
-                  React.createElement("div", {className: "video_inner remote"})
+                  React.createElement("div", {className: remoteStreamClasses}), 
+                  React.createElement("div", {className: screenShareStreamClasses})
                 ), 
                 React.createElement("div", {className: localStreamClasses})
               ), 
               React.createElement(sharedViews.ConversationToolbar, {
+                dispatcher: this.props.dispatcher, 
                 video: {enabled: !this.state.videoMuted,
                         visible: this._roomIsActive()}, 
                 audio: {enabled: !this.state.audioMuted,

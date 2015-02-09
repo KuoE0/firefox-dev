@@ -7,6 +7,8 @@
 #ifndef jit_LIR_Common_h
 #define jit_LIR_Common_h
 
+#include "jsutil.h"
+
 #include "jit/AtomicOp.h"
 #include "jit/shared/Assembler-shared.h"
 
@@ -1482,6 +1484,9 @@ class LJSCallInstructionHelper : public LCallInstructionHelper<Defs, Operands, T
 {
   public:
     uint32_t argslot() const {
+        static const uint32_t alignment = JitStackAlignment / sizeof(Value);
+        if (alignment > 1)
+            return AlignBytes(mir()->numStackArgs(), alignment);
         return mir()->numStackArgs();
     }
     MCall *mir() const {
@@ -2098,15 +2103,15 @@ class LFunctionDispatch : public LInstructionHelper<0, 1, 0>
     }
 };
 
-class LTypeObjectDispatch : public LInstructionHelper<0, 1, 1>
+class LObjectGroupDispatch : public LInstructionHelper<0, 1, 1>
 {
-    // Dispatch is performed based on a TypeObject -> block
+    // Dispatch is performed based on an ObjectGroup -> block
     // map inferred by the MIR.
 
   public:
-    LIR_HEADER(TypeObjectDispatch);
+    LIR_HEADER(ObjectGroupDispatch);
 
-    LTypeObjectDispatch(const LAllocation &in, const LDefinition &temp) {
+    LObjectGroupDispatch(const LAllocation &in, const LDefinition &temp) {
         setOperand(0, in);
         setTemp(0, temp);
     }
@@ -2115,8 +2120,8 @@ class LTypeObjectDispatch : public LInstructionHelper<0, 1, 1>
         return getTemp(0);
     }
 
-    MTypeObjectDispatch *mir() {
-        return mir_->toTypeObjectDispatch();
+    MObjectGroupDispatch *mir() {
+        return mir_->toObjectGroupDispatch();
     }
 };
 
@@ -5024,13 +5029,14 @@ class LClampIToUint8 : public LInstructionHelper<1, 1, 0>
     }
 };
 
-class LClampDToUint8 : public LInstructionHelper<1, 1, 0>
+class LClampDToUint8 : public LInstructionHelper<1, 1, 1>
 {
   public:
     LIR_HEADER(ClampDToUint8)
 
-    explicit LClampDToUint8(const LAllocation &in) {
+    LClampDToUint8(const LAllocation &in, const LDefinition &temp) {
         setOperand(0, in);
+        setTemp(0, temp);
     }
 };
 

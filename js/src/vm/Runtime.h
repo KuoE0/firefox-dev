@@ -287,8 +287,8 @@ class NewObjectCache
     inline bool lookupGlobal(const Class *clasp, js::GlobalObject *global, gc::AllocKind kind,
                              EntryIndex *pentry);
 
-    bool lookupType(js::types::TypeObject *type, gc::AllocKind kind, EntryIndex *pentry) {
-        return lookup(type->clasp(), type, kind, pentry);
+    bool lookupGroup(js::ObjectGroup *group, gc::AllocKind kind, EntryIndex *pentry) {
+        return lookup(group->clasp(), group, kind, pentry);
     }
 
     /*
@@ -306,11 +306,11 @@ class NewObjectCache
     inline void fillGlobal(EntryIndex entry, const Class *clasp, js::GlobalObject *global,
                            gc::AllocKind kind, NativeObject *obj);
 
-    void fillType(EntryIndex entry, js::types::TypeObject *type, gc::AllocKind kind,
-                  NativeObject *obj)
+    void fillGroup(EntryIndex entry, js::ObjectGroup *group, gc::AllocKind kind,
+                   NativeObject *obj)
     {
-        MOZ_ASSERT(obj->type() == type);
-        return fill(entry, type->clasp(), type, kind, obj);
+        MOZ_ASSERT(obj->group() == group);
+        return fill(entry, group->clasp(), group, kind, obj);
     }
 
     /* Invalidate any entries which might produce an object with shape/proto. */
@@ -347,7 +347,7 @@ class NewObjectCache
     static void copyCachedToObject(JSObject *dst, JSObject *src, gc::AllocKind kind) {
         js_memcpy(dst, src, gc::Arena::thingSize(kind));
         Shape::writeBarrierPost(dst->shape_, &dst->shape_);
-        types::TypeObject::writeBarrierPost(dst->type_, &dst->type_);
+        ObjectGroup::writeBarrierPost(dst->group_, &dst->group_);
     }
 };
 
@@ -986,10 +986,6 @@ struct JSRuntime : public JS::shadow::Runtime,
     }
 
     mozilla::UniquePtr<js::SourceHook> sourceHook;
-
-#ifdef NIGHTLY_BUILD
-    js::AssertOnScriptEntryHook assertOnScriptEntryHook_;
-#endif
 
     /* SPS profiling metadata */
     js::SPSProfiler     spsProfiler;
