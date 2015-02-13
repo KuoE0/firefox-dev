@@ -8,11 +8,12 @@ import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.mozilla.gecko.AppConstants;
 import org.mozilla.gecko.background.common.GlobalConstants;
 import org.mozilla.gecko.background.common.log.Logger;
 import org.mozilla.gecko.background.fxa.FxAccountUtils;
@@ -45,7 +46,8 @@ import android.os.Bundle;
 public class AndroidFxAccount {
   protected static final String LOG_TAG = AndroidFxAccount.class.getSimpleName();
 
-  public static final int CURRENT_PREFS_VERSION = 1;
+  public static final int CURRENT_SYNC_PREFS_VERSION = 1;
+  public static final int CURRENT_RL_PREFS_VERSION = 1;
 
   // When updating the account, do not forget to update AccountPickler.
   public static final int CURRENT_ACCOUNT_VERSION = 3;
@@ -63,7 +65,17 @@ public class AndroidFxAccount {
   public static final String BUNDLE_KEY_STATE_LABEL = "stateLabel";
   public static final String BUNDLE_KEY_STATE = "state";
 
-  protected static final List<String> ANDROID_AUTHORITIES = Collections.unmodifiableList(Arrays.asList(BrowserContract.AUTHORITY));
+  public static final Map<String, Boolean> DEFAULT_AUTHORITIES_TO_SYNC_AUTOMATICALLY_MAP;
+  static {
+    final HashMap<String, Boolean> m = new HashMap<String, Boolean>();
+    // By default, Firefox Sync is enabled.
+    m.put(BrowserContract.AUTHORITY, true);
+    if (AppConstants.MOZ_ANDROID_READING_LIST_SERVICE) {
+      // Sync the Reading List.
+      m.put(BrowserContract.READING_LIST_AUTHORITY, true);
+    }
+    DEFAULT_AUTHORITIES_TO_SYNC_AUTOMATICALLY_MAP = Collections.unmodifiableMap(m);
+  }
 
   private static final String PREF_KEY_LAST_SYNCED_TIMESTAMP = "lastSyncedTimestamp";
 
@@ -241,10 +253,7 @@ public class AndroidFxAccount {
     return accountManager.getUserData(account, ACCOUNT_KEY_TOKEN_SERVER);
   }
 
-  /**
-   * This needs to return a string because of the tortured prefs access in GlobalSession.
-   */
-  public String getSyncPrefsPath() throws GeneralSecurityException, UnsupportedEncodingException {
+  private String constructPrefsPath(String product, long version, String extra) throws GeneralSecurityException, UnsupportedEncodingException {
     String profile = getProfile();
     String username = account.name;
 
@@ -256,26 +265,42 @@ public class AndroidFxAccount {
       throw new IllegalStateException("Missing username. Cannot fetch prefs.");
     }
 
-    final String tokenServerURI = getTokenServerURI();
-    if (tokenServerURI == null) {
-      throw new IllegalStateException("No token server URI. Cannot fetch prefs.");
-    }
-
     final String fxaServerURI = getAccountServerURI();
     if (fxaServerURI == null) {
       throw new IllegalStateException("No account server URI. Cannot fetch prefs.");
     }
 
-    final String product = GlobalConstants.BROWSER_INTENT_PACKAGE + ".fxa";
-    final long version = CURRENT_PREFS_VERSION;
-
     // This is unique for each syncing 'view' of the account.
-    final String serverURLThing = fxaServerURI + "!" + tokenServerURI;
+    final String serverURLThing = fxaServerURI + "!" + extra;
     return Utils.getPrefsPath(product, username, serverURLThing, profile, version);
+  }
+
+  /**
+   * This needs to return a string because of the tortured prefs access in GlobalSession.
+   */
+  public String getSyncPrefsPath() throws GeneralSecurityException, UnsupportedEncodingException {
+    final String tokenServerURI = getTokenServerURI();
+    if (tokenServerURI == null) {
+      throw new IllegalStateException("No token server URI. Cannot fetch prefs.");
+    }
+
+    final String product = GlobalConstants.BROWSER_INTENT_PACKAGE + ".fxa";
+    final long version = CURRENT_SYNC_PREFS_VERSION;
+    return constructPrefsPath(product, version, tokenServerURI);
+  }
+
+  public String getReadingListPrefsPath() throws GeneralSecurityException, UnsupportedEncodingException {
+    final String product = GlobalConstants.BROWSER_INTENT_PACKAGE + ".reading";
+    final long version = CURRENT_RL_PREFS_VERSION;
+    return constructPrefsPath(product, version, "");
   }
 
   public SharedPreferences getSyncPrefs() throws UnsupportedEncodingException, GeneralSecurityException {
     return context.getSharedPreferences(getSyncPrefsPath(), Utils.SHARED_PREFERENCES_MODE);
+  }
+
+  public SharedPreferences getReadingListPrefs() throws UnsupportedEncodingException, GeneralSecurityException {
+    return context.getSharedPreferences(getReadingListPrefsPath(), Utils.SHARED_PREFERENCES_MODE);
   }
 
   /**
@@ -304,10 +329,12 @@ public class AndroidFxAccount {
       String profile,
       String idpServerURI,
       String tokenServerURI,
-      State state)
+      State state,
+      final Map<String, Boolean> authoritiesToSyncAutomaticallyMap)
           throws UnsupportedEncodingException, GeneralSecurityException, URISyntaxException {
     return addAndroidAccount(context, email, profile, idpServerURI, tokenServerURI, state,
-        CURRENT_ACCOUNT_VERSION, true, false, null);
+        authoritiesToSyncAutomaticallyMap,
+        CURRENT_ACCOUNT_VERSION, false, null);
   }
 
   public static AndroidFxAccount addAndroidAccount(
@@ -317,8 +344,8 @@ public class AndroidFxAccount {
       String idpServerURI,
       String tokenServerURI,
       State state,
+      final Map<String, Boolean> authoritiesToSyncAutomaticallyMap,
       final int accountVersion,
-      final boolean syncEnabled,
       final boolean fromPickle,
       ExtendedJSONObject bundle)
           throws UnsupportedEncodingException, GeneralSecurityException, URISyntaxException {
@@ -388,11 +415,7 @@ public class AndroidFxAccount {
       fxAccount.clearSyncPrefs();
     }
 
-    if (syncEnabled) {
-      fxAccount.enableSyncing();
-    } else {
-      fxAccount.disableSyncing();
-    }
+    fxAccount.setAuthoritiesToSyncAutomaticallyMap(authoritiesToSyncAutomaticallyMap);
 
     return fxAccount;
   }
@@ -401,40 +424,31 @@ public class AndroidFxAccount {
     getSyncPrefs().edit().clear().commit();
   }
 
-  public static Iterable<String> getAndroidAuthorities() {
-    return ANDROID_AUTHORITIES;
-  }
-
-  /**
-   * Return true if the underlying Android account is currently set to sync automatically.
-   * <p>
-   * This is, confusingly, not the same thing as "being syncable": that refers
-   * to whether this account can be synced, ever; this refers to whether Android
-   * will try to sync the account at appropriate times.
-   *
-   * @return true if the account is set to sync automatically.
-   */
-  public boolean isSyncing() {
-    boolean isSyncEnabled = true;
-    for (String authority : getAndroidAuthorities()) {
-      isSyncEnabled &= ContentResolver.getSyncAutomatically(account, authority);
+  public void setAuthoritiesToSyncAutomaticallyMap(Map<String, Boolean> authoritiesToSyncAutomaticallyMap) {
+    if (authoritiesToSyncAutomaticallyMap == null) {
+      throw new IllegalArgumentException("authoritiesToSyncAutomaticallyMap must not be null");
     }
-    return isSyncEnabled;
-  }
 
-  public void enableSyncing() {
-    Logger.info(LOG_TAG, "Enabling sync for account named like " + getObfuscatedEmail());
-    for (String authority : getAndroidAuthorities()) {
-      ContentResolver.setSyncAutomatically(account, authority, true);
+    for (String authority : DEFAULT_AUTHORITIES_TO_SYNC_AUTOMATICALLY_MAP.keySet()) {
+      boolean authorityEnabled = DEFAULT_AUTHORITIES_TO_SYNC_AUTOMATICALLY_MAP.get(authority);
+      final Boolean enabled = authoritiesToSyncAutomaticallyMap.get(authority);
+      if (enabled != null) {
+        authorityEnabled = enabled.booleanValue();
+      }
+      // Accounts are always capable of being synced ...
       ContentResolver.setIsSyncable(account, authority, 1);
+      // ... but not always automatically synced.
+      ContentResolver.setSyncAutomatically(account, authority, authorityEnabled);
     }
   }
 
-  public void disableSyncing() {
-    Logger.info(LOG_TAG, "Disabling sync for account named like " + getObfuscatedEmail());
-    for (String authority : getAndroidAuthorities()) {
-      ContentResolver.setSyncAutomatically(account, authority, false);
+  public Map<String, Boolean> getAuthoritiesToSyncAutomaticallyMap() {
+    final Map<String, Boolean> authoritiesToSync = new HashMap<>();
+    for (String authority : DEFAULT_AUTHORITIES_TO_SYNC_AUTOMATICALLY_MAP.keySet()) {
+      final boolean enabled = ContentResolver.getSyncAutomatically(account, authority);
+      authoritiesToSync.put(authority, enabled);
     }
+    return authoritiesToSync;
   }
 
   /**
@@ -444,7 +458,7 @@ public class AndroidFxAccount {
    */
   public boolean isCurrentlySyncing() {
     boolean active = false;
-    for (String authority : AndroidFxAccount.getAndroidAuthorities()) {
+    for (String authority : AndroidFxAccount.DEFAULT_AUTHORITIES_TO_SYNC_AUTOMATICALLY_MAP.keySet()) {
       active |= ContentResolver.isSyncActive(account, authority);
     }
     return active;

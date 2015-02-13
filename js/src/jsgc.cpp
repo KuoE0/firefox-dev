@@ -1127,7 +1127,7 @@ GCRuntime::GCRuntime(JSRuntime *rt) :
 #endif
     validate(true),
     fullCompartmentChecks(false),
-    mallocBytes(0),
+    mallocBytesUntilGC(0),
     mallocGCTriggered(false),
     alwaysPreserveCode(false),
 #ifdef DEBUG
@@ -1655,14 +1655,14 @@ GCRuntime::setMaxMallocBytes(size_t value)
 void
 GCRuntime::resetMallocBytes()
 {
-    mallocBytes = ptrdiff_t(maxMallocBytes);
+    mallocBytesUntilGC = ptrdiff_t(maxMallocBytes);
     mallocGCTriggered = false;
 }
 
 void
 GCRuntime::updateMallocCounter(JS::Zone *zone, size_t nbytes)
 {
-    mallocBytes -= ptrdiff_t(nbytes);
+    mallocBytesUntilGC -= ptrdiff_t(nbytes);
     if (MOZ_UNLIKELY(isTooMuchMalloc()))
         onTooMuchMalloc();
     else if (zone)
@@ -2249,7 +2249,6 @@ GCRuntime::sweepZoneAfterCompacting(Zone *zone)
         c->sweepInitialShapeTable();
         c->objectGroups.sweep(fop);
         c->sweepRegExps();
-        c->sweepCallsiteClones();
         c->sweepSavedStacks();
         c->sweepGlobalObject(fop);
         c->sweepSelfHostingScriptSource();
@@ -2923,24 +2922,30 @@ ArenaLists::queueForegroundThingsForSweep(FreeOp *fop)
     gcScriptArenasToUpdate = arenaListsToSweep[FINALIZE_SCRIPT];
 }
 
-static void *
-RunLastDitchGC(JSContext *cx, JS::Zone *zone, AllocKind thingKind)
+/* static */ void *
+GCRuntime::tryRefillFreeListFromMainThread(JSContext *cx, AllocKind thingKind)
 {
-    PrepareZoneForGC(zone);
+    ArenaLists *arenas = cx->arenas();
+    Zone *zone = cx->zone();
 
-    JSRuntime *rt = cx->runtime();
+    AutoMaybeStartBackgroundAllocation maybeStartBGAlloc;
 
-    /* The last ditch GC preserves all atoms. */
-    AutoKeepAtoms keepAtoms(cx->perThreadData);
-    rt->gc.gc(GC_NORMAL, JS::gcreason::LAST_DITCH);
+    void *thing = arenas->allocateFromArena(zone, thingKind, maybeStartBGAlloc);
+    if (MOZ_LIKELY(thing))
+        return thing;
 
-    /*
-     * The JSGC_END callback can legitimately allocate new GC
-     * things and populate the free list. If that happens, just
-     * return that list head.
-     */
-    size_t thingSize = Arena::thingSize(thingKind);
-    return zone->arenas.allocateFromFreeList(thingKind, thingSize);
+    // Even if allocateFromArena failed due to OOM, a background
+    // finalization or allocation task may be running freeing more memory
+    // or adding more available memory to our free pool; wait for them to
+    // finish, then try to allocate again in case they made more memory
+    // available.
+    cx->runtime()->gc.waitBackgroundSweepOrAllocEnd();
+
+    thing = arenas->allocateFromArena(zone, thingKind, maybeStartBGAlloc);
+    if (thing)
+        return thing;
+
+    return nullptr;
 }
 
 template <AllowGC allowGC>
@@ -2951,51 +2956,29 @@ GCRuntime::refillFreeListFromMainThread(JSContext *cx, AllocKind thingKind)
     MOZ_ASSERT(!rt->isHeapBusy(), "allocating while under GC");
     MOZ_ASSERT_IF(allowGC, !rt->currentThreadHasExclusiveAccess());
 
-    ArenaLists *arenas = cx->arenas();
-    Zone *zone = cx->zone();
+    // Try to allocate; synchronize with background GC threads if necessary.
+    void *thing = tryRefillFreeListFromMainThread(cx, thingKind);
+    if (MOZ_LIKELY(thing))
+        return thing;
 
-    // If we have grown past our GC heap threshold while in the middle of an
-    // incremental GC, we're growing faster than we're GCing, so stop the world
-    // and do a full, non-incremental GC right now, if possible.
-    const bool mustCollectNow = allowGC && rt->gc.isIncrementalGCInProgress() &&
-                                zone->usage.gcBytes() > zone->threshold.gcTriggerBytes();
+    // Perform a last-ditch GC to hopefully free up some memory.
+    {
+        // If we are doing a fallible allocation, percolate up the OOM
+        // instead of reporting it.
+        if (!allowGC)
+            return nullptr;
 
-    bool outOfMemory = false;  // Set true if we fail to allocate.
-    bool ranGC = false;  // Once we've GC'd and still cannot allocate, report.
-    do {
-        if (MOZ_UNLIKELY(mustCollectNow || outOfMemory)) {
-            // If we are doing a fallible allocation, percolate up the OOM
-            // instead of reporting it.
-            if (!allowGC) {
-                MOZ_ASSERT(!mustCollectNow);
-                return nullptr;
-            }
+        JS::PrepareForFullGC(rt);
+        AutoKeepAtoms keepAtoms(cx->perThreadData);
+        rt->gc.gc(GC_SHRINK, JS::gcreason::LAST_DITCH);
+    }
 
-            if (void *thing = RunLastDitchGC(cx, zone, thingKind))
-                return thing;
-            ranGC = true;
-        }
+    // Retry the allocation after the last-ditch GC.
+    thing = tryRefillFreeListFromMainThread(cx, thingKind);
+    if (thing)
+        return thing;
 
-        AutoMaybeStartBackgroundAllocation maybeStartBGAlloc;
-        void *thing = arenas->allocateFromArena(zone, thingKind, maybeStartBGAlloc);
-        if (MOZ_LIKELY(thing))
-            return thing;
-
-        // Even if allocateFromArena failed due to OOM, a background
-        // finalization or allocation task may be running freeing more memory
-        // or adding more available memory to our free pool; wait for them to
-        // finish, then try to allocate again in case they made more memory
-        // available.
-        rt->gc.waitBackgroundSweepOrAllocEnd();
-
-        thing = arenas->allocateFromArena(zone, thingKind, maybeStartBGAlloc);
-        if (MOZ_LIKELY(thing))
-            return thing;
-
-        // Retry after a last-ditch GC, unless we've already tried that.
-        outOfMemory = true;
-    } while (!ranGC);
-
+    // We are really just totally out of memory.
     MOZ_ASSERT(allowGC, "A fallible allocation must not report OOM on failure.");
     js_ReportOutOfMemory(cx);
     return nullptr;
@@ -3208,12 +3191,12 @@ GCRuntime::maybeGC(Zone *zone)
 #ifdef JS_GC_ZEAL
     if (zealMode == ZealAllocValue || zealMode == ZealPokeValue) {
         JS::PrepareForFullGC(rt);
-        gc(GC_NORMAL, JS::gcreason::MAYBEGC);
+        gc(GC_NORMAL, JS::gcreason::DEBUG_GC);
         return true;
     }
 #endif
 
-    if (gcIfNeeded())
+    if (gcIfRequested())
         return true;
 
     if (zone->usage.gcBytes() > 1024 * 1024 &&
@@ -3222,7 +3205,7 @@ GCRuntime::maybeGC(Zone *zone)
         !isBackgroundSweeping())
     {
         PrepareZoneForGC(zone);
-        startGC(GC_NORMAL, JS::gcreason::MAYBEGC);
+        startGC(GC_NORMAL, JS::gcreason::EAGER_ALLOC_TRIGGER);
         return true;
     }
 
@@ -3248,7 +3231,7 @@ GCRuntime::maybePeriodicFullGC()
             numArenasFreeCommitted > decommitThreshold)
         {
             JS::PrepareForFullGC(rt);
-            startGC(GC_SHRINK, JS::gcreason::MAYBEGC);
+            startGC(GC_SHRINK, JS::gcreason::PERIODIC_FULL_GC);
         } else {
             nextFullGCTime = now + GC_IDLE_FULL_SPAN;
         }
@@ -4886,7 +4869,6 @@ SweepRegExpsTask::run()
 SweepMiscTask::run()
 {
     for (GCCompartmentGroupIter c(runtime); !c.done(); c.next()) {
-        c->sweepCallsiteClones();
         c->sweepSavedStacks();
         c->sweepSelfHostingScriptSource();
         c->sweepNativeIterators();
@@ -6091,7 +6073,7 @@ IsDeterministicGCReason(JS::gcreason::Reason reason)
         return false;
     }
 
-    if (reason == JS::gcreason::MAYBEGC)
+    if (reason == JS::gcreason::EAGER_ALLOC_TRIGGER)
         return false;
 
     return true;
@@ -6418,7 +6400,7 @@ GCRuntime::enableGenerationalGC()
 }
 
 bool
-GCRuntime::gcIfNeeded(JSContext *cx /* = nullptr */)
+GCRuntime::gcIfRequested(JSContext *cx /* = nullptr */)
 {
     // This method returns whether a major GC was performed.
 

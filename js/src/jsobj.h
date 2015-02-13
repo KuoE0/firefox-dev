@@ -730,7 +730,7 @@ namespace js {
  * internal methods in vm/NativeObject.h.
  *
  * Proxies override the behavior of internal methods. So when 'obj' is a proxy,
- * any one of the functions below could do just about anything. See jsproxy.h.
+ * any one of the functions below could do just about anything. See js/Proxy.h.
  */
 
 /*
@@ -939,13 +939,6 @@ LookupProperty(JSContext *cx, HandleObject obj, PropertyName *name,
 /* Set *result to tell whether obj has an own property with the given id. */
 extern bool
 HasOwnProperty(JSContext *cx, HandleObject obj, HandleId id, bool *result);
-
-/*
- * Deprecated. Search the prototype chain for `obj[id]` and redefine it to have
- * the given property attributes.
- */
-inline bool
-SetPropertyAttributes(JSContext *cx, HandleObject obj, HandleId id, unsigned *attrsp);
 
 /*
  * Set a watchpoint: a synchronous callback when the given property of the

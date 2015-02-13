@@ -8,8 +8,9 @@
 #define vm_UnboxedObject_h
 
 #include "jsgc.h"
-#include "jsinfer.h"
 #include "jsobj.h"
+
+#include "vm/TypeInference.h"
 
 namespace js {
 
@@ -146,9 +147,6 @@ class UnboxedPlainObject : public JSObject
 
     static bool obj_getOwnPropertyDescriptor(JSContext *cx, HandleObject obj, HandleId id,
                                              MutableHandle<JSPropertyDescriptor> desc);
-
-    static bool obj_setPropertyAttributes(JSContext *cx, HandleObject obj,
-                                          HandleId id, unsigned *attrsp);
 
     static bool obj_deleteProperty(JSContext *cx, HandleObject obj, HandleId id, bool *succeeded);
 

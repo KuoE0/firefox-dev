@@ -13,6 +13,7 @@
 #include "mozilla/BrowserElementParent.h"
 #include "mozilla/dom/ContentParent.h"
 #include "mozilla/dom/PContentPermissionRequestParent.h"
+#include "mozilla/dom/ServiceWorkerRegistrar.h"
 #include "mozilla/dom/indexedDB/ActorsParent.h"
 #include "mozilla/plugins/PluginWidgetParent.h"
 #include "mozilla/EventStateManager.h"
@@ -45,6 +46,7 @@
 #include "nsIDOMWindowUtils.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsILoadInfo.h"
+#include "nsPrincipal.h"
 #include "nsIPromptFactory.h"
 #include "nsIURI.h"
 #include "nsIWebBrowserChrome.h"
@@ -647,11 +649,22 @@ TabParent::RecvCreateWindow(PBrowserParent* aNewTab,
   nsCOMPtr<nsPIDOMWindow> pwindow = do_QueryInterface(window);
   NS_ENSURE_TRUE(pwindow, false);
 
-  nsRefPtr<nsIDocShell> newDocShell = pwindow->GetDocShell();
-  NS_ENSURE_TRUE(newDocShell, false);
+  nsCOMPtr<nsIDocShell> windowDocShell = pwindow->GetDocShell();
+  NS_ENSURE_TRUE(windowDocShell, false);
 
-  nsCOMPtr<nsITabParent> newRemoteTab = newDocShell->GetOpenedRemote();
-  NS_ENSURE_TRUE(newRemoteTab, false);
+  nsCOMPtr<nsIDocShellTreeOwner> treeOwner;
+  windowDocShell->GetTreeOwner(getter_AddRefs(treeOwner));
+
+  nsCOMPtr<nsIXULWindow> xulWin = do_GetInterface(treeOwner);
+  NS_ENSURE_TRUE(xulWin, false);
+
+  nsCOMPtr<nsIXULBrowserWindow> xulBrowserWin;
+  xulWin->GetXULBrowserWindow(getter_AddRefs(xulBrowserWin));
+  NS_ENSURE_TRUE(xulBrowserWin, false);
+
+  nsCOMPtr<nsITabParent> newRemoteTab;
+  rv = xulBrowserWin->ForceInitialBrowserRemote(getter_AddRefs(newRemoteTab));
+  NS_ENSURE_SUCCESS(rv, false);
 
   MOZ_ASSERT(TabParent::GetFrom(newRemoteTab) == newTab);
 
@@ -680,6 +693,19 @@ TabParent::SendLoadRemoteScript(const nsString& aURL,
 
   MOZ_ASSERT(mDelayedFrameScripts.IsEmpty());
   return PBrowserParent::SendLoadRemoteScript(aURL, aRunInGlobalScope);
+}
+
+bool
+TabParent::InitBrowserConfiguration(nsIURI* aURI,
+                                    BrowserConfiguration& aConfiguration)
+{
+  // Get the list of ServiceWorkerRegistation for this origin.
+  nsRefPtr<ServiceWorkerRegistrar> swr = ServiceWorkerRegistrar::Get();
+  MOZ_ASSERT(swr);
+
+  swr->GetRegistrations(aConfiguration.serviceWorkerRegistrations());
+
+  return true;
 }
 
 void
@@ -716,7 +742,13 @@ TabParent::LoadURL(nsIURI* aURI)
     }
     mSendOfflineStatus = false;
 
-    unused << SendLoadURL(spec);
+    // This object contains the configuration for this new app.
+    BrowserConfiguration configuration;
+    if (NS_WARN_IF(!InitBrowserConfiguration(aURI, configuration))) {
+      return;
+    }
+
+    unused << SendLoadURL(spec, configuration);
 
     // If this app is a packaged app then we can speed startup by sending over
     // the file descriptor for the "application.zip" file that it will
@@ -1927,6 +1959,7 @@ TabParent::HandleQueryContentEvent(WidgetQueryContentEvent& aEvent)
       aEvent.mReply.mOffset = aEvent.mInput.mOffset;
       aEvent.mReply.mRect =
         aEvent.mReply.mRect - LayoutDevicePixel::FromUntyped(GetChildProcessOffset());
+      aEvent.mReply.mWritingMode = mWritingMode;
       aEvent.mSucceeded = true;
     }
     break;
@@ -2182,8 +2215,8 @@ TabParent::RecvGetDPI(float* aValue)
 {
   TryCacheDPIAndScale();
 
-  NS_ABORT_IF_FALSE(mDPI > 0,
-                    "Must not ask for DPI before OwnerElement is received!");
+  MOZ_ASSERT(mDPI > 0,
+             "Must not ask for DPI before OwnerElement is received!");
   *aValue = mDPI;
   return true;
 }
@@ -2193,8 +2226,8 @@ TabParent::RecvGetDefaultScale(double* aValue)
 {
   TryCacheDPIAndScale();
 
-  NS_ABORT_IF_FALSE(mDefaultScale.scale > 0,
-                    "Must not ask for scale before OwnerElement is received!");
+  MOZ_ASSERT(mDefaultScale.scale > 0,
+             "Must not ask for scale before OwnerElement is received!");
   *aValue = mDefaultScale.scale;
   return true;
 }

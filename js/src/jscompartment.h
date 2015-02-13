@@ -283,14 +283,6 @@ struct JSCompartment
 #endif
 
     /*
-     * Hash table of all manually call site-cloned functions from within
-     * self-hosted code. Cloning according to call site provides extra
-     * sensitivity for type specialization and inlining.
-     */
-    js::CallsiteCloneTable callsiteClones;
-    void sweepCallsiteClones();
-
-    /*
      * Lazily initialized script source object to use for scripts cloned
      * from the self-hosting global.
      */
@@ -526,6 +518,28 @@ struct JSCompartment
     bool ensureJitCompartmentExists(JSContext *cx);
     js::jit::JitCompartment *jitCompartment() {
         return jitCompartment_;
+    }
+
+    enum DeprecatedLanguageExtension {
+        DeprecatedForEach = 0,              // JS 1.6+
+        DeprecatedDestructuringForIn = 1,   // JS 1.7 only
+        DeprecatedLegacyGenerator = 2,      // JS 1.7+
+        DeprecatedExpressionClosure = 3,    // Added in JS 1.8
+        DeprecatedLetBlock = 4,             // Added in JS 1.7
+        DeprecatedLetExpression = 5,        // Added in JS 1.7
+        DeprecatedNoSuchMethod = 6,         // JS 1.7+
+        DeprecatedLanguageExtensionCount
+    };
+
+  private:
+    // Used for collecting telemetry on SpiderMonkey's deprecated language extensions.
+    bool sawDeprecatedLanguageExtension[DeprecatedLanguageExtensionCount];
+
+    void reportTelemetry();
+
+  public:
+    void addTelemetry(DeprecatedLanguageExtension e) {
+        sawDeprecatedLanguageExtension[e] = true;
     }
 };
 

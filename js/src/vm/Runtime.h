@@ -20,9 +20,6 @@
 
 #include "jsatom.h"
 #include "jsclist.h"
-#ifdef DEBUG
-# include "jsproxy.h"
-#endif
 #include "jsscript.h"
 
 #ifdef XP_MACOSX
@@ -34,6 +31,9 @@
 #include "gc/Tracer.h"
 #include "irregexp/RegExpStack.h"
 #include "js/HashTable.h"
+#ifdef DEBUG
+# include "js/Proxy.h" // For AutoEnterPolicy
+#endif
 #include "js/Vector.h"
 #include "vm/CommonPropertyNames.h"
 #include "vm/DateTime.h"
@@ -774,7 +774,9 @@ struct JSRuntime : public JS::shadow::Runtime,
         return numExclusiveThreads > 0;
     }
 
-    /* How many compartments there are across all zones. */
+    // How many compartments there are across all zones. This number includes
+    // ExclusiveContext compartments, so it isn't necessarily equal to the
+    // number of compartments visited by CompartmentsIter.
     size_t              numCompartments;
 
     /* Locale-specific callbacks for string conversion. */

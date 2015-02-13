@@ -555,21 +555,37 @@ function storeCountryCode(cc) {
     Services.telemetry.getHistogramById("SEARCH_SERVICE_US_TIMEZONE_MISMATCHED_COUNTRY").add(1);
   }
   // telemetry to compare our geoip response with platform-specific country data.
-  // On Mac, we can get a country code via nsIGfxInfo2
+  // On Mac and Windows, we can get a country code via nsIGfxInfo2
   let gfxInfo2;
   try {
     gfxInfo2 = Cc["@mozilla.org/gfx/info;1"].getService(Ci.nsIGfxInfo2);
   } catch (ex) {
-    // not on Mac.
+    // not available on this platform.
   }
   if (gfxInfo2) {
-    let macCC = gfxInfo2.countryCode;
-    if (cc == "US" || macCC == "US") {
-      // one of the 2 said US, so record if they are the same.
-      Services.telemetry.getHistogramById("SEARCH_SERVICE_US_COUNTRY_MISMATCHED_PLATFORM_OSX").add(cc != macCC);
-    } else {
-      // different country - record if they are the same
-      Services.telemetry.getHistogramById("SEARCH_SERVICE_NONUS_COUNTRY_MISMATCHED_PLATFORM_OSX").add(cc != macCC);
+    let probeUSMismatched, probeNonUSMismatched;
+    switch (Services.appinfo.OS) {
+      case "Darwin":
+        probeUSMismatched = "SEARCH_SERVICE_US_COUNTRY_MISMATCHED_PLATFORM_OSX";
+        probeNonUSMismatched = "SEARCH_SERVICE_NONUS_COUNTRY_MISMATCHED_PLATFORM_OSX";
+        break;
+      case "WINNT":
+        probeUSMismatched = "SEARCH_SERVICE_US_COUNTRY_MISMATCHED_PLATFORM_WIN";
+        probeNonUSMismatched = "SEARCH_SERVICE_NONUS_COUNTRY_MISMATCHED_PLATFORM_WIN";
+        break;
+      default:
+        Cu.reportError("Platform " + Services.appinfo.OS + " has nsIGfxInfo2 but no search service telemetry probes");
+        break;
+    }
+    if (probeUSMismatched && probeNonUSMismatched) {
+      let platformCC = gfxInfo2.countryCode;
+      if (cc == "US" || platformCC == "US") {
+        // one of the 2 said US, so record if they are the same.
+        Services.telemetry.getHistogramById(probeUSMismatched).add(cc != platformCC);
+      } else {
+        // different country - record if they are the same
+        Services.telemetry.getHistogramById(probeNonUSMismatched).add(cc != platformCC);
+      }
     }
   }
 }
@@ -1455,7 +1471,12 @@ Engine.prototype = {
 
     LOG("_initFromURIAndLoad: Downloading engine from: \"" + this._uri.spec + "\".");
 
-    var chan = NetUtil.ioService.newChannelFromURI(this._uri);
+    var chan = NetUtil.ioService.newChannelFromURI2(this._uri,
+                                                    null,      // aLoadingNode
+                                                    Services.scriptSecurityManager.getSystemPrincipal(),
+                                                    null,      // aTriggeringPrincipal
+                                                    Ci.nsILoadInfo.SEC_NORMAL,
+                                                    Ci.nsIContentPolicy.TYPE_OTHER);
 
     if (this._engineToUpdate && (chan instanceof Ci.nsIHttpChannel)) {
       var lastModified = engineMetadataService.getAttr(this._engineToUpdate,
@@ -1518,7 +1539,12 @@ Engine.prototype = {
 
     LOG("_initFromURISync: Loading engine from: \"" + this._uri.spec + "\".");
 
-    var chan = NetUtil.ioService.newChannelFromURI(this._uri);
+    var chan = NetUtil.ioService.newChannelFromURI2(this._uri,
+                                                    null,      // aLoadingNode
+                                                    Services.scriptSecurityManager.getSystemPrincipal(),
+                                                    null,      // aTriggeringPrincipal
+                                                    Ci.nsILoadInfo.SEC_NORMAL,
+                                                    Ci.nsIContentPolicy.TYPE_OTHER);
 
     var stream = chan.open();
     var parser = Cc["@mozilla.org/xmlextras/domparser;1"].
@@ -1835,7 +1861,12 @@ Engine.prototype = {
             getBoolPref(BROWSER_SEARCH_PREF + "cache.enabled", true)) {
           LOG("_setIcon: Downloading icon: \"" + uri.spec +
               "\" for engine: \"" + this.name + "\"");
-          var chan = NetUtil.ioService.newChannelFromURI(uri);
+          var chan = NetUtil.ioService.newChannelFromURI2(uri,
+                                                          null,      // aLoadingNode
+                                                          Services.scriptSecurityManager.getSystemPrincipal(),
+                                                          null,      // aTriggeringPrincipal
+                                                          Ci.nsILoadInfo.SEC_NORMAL,
+                                                          Ci.nsIContentPolicy.TYPE_IMAGE);
 
           let iconLoadCallback = function (aByteArray, aEngine) {
             // This callback may run after we've already set a preferred icon,
@@ -3870,7 +3901,12 @@ SearchService.prototype = {
       let listURL = root + "list.txt";
       let names = [];
       try {
-        let chan = NetUtil.ioService.newChannelFromURI(makeURI(listURL));
+        let chan = NetUtil.ioService.newChannelFromURI2(makeURI(listURL),
+                                                        null,      // aLoadingNode
+                                                        Services.scriptSecurityManager.getSystemPrincipal(),
+                                                        null,      // aTriggeringPrincipal
+                                                        Ci.nsILoadInfo.SEC_NORMAL,
+                                                        Ci.nsIContentPolicy.TYPE_OTHER);
         let sis = Cc["@mozilla.org/scriptableinputstream;1"].
                   createInstance(Ci.nsIScriptableInputStream);
         sis.init(chan.open());
@@ -4931,7 +4967,12 @@ var engineMetadataService = {
         if (jsonFile.exists()) {
           try {
             let uri = Services.io.newFileURI(jsonFile);
-            let stream = Services.io.newChannelFromURI(uri).open();
+            let stream = Services.io.newChannelFromURI2(uri,
+                                                        null,      // aLoadingNode
+                                                        Services.scriptSecurityManager.getSystemPrincipal(),
+                                                        null,      // aTriggeringPrincipal
+                                                        Ci.nsILoadInfo.SEC_NORMAL,
+                                                        Ci.nsIContentPolicy.TYPE_OTHER).open();
             this._store = parseJsonFromStream(stream);
           } catch (x) {
             LOG("metadata syncInit: could not load JSON file " + x);

@@ -1768,7 +1768,7 @@ class LApplyArgsGeneric : public LCallInstructionHelper<BOX_PIECES, BOX_PIECES +
     const LDefinition *getTempObject() {
         return getTemp(0);
     }
-    const LDefinition *getTempCopy() {
+    const LDefinition *getTempStackCounter() {
         return getTemp(1);
     }
 };
@@ -5153,22 +5153,6 @@ class LCallGetIntrinsicValue : public LCallInstructionHelper<BOX_PIECES, 0, 0>
 
     const MCallGetIntrinsicValue *mir() const {
         return mir_->toCallGetIntrinsicValue();
-    }
-};
-
-class LCallsiteCloneCache : public LInstructionHelper<1, 1, 0>
-{
-  public:
-    LIR_HEADER(CallsiteCloneCache);
-
-    explicit LCallsiteCloneCache(const LAllocation &callee) {
-        setOperand(0, callee);
-    }
-    const LAllocation *callee() {
-        return getOperand(0);
-    }
-    const MCallsiteCloneCache *mir() const {
-        return mir_->toCallsiteCloneCache();
     }
 };
 
