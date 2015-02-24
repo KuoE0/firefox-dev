@@ -12,6 +12,7 @@
 #include "mozilla/Assertions.h"
 #include "mozilla/EventForwards.h"
 #include "mozilla/TimeStamp.h"
+#include "Units.h"
 #include <windows.h>
 
 class nsWindowBase;
@@ -43,7 +44,7 @@ public:
    * this method.
    */
   static nsresult SynthesizeNativeMouseScrollEvent(nsWindowBase* aWidget,
-                                                   const nsIntPoint& aPoint,
+                                                   const LayoutDeviceIntPoint& aPoint,
                                                    uint32_t aNativeMessage,
                                                    int32_t aDelta,
                                                    uint32_t aModifierFlags,
@@ -294,8 +295,8 @@ private:
 
   private:
     bool mInitialized;
-    int32_t mScrollLines;
-    int32_t mScrollChars;
+    uint32_t mScrollLines;
+    uint32_t mScrollChars;
   };
 
   SystemSettings mSystemSettings;

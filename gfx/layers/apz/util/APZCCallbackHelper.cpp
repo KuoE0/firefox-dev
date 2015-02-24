@@ -244,7 +244,7 @@ already_AddRefed<nsIDOMWindowUtils>
 APZCCallbackHelper::GetDOMWindowUtils(const nsIContent* aContent)
 {
     nsCOMPtr<nsIDOMWindowUtils> utils;
-    nsIDocument* doc = aContent->GetCurrentDoc();
+    nsIDocument* doc = aContent->GetComposedDoc();
     if (doc) {
         utils = GetDOMWindowUtils(doc);
     }
@@ -505,8 +505,8 @@ PrepareForSetTargetAPZCNotification(nsIWidget* aWidget,
   if (dpElement) {
     dpElement->Describe(dpElementDesc);
   }
-  APZCCH_LOG("For input block %" PRIu64 " found scrollable element %p (%s)\n",
-      aInputBlockId, dpElement.get(),
+  APZCCH_LOG("For event at %s found scrollable element %p (%s)\n",
+      Stringify(aRefPoint).c_str(), dpElement.get(),
       NS_LossyConvertUTF16toASCII(dpElementDesc).get());
 
   bool guidIsValid = APZCCallbackHelper::GetOrCreateScrollIdentifiers(

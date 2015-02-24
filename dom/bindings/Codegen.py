@@ -394,6 +394,7 @@ class CGDOMJSClass(CGThing):
                     {
                       nullptr, /* lookupProperty */
                       nullptr, /* defineProperty */
+                      nullptr, /* hasProperty */
                       nullptr, /* getProperty */
                       nullptr, /* setProperty */
                       nullptr, /* getOwnPropertyDescriptor */
@@ -2095,8 +2096,8 @@ def methodLength(method):
 
 def isMaybeExposedIn(member, descriptor):
     # All we can say for sure is that if this is a worker descriptor
-    # and member is only exposed in windows, then it's not exposed.
-    return not descriptor.workers or member.exposureSet != set(["Window"])
+    # and member is not exposed in any worker, then it's not exposed.
+    return not descriptor.workers or member.isExposedInAnyWorker()
 
 def clearableCachedAttrs(descriptor):
     return (m for m in descriptor.interface.members if
@@ -4569,13 +4570,15 @@ def getJSToNativeConversionInfo(type, descriptorProvider, failureCode=None,
 
             if tag in numericSuffixes or tag is IDLType.Tags.bool:
                 defaultStr = getHandleDefault(defaultValue)
-                value = declLoc + (".Value()" if nullable else "")
+                # Make sure we actually construct the thing inside the nullable.
+                value = declLoc + (".SetValue()" if nullable else "")
                 name = getUnionMemberName(defaultValue.type)
                 default = CGGeneric("%s.RawSetAs%s() = %s;\n" %
                                     (value, name, defaultStr))
             elif isinstance(defaultValue, IDLEmptySequenceValue):
                 name = getUnionMemberName(defaultValue.type)
-                value = declLoc + (".Value()" if nullable else "")
+                # Make sure we actually construct the thing inside the nullable.
+                value = declLoc + (".SetValue()" if nullable else "")
                 # It's enough to set us to the right type; that will
                 # create an empty array, which is all we need here.
                 default = CGGeneric("%s.RawSetAs%s();\n" %
@@ -8851,7 +8854,7 @@ class CGUnionStruct(CGThing):
         dtor = CGSwitch("mType", destructorCases).define()
 
         methods.append(ClassMethod("Uninit", "void", [],
-                                   visibility="private", body=dtor,
+                                   visibility="public", body=dtor,
                                    bodyInHeader=not self.ownsMembers,
                                    inline=not self.ownsMembers))
 
@@ -11604,16 +11607,28 @@ class CGDictionary(CGThing):
                                visibility="public",
                                body=self.getMemberInitializer(m))
                    for m in self.memberInfo]
+        if d.parent:
+            # We always want to init our parent with our non-initializing
+            # constructor arg, because either we're about to init ourselves (and
+            # hence our parent) or we don't want any init happening.
+            baseConstructors = [
+                "%s(%s)" % (self.makeClassName(d.parent),
+                            self.getNonInitializingCtorArg())
+            ]
+        else:
+            baseConstructors = None
         ctors = [
             ClassConstructor(
                 [],
                 visibility="public",
+                baseConstructors=baseConstructors,
                 body=(
                     "// Safe to pass a null context if we pass a null value\n"
                     "Init(nullptr, JS::NullHandleValue);\n")),
             ClassConstructor(
-                [Argument("int", "")],
-                visibility="protected",
+                [Argument("const FastDictionaryInitializer&", "")],
+                visibility="public",
+                baseConstructors=baseConstructors,
                 explicit=True,
                 bodyInHeader=True,
                 body='// Do nothing here; this is used by our "Fast" subclass\n')
@@ -11662,7 +11677,9 @@ class CGDictionary(CGThing):
             [],
             visibility="public",
             bodyInHeader=True,
-            baseConstructors=["%s(42)" % selfName],
+            baseConstructors=["%s(%s)" %
+                              (selfName,
+                               self.getNonInitializingCtorArg())],
             body="// Doesn't matter what int we pass to the parent constructor\n")
 
         fastStruct = CGClass("Fast" + selfName,
@@ -11728,6 +11745,23 @@ class CGDictionary(CGThing):
                       "  return false;\n"
                       "}\n")
         if member.defaultValue:
+            if (member.type.isUnion() and
+                (not member.type.nullable() or
+                 not isinstance(member.defaultValue, IDLNullValue))):
+                # Since this has a default value, it might have been initialized
+                # already.  Go ahead and uninit it before we try to init it
+                # again.
+                memberName = self.makeMemberName(member.identifier.name)
+                if member.type.nullable():
+                    conversion += fill(
+                        """
+                        if (!${memberName}.IsNull()) {
+                          ${memberName}.Value().Uninit();
+                        }
+                        """,
+                        memberName=memberName)
+                else:
+                    conversion += "%s.Uninit();\n" % memberName
             conversion += "${convert}"
         elif not conversionInfo.dealWithOptional:
             # We're required, but have no default value.  Make sure
@@ -11888,6 +11922,12 @@ class CGDictionary(CGThing):
             return "JS::UndefinedValue()"
         if type.isObject():
             return "nullptr"
+        if type.isDictionary():
+            # When we construct ourselves, we don't want to init our member
+            # dictionaries.  Either we're being constructed-but-not-initialized
+            # ourselves (and then we don't want to init them) or we're about to
+            # init ourselves and then we'll init them anyway.
+            return CGDictionary.getNonInitializingCtorArg();
         return None
 
     def getMemberSourceDescription(self, member):
@@ -11897,6 +11937,10 @@ class CGDictionary(CGThing):
     @staticmethod
     def makeIdName(name):
         return IDLToCIdentifier(name) + "_id"
+
+    @staticmethod
+    def getNonInitializingCtorArg():
+        return "FastDictionaryInitializer()"
 
     @staticmethod
     def isDictionaryCopyConstructible(dictionary):

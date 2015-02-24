@@ -495,14 +495,14 @@ JSCompartment::wrap(JSContext *cx, MutableHandle<PropDesc> desc)
 }
 
 /*
- * This method marks pointers that cross compartment boundaries. It should be
- * called only for per-compartment GCs, since full GCs naturally follow pointers
- * across compartments.
+ * This method marks pointers that cross compartment boundaries. It is called in
+ * per-zone GCs (since full GCs naturally follow pointers across compartments)
+ * and when compacting to update cross-compartment pointers.
  */
 void
 JSCompartment::markCrossCompartmentWrappers(JSTracer *trc)
 {
-    MOZ_ASSERT(!zone()->isCollecting());
+    MOZ_ASSERT(!zone()->isCollecting() || trc->runtime()->isHeapCompacting());
 
     for (WrapperMap::Enum e(crossCompartmentWrappers); !e.empty(); e.popFront()) {
         Value v = e.front().value();
@@ -763,20 +763,42 @@ CreateLazyScriptsForCompartment(JSContext *cx)
 }
 
 bool
-JSCompartment::ensureDelazifyScriptsForDebugMode(JSContext *cx)
+JSCompartment::ensureDelazifyScriptsForDebugger(JSContext *cx)
 {
     MOZ_ASSERT(cx->compartment() == this);
-    if ((debugModeBits & DebugNeedDelazification) && !CreateLazyScriptsForCompartment(cx))
+    if (needsDelazificationForDebugger() && !CreateLazyScriptsForCompartment(cx))
         return false;
-    debugModeBits &= ~DebugNeedDelazification;
+    debugModeBits &= ~DebuggerNeedsDelazification;
     return true;
+}
+
+void
+JSCompartment::updateDebuggerObservesFlag(unsigned flag)
+{
+    MOZ_ASSERT(isDebuggee());
+    MOZ_ASSERT(flag == DebuggerObservesAllExecution ||
+               flag == DebuggerObservesAsmJS);
+
+    const GlobalObject::DebuggerVector *v = maybeGlobal()->getDebuggers();
+    for (Debugger * const *p = v->begin(); p != v->end(); p++) {
+        Debugger *dbg = *p;
+        if (flag == DebuggerObservesAllExecution
+            ? dbg->observesAllExecution()
+            : dbg->observesAsmJS())
+        {
+            debugModeBits |= flag;
+            return;
+        }
+    }
+
+    debugModeBits &= ~flag;
 }
 
 void
 JSCompartment::unsetIsDebuggee()
 {
     if (isDebuggee()) {
-        debugModeBits &= ~DebugExecutionMask;
+        debugModeBits &= ~DebuggerObservesMask;
         DebugScopes::onCompartmentUnsetIsDebuggee(this);
     }
 }
@@ -833,4 +855,14 @@ JSCompartment::reportTelemetry()
         if (sawDeprecatedLanguageExtension[i])
             runtime_->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, i);
     }
+}
+
+void
+JSCompartment::addTelemetry(const char *filename, DeprecatedLanguageExtension e)
+{
+    // Only report telemetry for web content, not add-ons or chrome JS.
+    if (addonId || isSystem || !filename || strncmp(filename, "http", 4) != 0)
+        return;
+
+    sawDeprecatedLanguageExtension[e] = true;
 }

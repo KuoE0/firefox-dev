@@ -38,7 +38,11 @@ js::AutoEnterPolicy::reportErrorIfExceptionIsNotPending(JSContext *cx, jsid id)
         JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr,
                              JSMSG_OBJECT_ACCESS_DENIED);
     } else {
-        JSString *str = IdToString(cx, id);
+        RootedValue idVal(cx, IdToValue(id));
+        JSString *str = ValueToSource(cx, idVal);
+        if (!str) {
+            return;
+        }
         AutoStableStringChars chars(cx);
         const char16_t *prop = nullptr;
         if (str->ensureFlat(cx) && chars.initTwoByte(cx, str))
@@ -559,6 +563,12 @@ js::proxy_DefineProperty(JSContext *cx, HandleObject obj, HandleId id, HandleVal
 }
 
 bool
+js::proxy_HasProperty(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *foundp)
+{
+    return Proxy::has(cx, obj, id, foundp);
+}
+
+bool
 js::proxy_GetProperty(JSContext *cx, HandleObject obj, HandleObject receiver, HandleId id,
                       MutableHandleValue vp)
 {
@@ -566,10 +576,10 @@ js::proxy_GetProperty(JSContext *cx, HandleObject obj, HandleObject receiver, Ha
 }
 
 bool
-js::proxy_SetProperty(JSContext *cx, HandleObject obj, HandleId id,
+js::proxy_SetProperty(JSContext *cx, HandleObject obj, HandleObject receiver, HandleId id,
                       MutableHandleValue vp, bool strict)
 {
-    return Proxy::set(cx, obj, obj, id, strict, vp);
+    return Proxy::set(cx, obj, receiver, id, strict, vp);
 }
 
 bool

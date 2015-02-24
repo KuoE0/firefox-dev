@@ -13,7 +13,7 @@
 #include "mozilla/dom/DOMException.h"
 #include "mozilla/dom/UnionTypes.h"
 #include "mozilla/CDMProxy.h"
-#include "mozilla/EMELog.h"
+#include "mozilla/EMEUtils.h"
 #include "nsContentUtils.h"
 #include "nsIScriptObjectPrincipal.h"
 #include "mozilla/Preferences.h"
@@ -27,6 +27,7 @@
 #include "nsContentCID.h"
 #include "nsServiceManagerUtils.h"
 #include "mozIGeckoMediaPluginService.h"
+#include "mozilla/dom/MediaKeySystemAccess.h"
 
 namespace mozilla {
 
@@ -365,6 +366,10 @@ MediaKeys::OnCDMCreated(PromiseId aId, const nsACString& aNodeId)
   if (mCreatePromiseId == aId) {
     Release();
   }
+
+  MediaKeySystemAccess::NotifyObservers(mParent,
+                                        mKeySystem,
+                                        MediaKeySystemStatus::Cdm_created);
 }
 
 already_AddRefed<MediaKeySession>

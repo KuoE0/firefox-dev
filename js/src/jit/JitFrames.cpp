@@ -747,6 +747,11 @@ HandleException(ResumeFromException *rfe)
 
     JitActivation *activation = cx->runtime()->activation()->asJit();
 
+#ifdef CHECK_OSIPOINT_REGISTERS
+    if (js_JitOptions.checkOsiPointRegisters)
+        activation->setCheckRegs(false);
+#endif
+
     // The Debugger onExceptionUnwind hook (reachable via
     // HandleExceptionBaseline below) may cause on-stack recompilation of
     // baseline scripts, which may patch return addresses on the stack. Since
@@ -1728,7 +1733,9 @@ SnapshotIterator::fromStack(int32_t offset) const
 static Value
 FromObjectPayload(uintptr_t payload)
 {
-    return ObjectValue(*reinterpret_cast<JSObject *>(payload));
+    // Note: Both MIRType_Object and MIRType_ObjectOrNull are encoded in
+    // snapshots using JSVAL_TYPE_OBJECT.
+    return ObjectOrNullValue(reinterpret_cast<JSObject *>(payload));
 }
 
 static Value

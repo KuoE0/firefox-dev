@@ -368,7 +368,6 @@ bool CacheEntry::Load(bool aTruncate, bool aPriority)
 
   bool directLoad = aTruncate || !mUseDisk;
   if (directLoad) {
-    mFileStatus = NS_OK;
     // mLoadStart will be used to calculate telemetry of life-time of this entry.
     // Low resulution is then enough.
     mLoadStart = TimeStamp::NowLoRes();
@@ -397,6 +396,7 @@ bool CacheEntry::Load(bool aTruncate, bool aPriority)
 
   if (directLoad) {
     // Just fake the load has already been done as "new".
+    mFileStatus = NS_OK;
     mState = EMPTY;
   }
 
@@ -412,14 +412,11 @@ NS_IMETHODIMP CacheEntry::OnFileReady(nsresult aResult, bool aIsNew)
 
   if (NS_SUCCEEDED(aResult)) {
     if (aIsNew) {
-      mozilla::Telemetry::AccumulateTimeDelta(
-        mozilla::Telemetry::NETWORK_CACHE_V2_MISS_TIME_MS,
-        mLoadStart);
-    }
-    else {
-      mozilla::Telemetry::AccumulateTimeDelta(
-        mozilla::Telemetry::NETWORK_CACHE_V2_HIT_TIME_MS,
-        mLoadStart);
+      CacheFileUtils::DetailedCacheHitTelemetry::AddRecord(
+        CacheFileUtils::DetailedCacheHitTelemetry::MISS, mLoadStart);
+    } else {
+      CacheFileUtils::DetailedCacheHitTelemetry::AddRecord(
+        CacheFileUtils::DetailedCacheHitTelemetry::HIT, mLoadStart);
     }
   }
 

@@ -39,10 +39,9 @@ using mozilla::Nothing;
 /* static */ DebuggerMemory *
 DebuggerMemory::create(JSContext *cx, Debugger *dbg)
 {
-
-    Value memoryProto = dbg->object->getReservedSlot(Debugger::JSSLOT_DEBUG_MEMORY_PROTO);
-    RootedNativeObject memory(cx, NewNativeObjectWithGivenProto(cx, &class_,
-                                                                &memoryProto.toObject(),
+    Value memoryProtoValue = dbg->object->getReservedSlot(Debugger::JSSLOT_DEBUG_MEMORY_PROTO);
+    RootedObject memoryProto(cx, &memoryProtoValue.toObject());
+    RootedNativeObject memory(cx, NewNativeObjectWithGivenProto(cx, &class_, memoryProto,
                                                                 NullPtr()));
     if (!memory)
         return nullptr;
@@ -80,7 +79,7 @@ DebuggerMemory::checkThis(JSContext *cx, CallArgs &args, const char *fnName)
     const Value &thisValue = args.thisv();
 
     if (!thisValue.isObject()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT);
+        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, InformalValueTypeName(thisValue));
         return nullptr;
     }
 

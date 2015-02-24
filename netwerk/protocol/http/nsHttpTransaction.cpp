@@ -102,9 +102,9 @@ nsHttpTransaction::nsHttpTransaction()
     , mPriority(0)
     , mRestartCount(0)
     , mCaps(0)
-    , mCapsToClear(0)
     , mClassification(CLASS_GENERAL)
     , mPipelinePosition(0)
+    , mCapsToClear(0)
     , mHttpVersion(NS_HTTP_VERSION_UNKNOWN)
     , mClosed(false)
     , mConnected(false)
@@ -123,11 +123,8 @@ nsHttpTransaction::nsHttpTransaction()
     , mPreserveStream(false)
     , mDispatchedAsBlocking(false)
     , mResponseTimeoutEnabled(true)
-    , mDontRouteViaWildCard(false)
     , mForceRestart(false)
     , mReuseOnRestart(false)
-    , mContentDecoding(false)
-    , mContentDecodingCheck(false)
     , mReportedStart(false)
     , mReportedResponseHeader(false)
     , mForTakeResponseHead(nullptr)
@@ -850,6 +847,7 @@ nsHttpTransaction::Close(nsresult reason)
     if (mConnection)
         connReused = mConnection->IsReused();
     mConnected = false;
+    mTunnelProvider = nullptr;
 
     //
     // if the connection was reset or closed before we wrote any part of the
@@ -911,17 +909,11 @@ nsHttpTransaction::Close(nsresult reason)
 
         NS_WARNING("Partial transfer, incomplete HTTP response received");
 
-        if (mHttpVersion >= NS_HTTP_VERSION_1_1) {
-            FrameCheckLevel clevel = gHttpHandler->GetEnforceH1Framing();
-            if (clevel >= FRAMECHECK_BARELY) {
-                if ((clevel == FRAMECHECK_STRICT) ||
-                    (mChunkedDecoder && mChunkedDecoder->GetChunkRemaining()) ||
-                    (!mChunkedDecoder && !mContentDecoding && mContentDecodingCheck) ) {
-                    reason = NS_ERROR_NET_PARTIAL_TRANSFER;
-                    LOG(("Partial transfer, incomplete HTTP response received: %s",
-                         mChunkedDecoder ? "broken chunk" : "c-l underrun"));
-                }
-            }
+        if ((mHttpVersion >= NS_HTTP_VERSION_1_1) &&
+            gHttpHandler->GetEnforceH1Framing()) {
+            reason = NS_ERROR_NET_PARTIAL_TRANSFER;
+            LOG(("Partial transfer, incomplete HTTP response received: %s",
+                 mChunkedDecoder ? "broken chunk" : "c-l underrun"));
         }
 
         if (mConnection) {
@@ -1131,7 +1123,7 @@ nsHttpTransaction::Restart()
     }
 
     LOG(("restarting transaction @%p\n", this));
-    SetDontRouteViaWildCard(false);
+    mTunnelProvider = nullptr;
 
     // rewind streams in case we already wrote out the request
     nsCOMPtr<nsISeekableStream> seekable = do_QueryInterface(mRequestStream);
@@ -1744,12 +1736,6 @@ nsHttpTransaction::ProcessData(char *buf, uint32_t count, uint32_t *countRead)
             MOZ_ASSERT(mConnection);
             mConnection->PushBack(buf + *countRead, countRemaining);
         }
-
-        if (!mContentDecodingCheck && mResponseHead) {
-            mContentDecoding =
-                !!mResponseHead->PeekHeader(nsHttp::Content_Encoding);
-            mContentDecodingCheck = true;
-        }
     }
 
     return NS_OK;
@@ -1772,6 +1758,14 @@ nsHttpTransaction::CancelPipeline(uint32_t reason)
     mClassification = CLASS_SOLO;
 }
 
+
+void
+nsHttpTransaction::SetLoadGroupConnectionInfo(nsILoadGroupConnectionInfo *aLoadGroupCI)
+{
+    LOG(("nsHttpTransaction %p SetLoadGroupConnectionInfo %p\n", this, aLoadGroupCI));
+    mLoadGroupCI = aLoadGroupCI;
+}
+
 // Called when the transaction marked for blocking is associated with a connection
 // (i.e. added to a new h1 conn, an idle http connection, or placed into
 // a http pipeline). It is safe to call this multiple times with it only
@@ -1787,7 +1781,7 @@ nsHttpTransaction::DispatchedAsBlocking()
     if (!mLoadGroupCI)
         return;
 
-    LOG(("nsHttpTransaction adding blocking channel %p from "
+    LOG(("nsHttpTransaction adding blocking transaction %p from "
          "loadgroup %p\n", this, mLoadGroupCI.get()));
 
     mLoadGroupCI->AddBlockingTransaction();
@@ -1803,13 +1797,13 @@ nsHttpTransaction::RemoveDispatchedAsBlocking()
     uint32_t blockers = 0;
     nsresult rv = mLoadGroupCI->RemoveBlockingTransaction(&blockers);
 
-    LOG(("nsHttpTransaction removing blocking channel %p from "
+    LOG(("nsHttpTransaction removing blocking transaction %p from "
          "loadgroup %p. %d blockers remain.\n", this,
          mLoadGroupCI.get(), blockers));
 
     if (NS_SUCCEEDED(rv) && !blockers) {
-        LOG(("nsHttpTransaction %p triggering release of blocked channels.\n",
-             this));
+        LOG(("nsHttpTransaction %p triggering release of blocked channels "
+             " with loadgroupci=%p\n", this, mLoadGroupCI.get()));
         gHttpHandler->ConnMgr()->ProcessPendingQ();
     }
 
@@ -1820,6 +1814,8 @@ void
 nsHttpTransaction::ReleaseBlockingTransaction()
 {
     RemoveDispatchedAsBlocking();
+    LOG(("nsHttpTransaction %p loadgroupci set to null "
+         "in ReleaseBlockingTransaction() - was %p\n", this, mLoadGroupCI.get()));
     mLoadGroupCI = nullptr;
 }
 

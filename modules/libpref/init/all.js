@@ -161,6 +161,11 @@ pref("dom.gamepad.non_standard_events.enabled", true);
 // Whether the KeyboardEvent.code is enabled
 pref("dom.keyboardevent.code.enabled", true);
 
+// If this is true, TextEventDispatcher dispatches keydown and keyup events
+// even during composition (keypress events are never fired during composition
+// even if this is true).
+pref("dom.keyboardevent.dispatch_during_composition", false);
+
 // Whether the WebCrypto API is enabled
 pref("dom.webcrypto.enabled", true);
 
@@ -186,6 +191,8 @@ pref("browser.sessionhistory.max_total_viewers", -1);
 
 pref("ui.use_native_colors", true);
 pref("ui.click_hold_context_menus", false);
+// Duration of timeout of incremental search in menus (ms).  0 means infinite.
+pref("ui.menu.incremental_search.timeout", 1000);
 pref("browser.display.use_document_fonts",  1);  // 0 = never, 1 = quick, 2 = always
 // 0 = default: always, except in high contrast mode
 // 1 = always
@@ -435,11 +442,11 @@ pref("media.webvtt.regions.enabled", false);
 // AudioTrack and VideoTrack support
 pref("media.track.enabled", false);
 
-// Whether to enable MediaSource support.  We want to enable on non-release
-// builds and on release windows, but on release builds restrict to YouTube.  We
-// don't enable for YouTube on non-Windows for now because the MP4 code for
-// those platforms isn't ready yet.
-#if defined(XP_WIN) || !defined(RELEASE_BUILD)
+// Whether to enable MediaSource support.
+// We want to enable on non-release  builds and on release windows and mac
+// but on release builds restrict to YouTube. We don't enable for other
+// configurations because code for those platforms isn't ready yet.
+#if defined(XP_WIN) || defined(XP_MACOSX) || !defined(RELEASE_BUILD)
 pref("media.mediasource.enabled", true);
 #else
 pref("media.mediasource.enabled", false);
@@ -600,6 +607,11 @@ pref("gfx.color_management.enablev4", false);
 
 pref("gfx.downloadable_fonts.enabled", true);
 pref("gfx.downloadable_fonts.fallback_delay", 3000);
+
+// disable downloadable font cache so that behavior is consistently
+// the uncached load behavior across pages (useful for testing reflow problems)
+pref("gfx.downloadable_fonts.disable_cache", false);
+
 #ifdef RELEASE_BUILD
 pref("gfx.downloadable_fonts.woff2.enabled", false);
 #else
@@ -1350,8 +1362,7 @@ pref("network.http.tcp_keepalive.short_lived_idle_time", 10);
 pref("network.http.tcp_keepalive.long_lived_connections", true);
 pref("network.http.tcp_keepalive.long_lived_idle_time", 600);
 
-pref("network.http.enforce-framing.http1", false); // should be named "strict"
-pref("network.http.enforce-framing.soft", true);
+pref("network.http.enforce-framing.http1", false);
 
 // default values for FTP
 // in a DSCP environment this should be 40 (0x28, or AF11), per RFC-4594,
@@ -2179,7 +2190,7 @@ pref("layout.css.grid.enabled", false);
 // in nsLayoutStylesheetCache::EnsureGlobal and the invalidation of
 // mUASheet in nsLayoutStylesheetCache::DependentPrefChanged (if it's not
 // otherwise needed) are removed.
-pref("layout.css.ruby.enabled", false);
+pref("layout.css.ruby.enabled", true);
 
 // Is support for CSS display:contents enabled?
 pref("layout.css.display-contents.enabled", true);
@@ -4090,10 +4101,10 @@ pref("dom.vibrator.max_vibrate_list_len", 128);
 pref("dom.battery.enabled", true);
 
 // Image srcset
-pref("dom.image.srcset.enabled", false);
+pref("dom.image.srcset.enabled", true);
 
 // <picture> element and sizes
-pref("dom.image.picture.enabled", false);
+pref("dom.image.picture.enabled", true);
 
 // WebSMS
 pref("dom.sms.enabled", false);
@@ -4489,9 +4500,6 @@ pref("browser.search.official", true);
 #ifndef MOZ_WIDGET_GONK
 // GMPInstallManager prefs
 
-// Enables some extra logging (can reduce performance)
-pref("media.gmp-manager.log", false);
-
 // User-settable override to media.gmp-manager.url for testing purposes.
 //pref("media.gmp-manager.url.override", "");
 
@@ -4525,6 +4533,9 @@ pref("media.gmp-manager.certs.1.issuerName", "CN=DigiCert Secure Server CA,O=Dig
 pref("media.gmp-manager.certs.1.commonName", "aus4.mozilla.org");
 pref("media.gmp-manager.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
 pref("media.gmp-manager.certs.2.commonName", "aus4.mozilla.org");
+
+// Adobe EME is currently pref'd off by default and hidden in the addon manager.
+pref("media.gmp-eme-adobe.hidden", true);
 #endif
 
 // Whether or not to perform reader mode article parsing on page load.
@@ -4549,9 +4560,6 @@ pref("reader.color_scheme.values", "[\"light\",\"dark\",\"sepia\"]");
 // The font type in reader (sans-serif, serif)
 pref("reader.font_type", "sans-serif");
 
-// Font type values available in reader mode UI.
-pref("reader.font_type.values", "[\"serif\",\"sans-serif\"]");
-
 // Whether or not the user has interacted with the reader mode toolbar.
 // This is used to show a first-launch tip in reader mode.
 pref("reader.has_used_toolbar", false);
@@ -4564,6 +4572,14 @@ pref("reader.toolbar.vertical", true);
 // features, loading Gecko Media Plugins unsandboxed.  However, EME CDMs will not be
 // loaded without sandboxing even if this pref is changed.
 pref("media.gmp.insecure.allow", false);
+#endif
+
+// Use vsync aligned rendering. b2g prefs are in b2g.js
+// Only supported on windows, os x, and b2g
+#if defined(XP_WIN) || defined(XP_MACOSX)
+pref("gfx.vsync.hw-vsync.enabled", false);
+pref("gfx.vsync.compositor", false);
+pref("gfx.vsync.refreshdriver", false);
 #endif
 
 // Secure Element API

@@ -3329,26 +3329,32 @@ EnsureNewArrayElements(ExclusiveContext *cx, ArrayObject *obj, uint32_t length)
     return true;
 }
 
+static bool
+NewArrayIsCachable(ExclusiveContext *cxArg, NewObjectKind newKind)
+{
+    return cxArg->isJSContext() &&
+           newKind == GenericObject &&
+           !cxArg->asJSContext()->compartment()->hasObjectMetadataCallback();
+}
+
 template <uint32_t maxLength>
 static MOZ_ALWAYS_INLINE ArrayObject *
 NewArray(ExclusiveContext *cxArg, uint32_t length,
-         JSObject *protoArg, NewObjectKind newKind = GenericObject)
+         HandleObject protoArg, NewObjectKind newKind = GenericObject)
 {
     gc::AllocKind allocKind = GuessArrayGCKind(length);
     MOZ_ASSERT(CanBeFinalizedInBackground(allocKind, &ArrayObject::class_));
     allocKind = GetBackgroundAllocKind(allocKind);
 
-    NewObjectCache::EntryIndex entry = -1;
-    uint64_t gcNumber = 0;
-    if (JSContext *cx = cxArg->maybeJSContext()) {
+    bool isCachable = NewArrayIsCachable(cxArg, newKind);
+    if (isCachable) {
+        JSContext *cx = cxArg->asJSContext();
         JSRuntime *rt = cx->runtime();
         NewObjectCache &cache = rt->newObjectCache;
-        if (newKind == GenericObject &&
-            !cx->compartment()->hasObjectMetadataCallback() &&
-            cache.lookupGlobal(&ArrayObject::class_, cx->global(), allocKind, &entry))
-        {
+        NewObjectCache::EntryIndex entry = -1;
+        if (cache.lookupGlobal(&ArrayObject::class_, cx->global(), allocKind, &entry)) {
             gc::InitialHeap heap = GetInitialHeap(newKind, &ArrayObject::class_);
-            JSObject *obj = cache.newObjectFromHit<NoGC>(cx, entry, heap);
+            JSObject *obj = cache.newObjectFromHit(cx, entry, heap);
             if (obj) {
                 /* Fixup the elements pointer and length, which may be incorrect. */
                 ArrayObject *arr = &obj->as<ArrayObject>();
@@ -3360,21 +3366,11 @@ NewArray(ExclusiveContext *cxArg, uint32_t length,
                     return nullptr;
                 }
                 return arr;
-            } else {
-                RootedObject proto(cxArg, protoArg);
-                obj = cache.newObjectFromHit<CanGC>(cx, entry, heap);
-                MOZ_ASSERT(!obj);
-                protoArg = proto;
             }
-        } else {
-            gcNumber = rt->gc.gcNumber();
         }
     }
 
     RootedObject proto(cxArg, protoArg);
-    if (protoArg)
-        JS::PoisonPtr(&protoArg);
-
     if (!proto && !GetBuiltinPrototype(cxArg, JSProto_Array, &proto))
         return nullptr;
 
@@ -3413,11 +3409,11 @@ NewArray(ExclusiveContext *cxArg, uint32_t length,
     if (newKind == SingletonObject && !JSObject::setSingleton(cxArg, arr))
         return nullptr;
 
-    if (entry != -1 &&
-        cxArg->asJSContext()->runtime()->gc.gcNumber() == gcNumber)
-    {
-        cxArg->asJSContext()->runtime()->newObjectCache.fillGlobal(entry, &ArrayObject::class_,
-                                                                   cxArg->global(), allocKind, arr);
+    if (isCachable) {
+        NewObjectCache &cache = cxArg->asJSContext()->runtime()->newObjectCache;
+        NewObjectCache::EntryIndex entry = -1;
+        cache.lookupGlobal(&ArrayObject::class_, cxArg->global(), allocKind, &entry);
+        cache.fillGlobal(entry, &ArrayObject::class_, cxArg->global(), allocKind, arr);
     }
 
     if (maxLength > 0 && !EnsureNewArrayElements(cxArg, arr, std::min(maxLength, length)))
@@ -3428,7 +3424,7 @@ NewArray(ExclusiveContext *cxArg, uint32_t length,
 }
 
 ArrayObject * JS_FASTCALL
-js::NewDenseEmptyArray(JSContext *cx, JSObject *proto /* = nullptr */,
+js::NewDenseEmptyArray(JSContext *cx, HandleObject proto /* = NullPtr() */,
                        NewObjectKind newKind /* = GenericObject */)
 {
     return NewArray<0>(cx, 0, proto, newKind);
@@ -3436,7 +3432,7 @@ js::NewDenseEmptyArray(JSContext *cx, JSObject *proto /* = nullptr */,
 
 ArrayObject * JS_FASTCALL
 js::NewDenseFullyAllocatedArray(ExclusiveContext *cx, uint32_t length,
-                                JSObject *proto /* = nullptr */,
+                                HandleObject proto /* = NullPtr() */,
                                 NewObjectKind newKind /* = GenericObject */)
 {
     return NewArray<NativeObject::NELEMENTS_LIMIT>(cx, length, proto, newKind);
@@ -3444,14 +3440,15 @@ js::NewDenseFullyAllocatedArray(ExclusiveContext *cx, uint32_t length,
 
 ArrayObject * JS_FASTCALL
 js::NewDensePartlyAllocatedArray(ExclusiveContext *cx, uint32_t length,
-                                 JSObject *proto /* = nullptr */,
+                                 HandleObject proto /* = NullPtr() */,
                                  NewObjectKind newKind /* = GenericObject */)
 {
     return NewArray<ArrayObject::EagerAllocationMaxLength>(cx, length, proto, newKind);
 }
 
 ArrayObject * JS_FASTCALL
-js::NewDenseUnallocatedArray(ExclusiveContext *cx, uint32_t length, JSObject *proto /* = nullptr */,
+js::NewDenseUnallocatedArray(ExclusiveContext *cx, uint32_t length,
+                             HandleObject proto /* = NullPtr() */,
                              NewObjectKind newKind /* = GenericObject */)
 {
     return NewArray<0>(cx, length, proto, newKind);
@@ -3467,12 +3464,12 @@ js::NewDenseArray(ExclusiveContext *cx, uint32_t length, HandleObjectGroup group
 
     ArrayObject *arr;
     if (allocating == NewArray_Unallocating) {
-        arr = NewDenseUnallocatedArray(cx, length, nullptr, newKind);
+        arr = NewDenseUnallocatedArray(cx, length, NullPtr(), newKind);
     } else if (allocating == NewArray_PartlyAllocating) {
-        arr = NewDensePartlyAllocatedArray(cx, length, nullptr, newKind);
+        arr = NewDensePartlyAllocatedArray(cx, length, NullPtr(), newKind);
     } else {
         MOZ_ASSERT(allocating == NewArray_FullyAllocating);
-        arr = NewDenseFullyAllocatedArray(cx, length, nullptr, newKind);
+        arr = NewDenseFullyAllocatedArray(cx, length, NullPtr(), newKind);
     }
     if (!arr)
         return nullptr;
@@ -3490,7 +3487,7 @@ js::NewDenseArray(ExclusiveContext *cx, uint32_t length, HandleObjectGroup group
 
 ArrayObject *
 js::NewDenseCopiedArray(JSContext *cx, uint32_t length, HandleArrayObject src,
-                        uint32_t elementOffset, JSObject *proto /* = nullptr */)
+                        uint32_t elementOffset, HandleObject proto /* = NullPtr() */)
 {
     MOZ_ASSERT(!src->isIndexed());
 
@@ -3512,7 +3509,8 @@ js::NewDenseCopiedArray(JSContext *cx, uint32_t length, HandleArrayObject src,
 // values must point at already-rooted Value objects
 ArrayObject *
 js::NewDenseCopiedArray(JSContext *cx, uint32_t length, const Value *values,
-                        JSObject *proto /* = nullptr */, NewObjectKind newKind /* = GenericObject */)
+                        HandleObject proto /* = NullPtr() */,
+                        NewObjectKind newKind /* = GenericObject */)
 {
     ArrayObject *arr = NewArray<NativeObject::NELEMENTS_LIMIT>(cx, length, proto);
     if (!arr)

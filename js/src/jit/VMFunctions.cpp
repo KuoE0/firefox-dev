@@ -36,10 +36,9 @@ namespace jit {
 // run before the constructors for static VMFunctions.
 /* static */ VMFunction *VMFunction::functions;
 
-AutoDetectInvalidation::AutoDetectInvalidation(JSContext *cx, MutableHandleValue rval,
-                                               IonScript *ionScript)
+AutoDetectInvalidation::AutoDetectInvalidation(JSContext *cx, MutableHandleValue rval)
   : cx_(cx),
-    ionScript_(ionScript ? ionScript : GetTopJitJSScript(cx)->ionScript()),
+    ionScript_(GetTopJitJSScript(cx)->ionScript()),
     rval_(rval),
     disabled_(false)
 { }
@@ -913,7 +912,7 @@ InitRestParameter(JSContext *cx, uint32_t length, Value *rest, HandleObject temp
     NewObjectKind newKind = templateObj->group()->shouldPreTenure()
                             ? TenuredObject
                             : GenericObject;
-    ArrayObject *arrRes = NewDenseCopiedArray(cx, length, rest, nullptr, newKind);
+    ArrayObject *arrRes = NewDenseCopiedArray(cx, length, rest, NullPtr(), newKind);
     if (arrRes)
         arrRes->setGroup(templateObj->group());
     return arrRes;

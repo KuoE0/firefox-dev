@@ -113,6 +113,19 @@ class RootedBase<TaggedProto> : public TaggedProtoOperations<Rooted<TaggedProto>
     }
 };
 
+// Since JSObject pointers are either nullptr or a valid object and since the
+// object layout of TaggedProto is identical to a bare object pointer, we can
+// safely treat a pointer to an already-rooted object (e.g. HandleObject) as a
+// pointer to a TaggedProto.
+inline Handle<TaggedProto>
+AsTaggedProto(HandleObject obj)
+{
+    static_assert(sizeof(JSObject*) == sizeof(TaggedProto),
+                  "TaggedProto must be binary compatible with JSObject");
+    return Handle<TaggedProto>::fromMarkedLocation(
+            reinterpret_cast<TaggedProto const*>(obj.address()));
+}
+
 /*
  * Lazy object groups overview.
  *
@@ -206,6 +219,11 @@ class ObjectGroup : public gc::TenuredCell
         // as well, if the group is also constructed using 'new').
         Addendum_UnboxedLayout,
 
+        // If this group is used by objects that have been converted from an
+        // unboxed representation, the addendum points to the original unboxed
+        // group.
+        Addendum_OriginalUnboxedGroup,
+
         // When used by typed objects, the addendum stores a TypeDescr.
         Addendum_TypeDescr
     };
@@ -271,13 +289,28 @@ class ObjectGroup : public gc::TenuredCell
         return maybeUnboxedLayoutDontCheckGeneration();
     }
 
-    UnboxedLayout &unboxedLayout() {
+    UnboxedLayout &unboxedLayoutDontCheckGeneration() const {
         MOZ_ASSERT(addendumKind() == Addendum_UnboxedLayout);
-        return *maybeUnboxedLayout();
+        return *maybeUnboxedLayoutDontCheckGeneration();
+    }
+
+    UnboxedLayout &unboxedLayout() {
+        maybeSweep(nullptr);
+        return unboxedLayoutDontCheckGeneration();
     }
 
     void setUnboxedLayout(UnboxedLayout *layout) {
         setAddendum(Addendum_UnboxedLayout, layout);
+    }
+
+    ObjectGroup *maybeOriginalUnboxedGroup() const {
+        if (addendumKind() == Addendum_OriginalUnboxedGroup)
+            return reinterpret_cast<ObjectGroup *>(addendum_);
+        return nullptr;
+    }
+
+    void setOriginalUnboxedGroup(ObjectGroup *group) {
+        setAddendum(Addendum_OriginalUnboxedGroup, group);
     }
 
     TypeDescr *maybeTypeDescr() {

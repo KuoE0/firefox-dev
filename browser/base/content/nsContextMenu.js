@@ -478,6 +478,8 @@ nsContextMenu.prototype = {
     var statsShowing = this.onVideo && this.target.mozMediaStatisticsShowing;
     this.showItem("context-video-showstats", this.onVideo && this.target.controls && !statsShowing);
     this.showItem("context-video-hidestats", this.onVideo && this.target.controls && statsShowing);
+    this.showItem("context-media-eme-learnmore", this.onDRMMedia);
+    this.showItem("context-media-eme-separator", this.onDRMMedia);
 
     // Disable them when there isn't a valid media source loaded.
     if (onMedia) {
@@ -499,7 +501,7 @@ nsContextMenu.prototype = {
       this.setItemAttr("context-media-showcontrols", "disabled", hasError);
       this.setItemAttr("context-media-hidecontrols", "disabled", hasError);
       if (this.onVideo) {
-        let canSaveSnapshot = this.target.readyState >= this.target.HAVE_CURRENT_DATA;
+        let canSaveSnapshot = !this.onDRMMedia && this.target.readyState >= this.target.HAVE_CURRENT_DATA;
         this.setItemAttr("context-video-saveimage",  "disabled", !canSaveSnapshot);
         this.setItemAttr("context-video-fullscreen", "disabled", hasError);
         this.setItemAttr("context-video-showstats", "disabled", hasError);
@@ -562,6 +564,7 @@ nsContextMenu.prototype = {
     this.onCanvas          = false;
     this.onVideo           = false;
     this.onAudio           = false;
+    this.onDRMMedia        = false;
     this.onTextInput       = false;
     this.onNumeric         = false;
     this.onKeywordField    = false;
@@ -640,6 +643,9 @@ nsContextMenu.prototype = {
         if (this.isMediaURLReusable(mediaURL)) {
           this.mediaURL = mediaURL;
         }
+        if (this.target.isEncrypted) {
+          this.onDRMMedia = true;
+        }
         // Firefox always creates a HTMLVideoElement when loading an ogg file
         // directly. If the media is actually audio, be smarter and provide a
         // context menu with audio operations.
@@ -655,6 +661,9 @@ nsContextMenu.prototype = {
         let mediaURL = this.target.currentSrc || this.target.src;
         if (this.isMediaURLReusable(mediaURL)) {
           this.mediaURL = mediaURL;
+        }
+        if (this.target.isEncrypted) {
+          this.onDRMMedia = true;
         }
       }
       else if (editFlags & (SpellCheckHelper.INPUT | SpellCheckHelper.TEXTAREA)) {
@@ -1067,12 +1076,6 @@ nsContextMenu.prototype = {
                    document.documentURIObject, document);
     };
     mm.addMessageListener("ContextMenu:SaveVideoFrameAsImage:Result", onMessage);
-  },
-
-  fullScreenVideo: function () {
-    let video = this.target;
-    if (document.mozFullScreenEnabled)
-      video.mozRequestFullScreen();
   },
 
   leaveDOMFullScreen: function() {
@@ -1659,43 +1662,27 @@ nsContextMenu.prototype = {
   },
 
   mediaCommand : function CM_mediaCommand(command, data) {
-    var media = this.target;
-
-    switch (command) {
-      case "play":
-        media.play();
-        break;
-      case "pause":
-        media.pause();
-        break;
-      case "mute":
-        media.muted = true;
-        break;
-      case "unmute":
-        media.muted = false;
-        break;
-      case "playbackRate":
-        media.playbackRate = data;
-        break;
-      case "hidecontrols":
-        media.removeAttribute("controls");
-        break;
-      case "showcontrols":
-        media.setAttribute("controls", "true");
-        break;
-      case "hidestats":
-      case "showstats":
-        var event = media.ownerDocument.createEvent("CustomEvent");
-        event.initCustomEvent("media-showStatistics", false, true, command == "showstats");
-        media.dispatchEvent(event);
-        break;
-    }
+    let mm = this.browser.messageManager;
+    mm.sendAsyncMessage("ContextMenu:MediaCommand",
+                        {command: command, data: data},
+                        {element: this.target});
   },
 
   copyMediaLocation : function () {
     var clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].
                     getService(Ci.nsIClipboardHelper);
     clipboard.copyString(this.mediaURL, document);
+  },
+
+  drmLearnMore: function(aEvent) {
+    let drmInfoURL = Services.urlFormatter.formatURLPref("app.support.baseURL") + "drm-content";
+    let dest = whereToOpenLink(aEvent);
+    // Don't ever want this to open in the same tab as it'll unload the
+    // DRM'd video, which is going to be a bad idea in most cases.
+    if (dest == "current") {
+      dest = "tab";
+    }
+    openUILinkIn(drmInfoURL, dest);
   },
 
   get imageURL() {

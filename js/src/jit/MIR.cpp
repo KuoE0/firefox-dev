@@ -31,6 +31,7 @@ using JS::ToInt32;
 
 using mozilla::NumbersAreIdentical;
 using mozilla::IsFloat32Representable;
+using mozilla::IsNaN;
 using mozilla::Maybe;
 using mozilla::DebugOnly;
 
@@ -629,6 +630,7 @@ MConstant *
 MConstant::NewTypedValue(TempAllocator &alloc, const Value &v, MIRType type, CompilerConstraintList *constraints)
 {
     MOZ_ASSERT(!IsSimdType(type));
+    MOZ_ASSERT_IF(type == MIRType_Float32, IsNaN(v.toDouble()) || v.toDouble() == double(float(v.toDouble())));
     MConstant *constant = new(alloc) MConstant(v, constraints);
     constant->setResultType(type);
     return constant;
@@ -637,6 +639,8 @@ MConstant::NewTypedValue(TempAllocator &alloc, const Value &v, MIRType type, Com
 MConstant *
 MConstant::NewAsmJS(TempAllocator &alloc, const Value &v, MIRType type)
 {
+    if (type == MIRType_Float32)
+        return NewTypedValue(alloc, Float32Value(v.toNumber()), type);
     return NewTypedValue(alloc, v, type);
 }
 
@@ -4725,7 +4729,9 @@ AddGroupGuard(TempAllocator &alloc, MBasicBlock *current, MDefinition *obj,
         guard = MGuardObjectGroup::New(alloc, obj, key->group(), bailOnEquality,
                                        Bailout_ObjectIdentityOrTypeGuard);
     } else {
-        guard = MGuardObjectIdentity::New(alloc, obj, key->singleton(), bailOnEquality);
+        MConstant *singletonConst = MConstant::NewConstraintlessObject(alloc, key->singleton());
+        current->add(singletonConst);
+        guard = MGuardObjectIdentity::New(alloc, obj, singletonConst, bailOnEquality);
     }
 
     current->add(guard);
@@ -4823,6 +4829,17 @@ jit::PropertyWriteNeedsTypeBarrier(TempAllocator &alloc, CompilerConstraintList 
     }
 
     MOZ_ASSERT(excluded);
+
+    // If the excluded object is a group with an unboxed layout, make sure it
+    // does not have a corresponding native group. Objects with the native
+    // group might appear even though they are not in the type set.
+    if (excluded->isGroup()) {
+        if (UnboxedLayout *layout = excluded->group()->maybeUnboxedLayout()) {
+            if (layout->nativeGroup())
+                return true;
+            excluded->watchStateChangeForUnboxedConvertedToNative(constraints);
+        }
+    }
 
     *pobj = AddGroupGuard(alloc, current, *pobj, excluded, /* bailOnEquality = */ true);
     return false;
