@@ -179,10 +179,11 @@ lazilyLoadedObserverScripts.forEach(function (aScript) {
     "Reader:ListStatusRequest",
     "Reader:RemoveFromList",
     "Reader:Share",
-    "Reader:ShowToast",
-    "Reader:ToolbarVisibility",
+    "Reader:ToolbarHidden",
     "Reader:SystemUIVisibility",
     "Reader:UpdateReaderButton",
+    "Reader:SetIntPref",
+    "Reader:SetCharPref",
   ], "chrome://browser/content/Reader.js"],
 ].forEach(aScript => {
   let [name, messages, script] = aScript;
@@ -4431,7 +4432,11 @@ Tab.prototype = {
     this.clickToPlayPluginsActivated = false;
     // Borrowed from desktop Firefox: http://mxr.mozilla.org/mozilla-central/source/browser/base/content/urlbarBindings.xml#174
     let documentURI = contentWin.document.documentURIObject.spec
-    let matchedURL = documentURI.match(/^((?:[a-z]+:\/\/)?(?:[^\/]+@)?)(.+?)(?::\d+)?(?:\/|$)/);
+
+    // If reader mode, get the base domain for the original url.
+    let strippedURI = this._stripAboutReaderURL(documentURI);
+
+    let matchedURL = strippedURI.match(/^((?:[a-z]+:\/\/)?(?:[^\/]+@)?)(.+?)(?::\d+)?(?:\/|$)/);
     let baseDomain = "";
     if (matchedURL) {
       var domain = "";
@@ -4487,6 +4492,19 @@ Tab.prototype = {
     } else {
       this.sendViewportUpdate();
     }
+  },
+
+  _stripAboutReaderURL: function (url) {
+    if (!url.startsWith("about:reader")) {
+      return url;
+    }
+
+    // From ReaderParent._getOriginalUrl (browser/modules/ReaderParent.jsm).
+    let searchParams = new URLSearchParams(url.substring("about:reader?".length));
+    if (!searchParams.has("url")) {
+        return url;
+    }
+    return decodeURIComponent(searchParams.get("url"));
   },
 
   // Properties used to cache security state used to update the UI
@@ -4892,8 +4910,10 @@ Tab.prototype = {
 
 var BrowserEventHandler = {
   init: function init() {
+    this._clickInZoomedView = false;
     Services.obs.addObserver(this, "Gesture:SingleTap", false);
     Services.obs.addObserver(this, "Gesture:CancelTouch", false);
+    Services.obs.addObserver(this, "Gesture:ClickInZoomedView", false);
     Services.obs.addObserver(this, "Gesture:DoubleTap", false);
     Services.obs.addObserver(this, "Gesture:Scroll", false);
     Services.obs.addObserver(this, "dom-touch-listener-added", false);
@@ -5087,6 +5107,10 @@ var BrowserEventHandler = {
         this._cancelTapHighlight();
         break;
 
+      case "Gesture:ClickInZoomedView":
+        this._clickInZoomedView = true;
+        break;
+
       case "Gesture:SingleTap": {
         try {
           // If the element was previously focused, show the caret attached to it.
@@ -5104,7 +5128,7 @@ var BrowserEventHandler = {
         let data = JSON.parse(aData);
         let {x, y} = data;
 
-        if (this._inCluster) {
+        if (this._inCluster && this._clickInZoomedView != true) {
           this._clusterClicked(x, y);
         } else {
           // The _highlightElement was chosen after fluffing the touch events
@@ -5114,6 +5138,7 @@ var BrowserEventHandler = {
           this._sendMouseEvent("mousedown", x, y);
           this._sendMouseEvent("mouseup",   x, y);
         }
+        this._clickInZoomedView = false;
         // scrollToFocusedInput does its own checks to find out if an element should be zoomed into
         BrowserApp.scrollToFocusedInput(BrowserApp.selectedBrowser);
 
@@ -7631,7 +7656,7 @@ var Distribution = {
     defaults.setCharPref("distribution.id", global["id"]);
     defaults.setCharPref("distribution.version", global["version"]);
 
-    let locale = Services.prefs.getCharPref("general.useragent.locale");
+    let locale = BrowserApp.getUALocalePref();
     let aboutString = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
     aboutString.data = global["about." + locale] || global["about"];
     defaults.setComplexValue("distribution.about", Ci.nsISupportsString, aboutString);
@@ -7656,8 +7681,9 @@ var Distribution = {
     }
 
     // Apply a lightweight theme if necessary
-    if (prefs["lightweightThemes.isThemeSelected"])
+    if (prefs && prefs["lightweightThemes.isThemeSelected"]) {
       Services.obs.notifyObservers(null, "lightweight-theme-apply", "");
+    }
 
     let localizedString = Cc["@mozilla.org/pref-localizedstring;1"].createInstance(Ci.nsIPrefLocalizedString);
     let localizeablePrefs = aData["LocalizablePreferences"];

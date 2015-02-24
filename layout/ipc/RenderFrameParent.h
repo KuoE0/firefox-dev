@@ -11,6 +11,7 @@
 #include "mozilla/Attributes.h"
 #include <map>
 
+#include "mozilla/layers/LayersTypes.h"
 #include "mozilla/layout/PRenderFrameParent.h"
 #include "nsDisplayList.h"
 #include "RenderFrameUtils.h"
@@ -166,10 +167,7 @@ class nsDisplayRemote : public nsDisplayItem
 
 public:
   nsDisplayRemote(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame,
-                  RenderFrameParent* aRemoteFrame)
-    : nsDisplayItem(aBuilder, aFrame)
-    , mRemoteFrame(aRemoteFrame)
-  {}
+                  RenderFrameParent* aRemoteFrame);
 
   virtual LayerState GetLayerState(nsDisplayListBuilder* aBuilder,
                                    LayerManager* aManager,
@@ -187,6 +185,7 @@ public:
 
 private:
   RenderFrameParent* mRemoteFrame;
+  mozilla::layers::EventRegionsOverride mEventRegionsOverride;
 };
 
 

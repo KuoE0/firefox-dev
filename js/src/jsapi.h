@@ -598,59 +598,6 @@ class HandleValueArray
     }
 };
 
-// Container for futex methods, used to implement the Atomics primitives.
-//
-// Client code calls JS_SetContextFutexAPI to install an instance of a
-// subclass of PerRuntimeFutexAPI on the runtime.  Implementations
-// of the Atomics primitives will use that object, if it is present
-// (and fail, if not).
-//
-// The API may differ among clients; for example, the APIs installed by
-// a worker and by the main window event thread are possibly different.
-
-class PerRuntimeFutexAPI
-{
-  public:
-    virtual ~PerRuntimeFutexAPI() {}
-
-    // Acquire the GLOBAL lock for all futex resources in all domains.
-    virtual void lock() = 0;
-
-    // Release the GLOBAL lock.
-    virtual void unlock() = 0;
-
-    enum WakeResult {
-        Woken,                  // Woken by futexWait
-        Timedout,               // Woken by timeout
-        ErrorException,         // Propagate a pending exception
-        InterruptForTerminate,  // Woken by a request to terminate the worker, throw an uncatchable
-        WaitingNotAllowed,      // wait() was not allowed to block on this thread (permanently)
-        ErrorTooLong            // Implementation limit
-    };
-
-    // Block the thread.
-    //
-    // The lock must be held around this call, see lock() and unlock().
-    virtual WakeResult wait(double timeout_ns) = 0;
-
-    // Wake the thread represented by this PerRuntimeFutexAPI.
-    //
-    // The lock must be held around this call, see lock() and unlock().
-    // Since the sleeping thread also needs that lock to wake up, the
-    // thread will not actually wake up until the caller of wake()
-    // releases the lock.
-    virtual void wake() = 0;
-};
-
-JS_PUBLIC_API(JS::PerRuntimeFutexAPI *)
-GetRuntimeFutexAPI(JSRuntime *rt);
-
-// Transfers ownership of fx to rt; if rt's futexAPI field is not null when rt is
-// deleted then rt's destructor will delete that value.  If fx is null in this
-// call then ownership of a held nonnull value is transfered away from rt.
-JS_PUBLIC_API(void)
-SetRuntimeFutexAPI(JSRuntime *rt, JS::PerRuntimeFutexAPI *fx);
-
 }  /* namespace JS */
 
 /************************************************************************/
@@ -1057,13 +1004,13 @@ extern JS_PUBLIC_API(JSType)
 JS_TypeOfValue(JSContext *cx, JS::Handle<JS::Value> v);
 
 extern JS_PUBLIC_API(bool)
-JS_StrictlyEqual(JSContext *cx, jsval v1, jsval v2, bool *equal);
+JS_StrictlyEqual(JSContext *cx, JS::Handle<JS::Value> v1, JS::Handle<JS::Value> v2, bool *equal);
 
 extern JS_PUBLIC_API(bool)
 JS_LooselyEqual(JSContext *cx, JS::Handle<JS::Value> v1, JS::Handle<JS::Value> v2, bool *equal);
 
 extern JS_PUBLIC_API(bool)
-JS_SameValue(JSContext *cx, jsval v1, jsval v2, bool *same);
+JS_SameValue(JSContext *cx, JS::Handle<JS::Value> v1, JS::Handle<JS::Value> v2, bool *same);
 
 /* True iff fun is the global eval function. */
 extern JS_PUBLIC_API(bool)
@@ -2198,7 +2145,7 @@ inline int CheckIsStrictPropertyOp(JSStrictPropertyOp op);
 #define JS_SELF_HOSTED_GET(name, getterName, flags) \
     {name, \
      uint8_t(JS_CHECK_ACCESSOR_FLAGS(flags) | JSPROP_SHARED | JSPROP_GETTER), \
-     { nullptr, JS_CAST_STRING_TO(getterName, const JSJitInfo *) }, \
+     { { nullptr, JS_CAST_STRING_TO(getterName, const JSJitInfo *) } }, \
      JSNATIVE_WRAPPER(nullptr) }
 #define JS_SELF_HOSTED_GETSET(name, getterName, setterName, flags) \
     {name, \
@@ -4760,11 +4707,12 @@ JS_SetParallelParsingEnabled(JSRuntime *rt, bool enabled);
 extern JS_PUBLIC_API(void)
 JS_SetOffthreadIonCompilationEnabled(JSRuntime *rt, bool enabled);
 
-#define JIT_COMPILER_OPTIONS(Register)                                  \
-    Register(BASELINE_WARMUP_TRIGGER, "baseline.warmup.trigger")    \
-    Register(ION_WARMUP_TRIGGER, "ion.warmup.trigger")              \
-    Register(ION_ENABLE, "ion.enable")                                  \
-    Register(BASELINE_ENABLE, "baseline.enable")                        \
+#define JIT_COMPILER_OPTIONS(Register)                                     \
+    Register(BASELINE_WARMUP_TRIGGER, "baseline.warmup.trigger")           \
+    Register(ION_WARMUP_TRIGGER, "ion.warmup.trigger")                     \
+    Register(ION_GVN_ENABLE, "ion.gvn.enable")                             \
+    Register(ION_ENABLE, "ion.enable")                                     \
+    Register(BASELINE_ENABLE, "baseline.enable")                           \
     Register(OFFTHREAD_COMPILATION_ENABLE, "offthread-compilation.enable") \
     Register(SIGNALS_ENABLE, "signals.enable")
 

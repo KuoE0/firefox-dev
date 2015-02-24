@@ -28,11 +28,15 @@
 #include "nsIEffectiveTLDService.h"
 #include "nsIIDNService.h"
 #include "nsCRT.h"
-#include "mozilla/plugins/PluginTypes.h"
+
+#ifdef XP_WIN
+#include "nsIWindowsRegKey.h"
+#endif
 
 namespace mozilla {
 namespace plugins {
 class PluginAsyncSurrogate;
+class PluginTag;
 } // namespace mozilla
 } // namespace plugins
 
@@ -326,6 +330,11 @@ private:
   nsCOMPtr<nsIFile> mPluginRegFile;
 #ifdef XP_WIN
   nsRefPtr<nsPluginDirServiceProvider> mPrivateDirServiceProvider;
+
+  // In order to reload plugins when they change, we watch the registry via
+  // this object.
+  nsCOMPtr<nsIWindowsRegKey> mRegKeyHKLM;
+  nsCOMPtr<nsIWindowsRegKey> mRegKeyHKCU;
 #endif
 
   nsCOMPtr<nsIEffectiveTLDService> mTLDService;

@@ -44,7 +44,6 @@
 
 #include "jscompartmentinlines.h"
 #include "jsgcinlines.h"
-#include "jsinferinlines.h"
 #include "jsobjinlines.h"
 
 using namespace js;
@@ -147,8 +146,7 @@ jit::InitializeIon()
 }
 
 JitRuntime::JitRuntime()
-  : execAlloc_(nullptr),
-    ionAlloc_(nullptr),
+  : execAlloc_(),
     exceptionTail_(nullptr),
     bailoutTail_(nullptr),
     profilerExitFrameTail_(nullptr),
@@ -173,10 +171,6 @@ JitRuntime::~JitRuntime()
     js_delete(functionWrappers_);
     freeOsrTempData();
 
-    // Note: The interrupt lock is not taken here, as JitRuntime is only
-    // destroyed along with its containing JSRuntime.
-    js_delete(ionAlloc_);
-
     // By this point, the jitcode global table should be empty.
     MOZ_ASSERT_IF(jitcodeGlobalTable_, jitcodeGlobalTable_->empty());
     js_delete(jitcodeGlobalTable_);
@@ -190,10 +184,6 @@ JitRuntime::initialize(JSContext *cx)
     AutoCompartment ac(cx, cx->atomsCompartment());
 
     JitContext jctx(cx, nullptr);
-
-    execAlloc_ = cx->runtime()->getExecAlloc(cx);
-    if (!execAlloc_)
-        return false;
 
     if (!cx->compartment()->ensureJitCompartmentExists(cx))
         return false;
@@ -341,15 +331,6 @@ JitRuntime::freeOsrTempData()
 {
     js_free(osrTempData_);
     osrTempData_ = nullptr;
-}
-
-ExecutableAllocator *
-JitRuntime::createIonAlloc(JSContext *cx)
-{
-    ionAlloc_ = js_new<ExecutableAllocator>();
-    if (!ionAlloc_)
-        js_ReportOutOfMemory(cx);
-    return ionAlloc_;
 }
 
 void
@@ -552,6 +533,12 @@ JitCompartment::sweep(FreeOp *fop, JSCompartment *compartment)
 
     if (regExpTestStub_ && !IsJitCodeMarked(&regExpTestStub_))
         regExpTestStub_ = nullptr;
+
+    for (size_t i = 0; i <= SimdTypeDescr::LAST_TYPE; i++) {
+        ReadBarrieredObject &obj = simdTemplateObjects_[i];
+        if (obj && IsObjectAboutToBeFinalized(obj.unsafeGet()))
+            obj.set(nullptr);
+    }
 }
 
 void
@@ -2472,6 +2459,11 @@ InvalidateActivation(FreeOp *fop, const JitActivationIterator &activations, bool
 {
     JitSpew(JitSpew_IonInvalidate, "BEGIN invalidating activation");
 
+#ifdef CHECK_OSIPOINT_REGISTERS
+    if (js_JitOptions.checkOsiPointRegisters)
+        activations->asJit()->setCheckRegs(false);
+#endif
+
     size_t frameno = 1;
 
     for (JitFrameIterator it(activations); !it.done(); ++it, ++frameno) {
@@ -2508,9 +2500,13 @@ InvalidateActivation(FreeOp *fop, const JitActivationIterator &activations, bool
           case JitFrame_Unwound_IonJS:
           case JitFrame_Unwound_BaselineJS:
           case JitFrame_Unwound_BaselineStub:
+          case JitFrame_Unwound_IonAccessorIC:
             MOZ_CRASH("invalid");
           case JitFrame_Unwound_Rectifier:
             JitSpew(JitSpew_IonInvalidate, "#%d unwound rectifier frame @ %p", frameno, it.fp());
+            break;
+          case JitFrame_IonAccessorIC:
+            JitSpew(JitSpew_IonInvalidate, "#%d ion IC getter/setter frame @ %p", frameno, it.fp());
             break;
           case JitFrame_Entry:
             JitSpew(JitSpew_IonInvalidate, "#%d entry frame @ %p", frameno, it.fp());

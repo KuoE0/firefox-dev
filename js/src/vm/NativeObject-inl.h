@@ -39,9 +39,7 @@ inline void
 NativeObject::removeLastProperty(ExclusiveContext *cx)
 {
     MOZ_ASSERT(canRemoveLastProperty());
-    RootedNativeObject self(cx, this);
-    RootedShape prev(cx, lastProperty()->previous());
-    JS_ALWAYS_TRUE(setLastProperty(cx, self, prev));
+    JS_ALWAYS_TRUE(setLastProperty(cx, lastProperty()->previous()));
 }
 
 inline bool
@@ -335,8 +333,7 @@ CopyInitializerObject(JSContext *cx, HandlePlainObject baseobj, NewObjectKind ne
         return nullptr;
 
     RootedObject metadata(cx, obj->getMetadata());
-    RootedShape lastProp(cx, baseobj->lastProperty());
-    if (!NativeObject::setLastProperty(cx, obj, lastProp))
+    if (!obj->setLastProperty(cx, baseobj->lastProperty()))
         return nullptr;
     if (metadata && !JSObject::setMetadata(cx, obj, metadata))
         return nullptr;
@@ -345,39 +342,49 @@ CopyInitializerObject(JSContext *cx, HandlePlainObject baseobj, NewObjectKind ne
 }
 
 inline NativeObject *
-NewNativeObjectWithGivenProto(ExclusiveContext *cx, const js::Class *clasp,
-                              TaggedProto proto, JSObject *parent,
+NewNativeObjectWithGivenTaggedProto(ExclusiveContext *cx, const Class *clasp,
+                                    Handle<TaggedProto> proto, HandleObject parent,
+                                    gc::AllocKind allocKind, NewObjectKind newKind)
+{
+    return MaybeNativeObject(NewObjectWithGivenTaggedProto(cx, clasp, proto, parent, allocKind,
+                                                           newKind));
+}
+
+inline NativeObject *
+NewNativeObjectWithGivenTaggedProto(ExclusiveContext *cx, const Class *clasp,
+                                    Handle<TaggedProto> proto, HandleObject parent,
+                                    NewObjectKind newKind = GenericObject)
+{
+    return MaybeNativeObject(NewObjectWithGivenTaggedProto(cx, clasp, proto, parent, newKind));
+}
+
+inline NativeObject *
+NewNativeObjectWithGivenProto(ExclusiveContext *cx, const Class *clasp,
+                              HandleObject proto, HandleObject parent,
                               gc::AllocKind allocKind, NewObjectKind newKind)
 {
     return MaybeNativeObject(NewObjectWithGivenProto(cx, clasp, proto, parent, allocKind, newKind));
 }
 
 inline NativeObject *
-NewNativeObjectWithGivenProto(ExclusiveContext *cx, const js::Class *clasp,
-                              TaggedProto proto, JSObject *parent,
+NewNativeObjectWithGivenProto(ExclusiveContext *cx, const Class *clasp,
+                              HandleObject proto, HandleObject parent,
                               NewObjectKind newKind = GenericObject)
 {
     return MaybeNativeObject(NewObjectWithGivenProto(cx, clasp, proto, parent, newKind));
 }
 
 inline NativeObject *
-NewNativeObjectWithGivenProto(ExclusiveContext *cx, const js::Class *clasp,
-                              JSObject *proto, JSObject *parent,
+NewNativeObjectWithClassProto(ExclusiveContext *cx, const Class *clasp, HandleObject proto,
+                              HandleObject parent, gc::AllocKind allocKind,
                               NewObjectKind newKind = GenericObject)
-{
-    return MaybeNativeObject(NewObjectWithGivenProto(cx, clasp, proto, parent, newKind));
-}
-
-inline NativeObject *
-NewNativeObjectWithClassProto(ExclusiveContext *cx, const js::Class *clasp, JSObject *proto, JSObject *parent,
-                              gc::AllocKind allocKind, NewObjectKind newKind = GenericObject)
 {
     return MaybeNativeObject(NewObjectWithClassProto(cx, clasp, proto, parent, allocKind, newKind));
 }
 
 inline NativeObject *
-NewNativeObjectWithClassProto(ExclusiveContext *cx, const js::Class *clasp, JSObject *proto, JSObject *parent,
-                              NewObjectKind newKind = GenericObject)
+NewNativeObjectWithClassProto(ExclusiveContext *cx, const Class *clasp, HandleObject proto,
+                              HandleObject parent, NewObjectKind newKind = GenericObject)
 {
     return MaybeNativeObject(NewObjectWithClassProto(cx, clasp, proto, parent, newKind));
 }

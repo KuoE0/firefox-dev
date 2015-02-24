@@ -13,12 +13,12 @@
 #include "jsfriendapi.h"
 #include "jsgc.h"
 #include "jsiter.h"
-#include "jsproxy.h"
 #include "jswatchpoint.h"
 #include "jswrapper.h"
 
 #include "gc/Marking.h"
 #include "jit/JitCompartment.h"
+#include "js/Proxy.h"
 #include "js/RootingAPI.h"
 #include "proxy/DeadObjectProxy.h"
 #include "vm/Debugger.h"
@@ -28,7 +28,6 @@
 #include "jsatominlines.h"
 #include "jsfuninlines.h"
 #include "jsgcinlines.h"
-#include "jsinferinlines.h"
 #include "jsobjinlines.h"
 
 using namespace js;
@@ -76,12 +75,15 @@ JSCompartment::JSCompartment(Zone *zone, const JS::CompartmentOptions &options =
     maybeAlive(true),
     jitCompartment_(nullptr)
 {
+    PodArrayZero(sawDeprecatedLanguageExtension);
     runtime_->numCompartments++;
     MOZ_ASSERT_IF(options.mergeable(), options.invisibleToDebugger());
 }
 
 JSCompartment::~JSCompartment()
 {
+    reportTelemetry();
+
     js_delete(jitCompartment_);
     js_delete(watchpointMap);
     js_delete(scriptCountsMap);
@@ -493,14 +495,14 @@ JSCompartment::wrap(JSContext *cx, MutableHandle<PropDesc> desc)
 }
 
 /*
- * This method marks pointers that cross compartment boundaries. It should be
- * called only for per-compartment GCs, since full GCs naturally follow pointers
- * across compartments.
+ * This method marks pointers that cross compartment boundaries. It is called in
+ * per-zone GCs (since full GCs naturally follow pointers across compartments)
+ * and when compacting to update cross-compartment pointers.
  */
 void
 JSCompartment::markCrossCompartmentWrappers(JSTracer *trc)
 {
-    MOZ_ASSERT(!zone()->isCollecting());
+    MOZ_ASSERT(!zone()->isCollecting() || trc->runtime()->isHeapCompacting());
 
     for (WrapperMap::Enum e(crossCompartmentWrappers); !e.empty(); e.popFront()) {
         Value v = e.front().value();
@@ -673,7 +675,6 @@ JSCompartment::clearTables()
     // merging a compartment that has been used off thread into another
     // compartment and zone.
     MOZ_ASSERT(crossCompartmentWrappers.empty());
-    MOZ_ASSERT_IF(callsiteClones.initialized(), callsiteClones.empty());
     MOZ_ASSERT(!jitCompartment_);
     MOZ_ASSERT(!debugScopes);
     MOZ_ASSERT(!gcWeakMapList);
@@ -762,20 +763,42 @@ CreateLazyScriptsForCompartment(JSContext *cx)
 }
 
 bool
-JSCompartment::ensureDelazifyScriptsForDebugMode(JSContext *cx)
+JSCompartment::ensureDelazifyScriptsForDebugger(JSContext *cx)
 {
     MOZ_ASSERT(cx->compartment() == this);
-    if ((debugModeBits & DebugNeedDelazification) && !CreateLazyScriptsForCompartment(cx))
+    if (needsDelazificationForDebugger() && !CreateLazyScriptsForCompartment(cx))
         return false;
-    debugModeBits &= ~DebugNeedDelazification;
+    debugModeBits &= ~DebuggerNeedsDelazification;
     return true;
+}
+
+void
+JSCompartment::updateDebuggerObservesFlag(unsigned flag)
+{
+    MOZ_ASSERT(isDebuggee());
+    MOZ_ASSERT(flag == DebuggerObservesAllExecution ||
+               flag == DebuggerObservesAsmJS);
+
+    const GlobalObject::DebuggerVector *v = maybeGlobal()->getDebuggers();
+    for (Debugger * const *p = v->begin(); p != v->end(); p++) {
+        Debugger *dbg = *p;
+        if (flag == DebuggerObservesAllExecution
+            ? dbg->observesAllExecution()
+            : dbg->observesAsmJS())
+        {
+            debugModeBits |= flag;
+            return;
+        }
+    }
+
+    debugModeBits &= ~flag;
 }
 
 void
 JSCompartment::unsetIsDebuggee()
 {
     if (isDebuggee()) {
-        debugModeBits &= ~DebugExecutionMask;
+        debugModeBits &= ~DebuggerObservesMask;
         DebugScopes::onCompartmentUnsetIsDebuggee(this);
     }
 }
@@ -815,4 +838,31 @@ JSCompartment::addSizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf,
     *crossCompartmentWrappersArg += crossCompartmentWrappers.sizeOfExcludingThis(mallocSizeOf);
     *regexpCompartment += regExps.sizeOfExcludingThis(mallocSizeOf);
     *savedStacksSet += savedStacks_.sizeOfExcludingThis(mallocSizeOf);
+}
+
+void
+JSCompartment::reportTelemetry()
+{
+    // Only report telemetry for web content, not add-ons or chrome JS.
+    if (addonId || isSystem)
+        return;
+
+    // Hazard analysis can't tell that the telemetry callbacks don't GC.
+    JS::AutoSuppressGCAnalysis nogc;
+
+    // Call back into Firefox's Telemetry reporter.
+    for (size_t i = 0; i < DeprecatedLanguageExtensionCount; i++) {
+        if (sawDeprecatedLanguageExtension[i])
+            runtime_->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, i);
+    }
+}
+
+void
+JSCompartment::addTelemetry(const char *filename, DeprecatedLanguageExtension e)
+{
+    // Only report telemetry for web content, not add-ons or chrome JS.
+    if (addonId || isSystem || !filename || strncmp(filename, "http", 4) != 0)
+        return;
+
+    sawDeprecatedLanguageExtension[e] = true;
 }

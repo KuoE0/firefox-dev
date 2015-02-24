@@ -18,14 +18,13 @@
 #include "vm/Interpreter.h"
 #include "vm/TraceLogging.h"
 
-#include "jsinferinlines.h"
-
 #include "jit/BaselineFrame-inl.h"
 #include "jit/JitFrames-inl.h"
 #include "vm/Debugger-inl.h"
 #include "vm/Interpreter-inl.h"
 #include "vm/NativeObject-inl.h"
 #include "vm/StringObject-inl.h"
+#include "vm/TypeInference-inl.h"
 
 using namespace js;
 using namespace js::jit;
@@ -37,10 +36,9 @@ namespace jit {
 // run before the constructors for static VMFunctions.
 /* static */ VMFunction *VMFunction::functions;
 
-AutoDetectInvalidation::AutoDetectInvalidation(JSContext *cx, MutableHandleValue rval,
-                                               IonScript *ionScript)
+AutoDetectInvalidation::AutoDetectInvalidation(JSContext *cx, MutableHandleValue rval)
   : cx_(cx),
-    ionScript_(ionScript ? ionScript : GetTopJitJSScript(cx)->ionScript()),
+    ionScript_(GetTopJitJSScript(cx)->ionScript()),
     rval_(rval),
     disabled_(false)
 { }
@@ -58,27 +56,9 @@ VMFunction::addToFunctions()
 }
 
 bool
-InvokeFunction(JSContext *cx, HandleObject obj0, uint32_t argc, Value *argv, Value *rval)
+InvokeFunction(JSContext *cx, HandleObject obj, uint32_t argc, Value *argv, Value *rval)
 {
     AutoArrayRooter argvRoot(cx, argc + 1, argv);
-
-    RootedObject obj(cx, obj0);
-    if (obj->is<JSFunction>()) {
-        RootedFunction fun(cx, &obj->as<JSFunction>());
-        if (fun->isInterpreted()) {
-            if (fun->isInterpretedLazy() && !fun->getOrCreateScript(cx))
-                return false;
-
-            // Clone function at call site if needed.
-            if (fun->nonLazyScript()->shouldCloneAtCallsite()) {
-                jsbytecode *pc;
-                RootedScript script(cx, cx->currentScript(&pc));
-                fun = CloneFunctionAtCallsite(cx, fun, script, pc);
-                if (!fun)
-                    return false;
-            }
-        }
-    }
 
     // Data in the argument vector is arranged for a JIT -> JIT call.
     Value thisv = argv[0];
@@ -699,11 +679,6 @@ GetIndexFromString(JSString *str)
 bool
 DebugPrologue(JSContext *cx, BaselineFrame *frame, jsbytecode *pc, bool *mustReturn)
 {
-    // Mark the BaselineFrame as a debuggee frame if necessary. This must be
-    // done dynamically, so we might as well do it here.
-    if (frame->script()->isDebuggee())
-        frame->setIsDebuggee();
-
     *mustReturn = false;
 
     switch (Debugger::onEnterFrame(cx, frame)) {
@@ -778,6 +753,13 @@ DebugEpilogue(JSContext *cx, BaselineFrame *frame, jsbytecode *pc, bool ok)
     // builds after each callVM, to ensure this flag is not set.
     frame->clearOverridePc();
     return true;
+}
+
+void
+FrameIsDebuggeeCheck(BaselineFrame *frame)
+{
+    if (frame->script()->isDebuggee())
+        frame->setIsDebuggee();
 }
 
 JSObject *
@@ -930,7 +912,7 @@ InitRestParameter(JSContext *cx, uint32_t length, Value *rest, HandleObject temp
     NewObjectKind newKind = templateObj->group()->shouldPreTenure()
                             ? TenuredObject
                             : GenericObject;
-    ArrayObject *arrRes = NewDenseCopiedArray(cx, length, rest, nullptr, newKind);
+    ArrayObject *arrRes = NewDenseCopiedArray(cx, length, rest, NullPtr(), newKind);
     if (arrRes)
         arrRes->setGroup(templateObj->group());
     return arrRes;

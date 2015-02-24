@@ -76,6 +76,7 @@ nsStyleContext::nsStyleContext(nsStyleContext* aParent,
   , mBits(((uint64_t)aPseudoType) << NS_STYLE_CONTEXT_TYPE_SHIFT)
   , mRefCnt(0)
 #ifdef DEBUG
+  , mFrameRefCnt(0)
   , mComputingStruct(nsStyleStructID_None)
 #endif
 {
@@ -652,9 +653,9 @@ nsStyleContext::CalcStyleDifference(nsStyleContext* aOther,
   PROFILER_LABEL("nsStyleContext", "CalcStyleDifference",
     js::ProfileEntry::Category::CSS);
 
-  NS_ABORT_IF_FALSE(NS_IsHintSubset(aParentHintsNotHandledForDescendants,
-                                    nsChangeHint_Hints_NotHandledForDescendants),
-                    "caller is passing inherited hints, but shouldn't be");
+  MOZ_ASSERT(NS_IsHintSubset(aParentHintsNotHandledForDescendants,
+                             nsChangeHint_Hints_NotHandledForDescendants),
+             "caller is passing inherited hints, but shouldn't be");
 
   static_assert(nsStyleStructID_Length <= 32,
                 "aEqualStructs is not big enough");
@@ -1037,8 +1038,8 @@ ExtractAnimationValue(nsCSSProperty aProperty,
   DebugOnly<bool> success =
     StyleAnimationValue::ExtractComputedValue(aProperty, aStyleContext,
                                               aResult);
-  NS_ABORT_IF_FALSE(success,
-                    "aProperty must be extractable by StyleAnimationValue");
+  MOZ_ASSERT(success,
+             "aProperty must be extractable by StyleAnimationValue");
 }
 
 static nscolor
@@ -1244,6 +1245,7 @@ nsStyleContext::ClearCachedInheritedStyleDataOnDescendants(uint32_t aStructs)
 void
 nsStyleContext::DoClearCachedInheritedStyleDataOnDescendants(uint32_t aStructs)
 {
+  NS_ASSERTION(mFrameRefCnt == 0, "frame still referencing style context");
   for (nsStyleStructID i = nsStyleStructID_Inherited_Start;
        i < nsStyleStructID_Inherited_Start + nsStyleStructID_Inherited_Count;
        i = nsStyleStructID(i + 1)) {

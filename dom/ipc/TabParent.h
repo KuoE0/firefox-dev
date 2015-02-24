@@ -190,7 +190,13 @@ public:
                    InfallibleTArray<LayoutDeviceIntRect>&& aCompositionRects,
                    const LayoutDeviceIntRect& aCaretRect) MOZ_OVERRIDE;
     virtual bool RecvEndIMEComposition(const bool& aCancel,
+                                       bool* aNoCompositionEvent,
                                        nsString* aComposition) MOZ_OVERRIDE;
+    virtual bool RecvStartPluginIME(const WidgetKeyboardEvent& aKeyboardEvent,
+                                    const int32_t& aPanelX,
+                                    const int32_t& aPanelY,
+                                    nsString* aCommitted) MOZ_OVERRIDE;
+    virtual bool RecvSetPluginFocused(const bool& aFocused) MOZ_OVERRIDE;
     virtual bool RecvGetInputContext(int32_t* aIMEEnabled,
                                      int32_t* aIMEOpen,
                                      intptr_t* aNativeIMEContext) MOZ_OVERRIDE;
@@ -263,6 +269,7 @@ public:
     bool MapEventCoordinatesForChildProcess(mozilla::WidgetEvent* aEvent);
     void MapEventCoordinatesForChildProcess(const LayoutDeviceIntPoint& aOffset,
                                             mozilla::WidgetEvent* aEvent);
+    LayoutDeviceToCSSScale GetLayoutDeviceToCSSScale();
 
     virtual bool RecvRequestNativeKeyBindings(const mozilla::WidgetKeyboardEvent& aEvent,
                                               MaybeNativeKeyBinding* aBindings) MOZ_OVERRIDE;
@@ -350,7 +357,7 @@ public:
       return mTabId;
     }
 
-    nsIntPoint GetChildProcessOffset();
+    LayoutDeviceIntPoint GetChildProcessOffset();
 
     /**
      * Native widget remoting protocol for use with windowed plugins with e10s.
@@ -403,6 +410,9 @@ protected:
 
     bool SendCompositionChangeEvent(mozilla::WidgetCompositionEvent& event);
 
+    bool InitBrowserConfiguration(nsIURI* aURI,
+                                  BrowserConfiguration& aConfiguration);
+
     // IME
     static TabParent *mIMETabParent;
     nsString mIMECacheText;
@@ -411,6 +421,7 @@ protected:
     mozilla::WritingMode mWritingMode;
     bool mIMEComposing;
     bool mIMECompositionEnding;
+    uint32_t mIMEEventCountAfterEnding;
     // Buffer to store composition text during ResetInputState
     // Compositions in almost all cases are small enough for nsAutoString
     nsAutoString mIMECompositionText;

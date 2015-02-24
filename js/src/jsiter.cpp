@@ -19,13 +19,13 @@
 #include "jsgc.h"
 #include "jsobj.h"
 #include "jsopcode.h"
-#include "jsproxy.h"
 #include "jsscript.h"
 #include "jstypes.h"
 #include "jsutil.h"
 
 #include "ds/Sort.h"
 #include "gc/Marking.h"
+#include "js/Proxy.h"
 #include "vm/GeneratorObject.h"
 #include "vm/GlobalObject.h"
 #include "vm/Interpreter.h"
@@ -33,8 +33,6 @@
 #include "vm/StopIterationObject.h"
 #include "vm/TypedArrayCommon.h"
 
-#include "jsinferinlines.h"
-#include "jsobjinlines.h"
 #include "jsscriptinlines.h"
 
 #include "vm/NativeObject-inl.h"
@@ -1412,7 +1410,7 @@ GlobalObject::initIteratorClasses(JSContext *cx, Handle<GlobalObject *> global)
     RootedObject proto(cx);
     if (global->getSlot(ARRAY_ITERATOR_PROTO).isUndefined()) {
         const Class *cls = &ArrayIteratorPrototypeClass;
-        proto = global->createBlankPrototypeInheriting(cx, cls, *iteratorProto);
+        proto = global->createBlankPrototypeInheriting(cx, cls, iteratorProto);
         if (!proto || !DefinePropertiesAndFunctions(cx, proto, nullptr, array_iterator_methods))
             return false;
         global->setReservedSlot(ARRAY_ITERATOR_PROTO, ObjectValue(*proto));

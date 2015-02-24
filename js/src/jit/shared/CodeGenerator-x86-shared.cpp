@@ -48,6 +48,9 @@ CodeGeneratorX86Shared::generatePrologue()
     if (isProfilerInstrumentationEnabled())
         masm.profilerEnterFrame(StackPointer, CallTempReg0);
 
+    // Ensure that the Ion frames is properly aligned.
+    masm.assertStackAlignment(JitStackAlignment, 0);
+
     // Note that this automatically sets MacroAssembler::framePushed().
     masm.reserveStack(frameSize());
 
@@ -1812,6 +1815,7 @@ CodeGeneratorX86Shared::visitRound(LRound *lir)
 
     // Branch to a slow path for non-positive inputs. Doesn't catch NaN.
     masm.zeroDouble(scratch);
+    masm.loadConstantDouble(GetBiggestNumberLessThan(0.5), temp);
     masm.branchDouble(Assembler::DoubleLessThanOrEqual, input, scratch, &negativeOrZero);
 
     // Input is positive. Add the biggest double less than 0.5 and
@@ -1819,7 +1823,6 @@ CodeGeneratorX86Shared::visitRound(LRound *lir)
     // than 0.5, adding 0.5 would undesirably round up to 1). Note that we have
     // to add the input to the temp register because we're not allowed to
     // modify the input register.
-    masm.loadConstantDouble(GetBiggestNumberLessThan(0.5), temp);
     masm.addDouble(input, temp);
     bailoutCvttsd2si(temp, output, lir->snapshot());
 
@@ -1840,7 +1843,14 @@ CodeGeneratorX86Shared::visitRound(LRound *lir)
 
     // Input is negative.
     masm.bind(&negative);
+
+    // Inputs in ]-0.5; 0] need to be added 0.5, other negative inputs need to
+    // be added the biggest double less than 0.5.
+    Label loadJoin;
+    masm.loadConstantDouble(-0.5, scratch);
+    masm.branchDouble(Assembler::DoubleLessThan, input, scratch, &loadJoin);
     masm.loadConstantDouble(0.5, temp);
+    masm.bind(&loadJoin);
 
     if (AssemblerX86Shared::HasSSE41()) {
         // Add 0.5 and round toward -Infinity. The result is stored in the temp
@@ -1894,6 +1904,7 @@ CodeGeneratorX86Shared::visitRoundF(LRoundF *lir)
 
     // Branch to a slow path for non-positive inputs. Doesn't catch NaN.
     masm.zeroFloat32(scratch);
+    masm.loadConstantFloat32(GetBiggestNumberLessThan(0.5f), temp);
     masm.branchFloat(Assembler::DoubleLessThanOrEqual, input, scratch, &negativeOrZero);
 
     // Input is non-negative. Add the biggest float less than 0.5 and truncate,
@@ -1901,7 +1912,6 @@ CodeGeneratorX86Shared::visitRoundF(LRoundF *lir)
     // adding 0.5 would undesirably round up to 1). Note that we have to add
     // the input to the temp register because we're not allowed to modify the
     // input register.
-    masm.loadConstantFloat32(GetBiggestNumberLessThan(0.5f), temp);
     masm.addFloat32(input, temp);
 
     bailoutCvttss2si(temp, output, lir->snapshot());
@@ -1923,7 +1933,14 @@ CodeGeneratorX86Shared::visitRoundF(LRoundF *lir)
 
     // Input is negative.
     masm.bind(&negative);
+
+    // Inputs in ]-0.5; 0] need to be added 0.5, other negative inputs need to
+    // be added the biggest double less than 0.5.
+    Label loadJoin;
+    masm.loadConstantFloat32(-0.5f, scratch);
+    masm.branchFloat(Assembler::DoubleLessThan, input, scratch, &loadJoin);
     masm.loadConstantFloat32(0.5f, temp);
+    masm.bind(&loadJoin);
 
     if (AssemblerX86Shared::HasSSE41()) {
         // Add 0.5 and round toward -Infinity. The result is stored in the temp
@@ -2657,13 +2674,13 @@ CodeGeneratorX86Shared::visitSimdBinaryArithIx4(LSimdBinaryArithIx4 *ins)
 
     MSimdBinaryArith::Operation op = ins->operation();
     switch (op) {
-      case MSimdBinaryArith::Add:
+      case MSimdBinaryArith::Op_add:
         masm.vpaddd(rhs, lhs, output);
         return;
-      case MSimdBinaryArith::Sub:
+      case MSimdBinaryArith::Op_sub:
         masm.vpsubd(rhs, lhs, output);
         return;
-      case MSimdBinaryArith::Mul: {
+      case MSimdBinaryArith::Op_mul: {
         if (AssemblerX86Shared::HasSSE41()) {
             masm.vpmulld(rhs, lhs, output);
             return;
@@ -2684,19 +2701,19 @@ CodeGeneratorX86Shared::visitSimdBinaryArithIx4(LSimdBinaryArithIx4 *ins)
         masm.vshufps(MacroAssembler::ComputeShuffleMask(LaneZ, LaneX, LaneW, LaneY), lhs, lhs, lhs);
         return;
       }
-      case MSimdBinaryArith::Div:
+      case MSimdBinaryArith::Op_div:
         // x86 doesn't have SIMD i32 div.
         break;
-      case MSimdBinaryArith::Max:
+      case MSimdBinaryArith::Op_max:
         // we can do max with a single instruction only if we have SSE4.1
         // using the PMAXSD instruction.
         break;
-      case MSimdBinaryArith::Min:
+      case MSimdBinaryArith::Op_min:
         // we can do max with a single instruction only if we have SSE4.1
         // using the PMINSD instruction.
         break;
-      case MSimdBinaryArith::MinNum:
-      case MSimdBinaryArith::MaxNum:
+      case MSimdBinaryArith::Op_minNum:
+      case MSimdBinaryArith::Op_maxNum:
         break;
     }
     MOZ_CRASH("unexpected SIMD op");
@@ -2711,19 +2728,19 @@ CodeGeneratorX86Shared::visitSimdBinaryArithFx4(LSimdBinaryArithFx4 *ins)
 
     MSimdBinaryArith::Operation op = ins->operation();
     switch (op) {
-      case MSimdBinaryArith::Add:
+      case MSimdBinaryArith::Op_add:
         masm.vaddps(rhs, lhs, output);
         return;
-      case MSimdBinaryArith::Sub:
+      case MSimdBinaryArith::Op_sub:
         masm.vsubps(rhs, lhs, output);
         return;
-      case MSimdBinaryArith::Mul:
+      case MSimdBinaryArith::Op_mul:
         masm.vmulps(rhs, lhs, output);
         return;
-      case MSimdBinaryArith::Div:
+      case MSimdBinaryArith::Op_div:
         masm.vdivps(rhs, lhs, output);
         return;
-      case MSimdBinaryArith::Max: {
+      case MSimdBinaryArith::Op_max: {
         FloatRegister lhsCopy = masm.reusedInputFloat32x4(lhs, ScratchSimdReg);
         masm.vcmpunordps(rhs, lhsCopy, ScratchSimdReg);
 
@@ -2736,14 +2753,14 @@ CodeGeneratorX86Shared::visitSimdBinaryArithFx4(LSimdBinaryArithFx4 *ins)
         masm.vorps(ScratchSimdReg, output, output); // or in the all-ones NaNs
         return;
       }
-      case MSimdBinaryArith::Min: {
+      case MSimdBinaryArith::Op_min: {
         FloatRegister rhsCopy = masm.reusedInputAlignedFloat32x4(rhs, ScratchSimdReg);
         masm.vminps(Operand(lhs), rhsCopy, ScratchSimdReg);
         masm.vminps(rhs, lhs, output);
         masm.vorps(ScratchSimdReg, output, output); // NaN or'd with arbitrary bits is NaN
         return;
       }
-      case MSimdBinaryArith::MinNum: {
+      case MSimdBinaryArith::Op_minNum: {
         FloatRegister tmp = ToFloatRegister(ins->temp());
         masm.loadConstantInt32x4(SimdConstant::SplatX4(int32_t(0x80000000)), tmp);
 
@@ -2773,7 +2790,7 @@ CodeGeneratorX86Shared::visitSimdBinaryArithFx4(LSimdBinaryArithFx4 *ins)
         }
         return;
       }
-      case MSimdBinaryArith::MaxNum: {
+      case MSimdBinaryArith::Op_maxNum: {
         FloatRegister mask = ScratchSimdReg;
         masm.loadConstantInt32x4(SimdConstant::SplatX4(0), mask);
         masm.vpcmpeqd(Operand(lhs), mask, mask);

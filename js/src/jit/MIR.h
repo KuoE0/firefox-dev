@@ -15,6 +15,7 @@
 #include "mozilla/Array.h"
 #include "mozilla/DebugOnly.h"
 
+#include "builtin/SIMD.h"
 #include "jit/AtomicOp.h"
 #include "jit/FixedList.h"
 #include "jit/InlineList.h"
@@ -26,6 +27,7 @@
 #include "vm/ArrayObject.h"
 #include "vm/ScopeObject.h"
 #include "vm/TypedArrayCommon.h"
+#include "vm/UnboxedObject.h"
 
 // Undo windows.h damage on Win64
 #undef MemoryBarrier
@@ -615,14 +617,18 @@ class MDefinition : public MNode
 
     bool mightBeType(MIRType type) const {
         MOZ_ASSERT(type != MIRType_Value);
+        MOZ_ASSERT(type != MIRType_ObjectOrNull);
 
         if (type == this->type())
             return true;
 
-        if (MIRType_Value != this->type())
-            return false;
+        if (this->type() == MIRType_ObjectOrNull)
+            return type == MIRType_Object || type == MIRType_Null;
 
-        return !resultTypeSet() || resultTypeSet()->mightBeMIRType(type);
+        if (this->type() == MIRType_Value)
+            return !resultTypeSet() || resultTypeSet()->mightBeMIRType(type);
+
+        return false;
     }
 
     bool mightBeMagicType() const;
@@ -1958,26 +1964,18 @@ class MSimdBinaryArith
 {
   public:
     enum Operation {
-        Add,
-        Sub,
-        Mul,
-        Div,
-        Min,
-        Max,
-        MinNum,
-        MaxNum
+#define OP_LIST_(OP) Op_##OP,
+        ARITH_COMMONX4_SIMD_OP(OP_LIST_)
+        ARITH_FLOAT32X4_SIMD_OP(OP_LIST_)
+#undef OP_LIST_
     };
 
     static const char* OperationName(Operation op) {
         switch (op) {
-          case Add:    return "Add";
-          case Sub:    return "Sub";
-          case Mul:    return "Mul";
-          case Div:    return "Div";
-          case Min:    return "Min";
-          case Max:    return "Max";
-          case MinNum: return "MinNum";
-          case MaxNum: return "MaxNum";
+#define OP_CASE_LIST_(OP) case Op_##OP: return #OP;
+          ARITH_COMMONX4_SIMD_OP(OP_CASE_LIST_)
+          ARITH_FLOAT32X4_SIMD_OP(OP_CASE_LIST_)
+#undef OP_CASE_LIST_
         }
         MOZ_CRASH("unexpected operation");
     }
@@ -1988,11 +1986,11 @@ class MSimdBinaryArith
     MSimdBinaryArith(MDefinition *left, MDefinition *right, Operation op, MIRType type)
       : MBinaryInstruction(left, right), operation_(op)
     {
-        MOZ_ASSERT_IF(type == MIRType_Int32x4, op == Add || op == Sub || op == Mul);
+        MOZ_ASSERT_IF(type == MIRType_Int32x4, op == Op_add || op == Op_sub || op == Op_mul);
         MOZ_ASSERT(IsSimdType(type));
         setResultType(type);
         setMovable();
-        if (op == Add || op == Mul || op == Min || op == Max)
+        if (op == Op_add || op == Op_mul || op == Op_min || op == Op_max)
             setCommutative();
     }
 
@@ -2037,6 +2035,15 @@ class MSimdBinaryBitwise
         or_,
         xor_
     };
+
+    static const char* OperationName(Operation op) {
+        switch (op) {
+          case and_: return "and";
+          case or_:  return "or";
+          case xor_: return "xor";
+        }
+        MOZ_CRASH("unexpected operation");
+    }
 
   private:
     Operation operation_;
@@ -3015,8 +3022,6 @@ class MSimdBox
     bool congruentTo(const MDefinition *ins) const MOZ_OVERRIDE {
         if (congruentIfOperandsEqual(ins)) {
             MOZ_ASSERT(ins->toSimdBox()->initialHeap() == initialHeap());
-            // The template object is likely to be different, but represents the
-            // same kind of objects as the MIRTypes are identical.
             return true;
         }
 
@@ -4231,7 +4236,6 @@ class MAssertRange
       : MUnaryInstruction(ins), assertedRange_(assertedRange)
     {
         setGuard();
-        setMovable();
         setResultType(MIRType_None);
     }
 
@@ -6966,7 +6970,8 @@ class MRegExpExec
     bool writeRecoverData(CompactBufferWriter &writer) const MOZ_OVERRIDE;
 
     bool canRecoverOnBailout() const MOZ_OVERRIDE {
-        if (regexp()->isRegExp())
+        // XXX: always return false for now, to work around bug 1132128.
+        if (false && regexp()->isRegExp())
             return !regexp()->toRegExp()->source()->needUpdateLastIndex();
         return false;
     }
@@ -7011,7 +7016,8 @@ class MRegExpTest
         // RegExpTest has a side-effect on the regexp object's lastIndex
         // when sticky or global flags are set.
         // Return false unless we are sure it's not the case.
-        if (regexp()->isRegExp())
+        // XXX: always return false for now, to work around bug 1132128.
+        if (false && regexp()->isRegExp())
             return !regexp()->toRegExp()->source()->needUpdateLastIndex();
         return false;
     }
@@ -7069,7 +7075,8 @@ class MRegExpReplace
     bool canRecoverOnBailout() const MOZ_OVERRIDE {
         // RegExpReplace will zero the lastIndex field when global flag is set.
         // So we can only remove this if it's non-global.
-        if (pattern()->isRegExp())
+        // XXX: always return false for now, to work around bug 1132128.
+        if (false && pattern()->isRegExp())
             return !pattern()->toRegExp()->source()->global();
         return false;
     }
@@ -8425,6 +8432,60 @@ class MStoreUnboxedString
     ALLOW_CLONE(MStoreUnboxedString)
 };
 
+// Passes through an object, after ensuring it is converted from an unboxed
+// object to a native representation.
+class MConvertUnboxedObjectToNative
+  : public MUnaryInstruction,
+    public SingleObjectPolicy::Data
+{
+    AlwaysTenured<ObjectGroup *> group_;
+
+    explicit MConvertUnboxedObjectToNative(MDefinition *obj, ObjectGroup *group)
+      : MUnaryInstruction(obj),
+        group_(group)
+    {
+        setGuard();
+        setMovable();
+        setResultType(MIRType_Object);
+    }
+
+  public:
+    INSTRUCTION_HEADER(ConvertUnboxedObjectToNative)
+
+    static MConvertUnboxedObjectToNative *New(TempAllocator &alloc, MDefinition *obj,
+                                              ObjectGroup *group) {
+        return new(alloc) MConvertUnboxedObjectToNative(obj, group);
+    }
+
+    MDefinition *object() const {
+        return getOperand(0);
+    }
+    ObjectGroup *group() const {
+        return group_;
+    }
+    bool congruentTo(const MDefinition *ins) const MOZ_OVERRIDE {
+        if (!congruentIfOperandsEqual(ins))
+            return false;
+        return ins->toConvertUnboxedObjectToNative()->group() == group();
+    }
+    AliasSet getAliasSet() const MOZ_OVERRIDE {
+        // This instruction can read and write to all parts of the object, but
+        // is marked as non-effectful so it can be consolidated by LICM and GVN
+        // and avoid inhibiting other optimizations.
+        //
+        // This is valid to do because when unboxed objects might have a native
+        // group they can be converted to, we do not optimize accesses to the
+        // unboxed objects and do not guard on their group or shape (other than
+        // in this opcode).
+        //
+        // Later accesses can assume the object has a native representation
+        // and optimize accordingly. Those accesses cannot be reordered before
+        // this instruction, however. This is prevented by chaining this
+        // instruction with the object itself, in the same way as MBoundsCheck.
+        return AliasSet::None();
+    }
+};
+
 // Array.prototype.pop or Array.prototype.shift on a dense array.
 class MArrayPopShift
   : public MUnaryInstruction,
@@ -9254,10 +9315,10 @@ class InlinePropertyTable : public TempObject
     TemporaryTypeSet *buildTypeSetForFunction(JSFunction *func) const;
 
     // Remove targets that vetoed inlining from the InlinePropertyTable.
-    void trimTo(ObjectVector &targets, BoolVector &choiceSet);
+    void trimTo(const ObjectVector &targets, const BoolVector &choiceSet);
 
     // Ensure that the InlinePropertyTable's domain is a subset of |targets|.
-    void trimToTargets(ObjectVector &targets);
+    void trimToTargets(const ObjectVector &targets);
 };
 
 class CacheLocationList : public InlineConcatList<CacheLocationList>
@@ -9776,6 +9837,11 @@ class MGuardShape
         setGuard();
         setMovable();
         setResultType(MIRType_Object);
+
+        // Disallow guarding on unboxed object shapes. The group is better to
+        // guard on, and guarding on the shape can interact badly with
+        // MConvertUnboxedObjectToNative.
+        MOZ_ASSERT(shape->getObjectClass() != &UnboxedPlainObject::class_);
     }
 
   public:
@@ -9872,6 +9938,10 @@ class MGuardObjectGroup
         setGuard();
         setMovable();
         setResultType(MIRType_Object);
+
+        // Unboxed groups which might be converted to natives can't be guarded
+        // on, due to MConvertUnboxedObjectToNative.
+        MOZ_ASSERT_IF(group->maybeUnboxedLayout(), !group->unboxedLayout().nativeGroup());
     }
 
   public:
@@ -9912,15 +9982,13 @@ class MGuardObjectGroup
 
 // Guard on an object's identity, inclusively or exclusively.
 class MGuardObjectIdentity
-  : public MUnaryInstruction,
+  : public MBinaryInstruction,
     public SingleObjectPolicy::Data
 {
-    AlwaysTenuredObject singleObject_;
     bool bailOnEquality_;
 
-    MGuardObjectIdentity(MDefinition *obj, JSObject *singleObject, bool bailOnEquality)
-      : MUnaryInstruction(obj),
-        singleObject_(singleObject),
+    MGuardObjectIdentity(MDefinition *obj, MDefinition *expected, bool bailOnEquality)
+      : MBinaryInstruction(obj, expected),
         bailOnEquality_(bailOnEquality)
     {
         setGuard();
@@ -9931,24 +9999,22 @@ class MGuardObjectIdentity
   public:
     INSTRUCTION_HEADER(GuardObjectIdentity)
 
-    static MGuardObjectIdentity *New(TempAllocator &alloc, MDefinition *obj, JSObject *singleObject,
+    static MGuardObjectIdentity *New(TempAllocator &alloc, MDefinition *obj, MDefinition *expected,
                                      bool bailOnEquality) {
-        return new(alloc) MGuardObjectIdentity(obj, singleObject, bailOnEquality);
+        return new(alloc) MGuardObjectIdentity(obj, expected, bailOnEquality);
     }
 
     MDefinition *obj() const {
         return getOperand(0);
     }
-    JSObject *singleObject() const {
-        return singleObject_;
+    MDefinition *expected() const {
+        return getOperand(1);
     }
     bool bailOnEquality() const {
         return bailOnEquality_;
     }
     bool congruentTo(const MDefinition *ins) const MOZ_OVERRIDE {
         if (!ins->isGuardObjectIdentity())
-            return false;
-        if (singleObject() != ins->toGuardObjectIdentity()->singleObject())
             return false;
         if (bailOnEquality() != ins->toGuardObjectIdentity()->bailOnEquality())
             return false;
@@ -10208,38 +10274,6 @@ class MCallGetIntrinsicValue : public MNullaryInstruction
     }
     bool possiblyCalls() const MOZ_OVERRIDE {
         return true;
-    }
-};
-
-class MCallsiteCloneCache
-  : public MUnaryInstruction,
-    public SingleObjectPolicy::Data
-{
-    jsbytecode *callPc_;
-
-    MCallsiteCloneCache(MDefinition *callee, jsbytecode *callPc)
-      : MUnaryInstruction(callee),
-        callPc_(callPc)
-    {
-        setResultType(MIRType_Object);
-    }
-
-  public:
-    INSTRUCTION_HEADER(CallsiteCloneCache)
-
-    static MCallsiteCloneCache *New(TempAllocator &alloc, MDefinition *callee, jsbytecode *callPc) {
-        return new(alloc) MCallsiteCloneCache(callee, callPc);
-    }
-    MDefinition *callee() const {
-        return getOperand(0);
-    }
-    jsbytecode *callPc() const {
-        return callPc_;
-    }
-
-    // Callsite cloning is idempotent.
-    AliasSet getAliasSet() const MOZ_OVERRIDE {
-        return AliasSet::None();
     }
 };
 

@@ -413,6 +413,10 @@ BaselineCompiler::emitPrologue()
     if (!initScopeChain())
         return false;
 
+    // When compiling with Debugger instrumentation, set the debuggeeness of
+    // the frame before any operation that can call into the VM.
+    emitIsDebuggeeCheck();
+
     if (!emitStackCheck())
         return false;
 
@@ -565,6 +569,19 @@ BaselineCompiler::emitStackCheck(bool earlyCheck)
 
     masm.bind(&skipCall);
     return true;
+}
+
+void
+BaselineCompiler::emitIsDebuggeeCheck()
+{
+    if (compileDebugInstrumentation_) {
+        masm.Push(BaselineFrameReg);
+        masm.setupUnalignedABICall(1, R0.scratchReg());
+        masm.loadBaselineFramePtr(BaselineFrameReg, R0.scratchReg());
+        masm.passABIArg(R0.scratchReg());
+        masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, jit::FrameIsDebuggeeCheck));
+        masm.Pop(BaselineFrameReg);
+    }
 }
 
 typedef bool (*DebugPrologueFn)(JSContext *, BaselineFrame *, jsbytecode *, bool *);
@@ -1732,7 +1749,7 @@ BaselineCompiler::emit_JSOP_NEWARRAY()
     masm.move32(Imm32(length), R0.scratchReg());
     masm.movePtr(ImmGCPtr(group), R1.scratchReg());
 
-    ArrayObject *templateObject = NewDenseUnallocatedArray(cx, length, nullptr, TenuredObject);
+    ArrayObject *templateObject = NewDenseUnallocatedArray(cx, length, NullPtr(), TenuredObject);
     if (!templateObject)
         return false;
     templateObject->setGroup(group);
@@ -1859,7 +1876,7 @@ BaselineCompiler::emit_JSOP_NEWINIT()
         masm.move32(Imm32(0), R0.scratchReg());
         masm.movePtr(ImmGCPtr(group), R1.scratchReg());
 
-        ArrayObject *templateObject = NewDenseUnallocatedArray(cx, 0, nullptr, TenuredObject);
+        ArrayObject *templateObject = NewDenseUnallocatedArray(cx, 0, NullPtr(), TenuredObject);
         if (!templateObject)
             return false;
         templateObject->setGroup(group);
@@ -3361,7 +3378,7 @@ BaselineCompiler::emit_JSOP_REST()
 {
     frame.syncStack(0);
 
-    ArrayObject *templateObject = NewDenseUnallocatedArray(cx, 0, nullptr, TenuredObject);
+    ArrayObject *templateObject = NewDenseUnallocatedArray(cx, 0, NullPtr(), TenuredObject);
     if (!templateObject)
         return false;
     ObjectGroup::fixRestArgumentsGroup(cx, templateObject);

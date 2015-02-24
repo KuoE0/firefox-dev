@@ -110,6 +110,8 @@ namespace JS {
       "not definitely a TypedObject struct")                            \
     _(NotUnboxed,                                                       \
       "not definitely an unboxed object")                               \
+    _(UnboxedConvertedToNative,                                         \
+      "unboxed object may have been converted")                         \
     _(StructNoField,                                                    \
       "struct doesn't definitely have field")                           \
     _(InconsistentFieldType,                                            \
@@ -276,7 +278,7 @@ struct ForEachTrackedOptimizationAttemptOp
 };
 
 JS_PUBLIC_API(void)
-ForEachTrackedOptimizationAttempt(JSRuntime *rt, void *addr, uint8_t index,
+ForEachTrackedOptimizationAttempt(JSRuntime *rt, void *addr,
                                   ForEachTrackedOptimizationAttemptOp &op);
 
 struct ForEachTrackedOptimizationTypeInfoOp
@@ -308,7 +310,7 @@ struct ForEachTrackedOptimizationTypeInfoOp
 };
 
 extern JS_PUBLIC_API(void)
-ForEachTrackedOptimizationTypeInfo(JSRuntime *rt, void *addr, uint8_t index,
+ForEachTrackedOptimizationTypeInfo(JSRuntime *rt, void *addr,
                                    ForEachTrackedOptimizationTypeInfoOp &op);
 
 } // namespace JS

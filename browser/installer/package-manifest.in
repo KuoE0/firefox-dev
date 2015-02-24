@@ -263,7 +263,6 @@
 @RESPATH@/components/htmlparser.xpt
 @RESPATH@/components/identity.xpt
 @RESPATH@/components/imglib2.xpt
-@RESPATH@/components/imgicon.xpt
 @RESPATH@/components/inspector.xpt
 @RESPATH@/components/intl.xpt
 @RESPATH@/components/jar.xpt
@@ -579,6 +578,7 @@
 @RESPATH@/components/TCPSocket.manifest
 
 #ifdef MOZ_ACTIVITIES
+@RESPATH@/components/SystemMessageCache.js
 @RESPATH@/components/SystemMessageInternal.js
 @RESPATH@/components/SystemMessageManager.js
 @RESPATH@/components/SystemMessageManager.manifest

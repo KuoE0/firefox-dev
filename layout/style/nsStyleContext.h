@@ -97,6 +97,20 @@ public:
     return mRefCnt;
   }
 
+#ifdef DEBUG
+  void FrameAddRef() {
+    ++mFrameRefCnt;
+  }
+
+  void FrameRelease() {
+    --mFrameRefCnt;
+  }
+
+  uint32_t FrameRefCnt() const {
+    return mFrameRefCnt;
+  }
+#endif
+
   bool HasSingleReference() const {
     NS_ASSERTION(mRefCnt != 0,
                  "do not call HasSingleReference on a newly created "
@@ -186,15 +200,15 @@ public:
   // To be called only from nsStyleSet.
   void SetStyleIfVisited(already_AddRefed<nsStyleContext> aStyleIfVisited)
   {
-    NS_ABORT_IF_FALSE(!IsStyleIfVisited(), "this context is not visited data");
+    MOZ_ASSERT(!IsStyleIfVisited(), "this context is not visited data");
     NS_ASSERTION(!mStyleIfVisited, "should only be set once");
 
     mStyleIfVisited = aStyleIfVisited;
 
-    NS_ABORT_IF_FALSE(mStyleIfVisited->IsStyleIfVisited(),
-                      "other context is visited data");
-    NS_ABORT_IF_FALSE(!mStyleIfVisited->GetStyleIfVisited(),
-                      "other context does not have visited data");
+    MOZ_ASSERT(mStyleIfVisited->IsStyleIfVisited(),
+               "other context is visited data");
+    MOZ_ASSERT(!mStyleIfVisited->GetStyleIfVisited(),
+               "other context does not have visited data");
     NS_ASSERTION(GetStyleIfVisited()->GetPseudo() == GetPseudo(),
                  "pseudo tag mismatch");
     if (GetParent() && GetParent()->GetStyleIfVisited()) {
@@ -551,6 +565,9 @@ private:
   uint32_t                mRefCnt;
 
 #ifdef DEBUG
+  uint32_t                mFrameRefCnt; // number of frames that use this
+                                        // as their style context
+
   nsStyleStructID         mComputingStruct;
 
   static bool DependencyAllowed(nsStyleStructID aOuterSID,

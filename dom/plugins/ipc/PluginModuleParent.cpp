@@ -97,6 +97,7 @@ mozilla::plugins::SetupBridge(uint32_t aPluginId,
                               bool aForceBridgeNow,
                               nsresult* rv)
 {
+    PluginModuleChromeParent::ClearInstantiationFlag();
     nsRefPtr<nsPluginHost> host = nsPluginHost::GetInst();
     nsRefPtr<nsNPAPIPlugin> plugin;
     *rv = host->GetPluginForContentProcess(aPluginId, getter_AddRefs(plugin));
@@ -105,7 +106,8 @@ mozilla::plugins::SetupBridge(uint32_t aPluginId,
     }
     PluginModuleChromeParent* chromeParent = static_cast<PluginModuleChromeParent*>(plugin->GetLibrary());
     chromeParent->SetContentParent(aContentParent);
-    if (!aForceBridgeNow && chromeParent->IsStartingAsync()) {
+    if (!aForceBridgeNow && chromeParent->IsStartingAsync() &&
+        PluginModuleChromeParent::DidInstantiate()) {
         // We'll handle the bridging asynchronously
         return true;
     }
@@ -561,6 +563,8 @@ PluginModuleContentParent::~PluginModuleContentParent()
     Preferences::UnregisterCallback(TimeoutChanged, kContentTimeoutPref, this);
 }
 
+bool PluginModuleChromeParent::sInstantiated = false;
+
 PluginModuleChromeParent::PluginModuleChromeParent(const char* aFilePath, uint32_t aPluginId)
     : PluginModuleParent(true)
     , mSubprocess(new PluginProcessParent(aFilePath))
@@ -588,6 +592,7 @@ PluginModuleChromeParent::PluginModuleChromeParent(const char* aFilePath, uint32
     , mIsFlashPlugin(false)
 {
     NS_ASSERTION(mSubprocess, "Out of memory!");
+    sInstantiated = true;
 
     RegisterSettingsCallbacks();
 
@@ -897,6 +902,13 @@ CreateFlashMinidump(DWORD processId, ThreadId childThread,
 bool
 PluginModuleChromeParent::ShouldContinueFromReplyTimeout()
 {
+    if (mIsFlashPlugin) {
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
+            mTaskFactory.NewRunnableMethod(
+                &PluginModuleChromeParent::NotifyFlashHang));
+    }
+
 #ifdef XP_WIN
     if (LaunchHangUI()) {
         return true;
@@ -1280,6 +1292,15 @@ PluginModuleChromeParent::ActorDestroy(ActorDestroyReason why)
 }
 
 void
+PluginModuleParent::NotifyFlashHang()
+{
+    nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+    if (obs) {
+        obs->NotifyObservers(nullptr, "flash-plugin-hang", nullptr);
+    }
+}
+
+void
 PluginModuleParent::NotifyPluginCrashed()
 {
     if (!OkToCleanup()) {
@@ -1366,7 +1387,7 @@ NP_END_MACRO
 
 NPError
 PluginModuleParent::NPP_Destroy(NPP instance,
-                                NPSavedData** /*saved*/)
+                                NPSavedData** saved)
 {
     // FIXME/cjones:
     //  (1) send a "destroy" message to the child
@@ -1375,7 +1396,12 @@ PluginModuleParent::NPP_Destroy(NPP instance,
     //  (4) free parent
 
     PLUGIN_LOG_DEBUG_FUNCTION;
-    PluginInstanceParent* parentInstance = PluginInstanceParent::Cast(instance);
+    PluginAsyncSurrogate* surrogate = nullptr;
+    PluginInstanceParent* parentInstance =
+        PluginInstanceParent::Cast(instance, &surrogate);
+    if (surrogate && (!parentInstance || parentInstance->UseSurrogate())) {
+        return surrogate->NPP_Destroy(saved);
+    }
 
     if (!parentInstance)
         return NPERR_NO_ERROR;
@@ -1512,8 +1538,8 @@ PluginModuleParent::RecvBackUpXResources(const FileDescriptor& aXSocketFd)
 #ifndef MOZ_X11
     NS_RUNTIMEABORT("This message only makes sense on X11 platforms");
 #else
-    NS_ABORT_IF_FALSE(0 > mPluginXSocketFdDup.get(),
-                      "Already backed up X resources??");
+    MOZ_ASSERT(0 > mPluginXSocketFdDup.get(),
+               "Already backed up X resources??");
     mPluginXSocketFdDup.forget();
     if (aXSocketFd.IsValid()) {
       mPluginXSocketFdDup.reset(aXSocketFd.PlatformHandle());
@@ -1625,6 +1651,8 @@ PluginModuleParent::OnInitFailure()
     if (GetIPCChannel()->CanSend()) {
         Close();
     }
+
+    mShutdown = true;
 
     if (mIsStartingAsync) {
         /* If we've failed then we need to enumerate any pending NPP_New calls
@@ -1752,13 +1780,18 @@ PluginModuleParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPPluginFuncs* pFuncs
         return NS_ERROR_FAILURE;
     }
 
+    *error = NPERR_NO_ERROR;
     if (mIsStartingAsync) {
-        PluginAsyncSurrogate::NP_GetEntryPoints(pFuncs);
+        if (GetIPCChannel()->CanSend()) {
+            // We're already connected, so we may call this immediately.
+            RecvNP_InitializeResult(*error);
+        } else {
+            PluginAsyncSurrogate::NP_GetEntryPoints(pFuncs);
+        }
     } else {
         SetPluginFuncs(pFuncs);
     }
 
-    *error = NPERR_NO_ERROR;
     return NS_OK;
 }
 
@@ -1874,6 +1907,22 @@ PluginModuleParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPError* error)
     return NS_OK;
 }
 
+#if defined(XP_WIN) || defined(XP_MACOSX)
+
+nsresult
+PluginModuleContentParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPError* error)
+{
+    PLUGIN_LOG_DEBUG_METHOD;
+    nsresult rv = PluginModuleParent::NP_Initialize(bFuncs, error);
+    if (mIsStartingAsync && GetIPCChannel()->CanSend()) {
+        // We're already connected, so we may call this immediately.
+        RecvNP_InitializeResult(*error);
+    }
+    return rv;
+}
+
+#endif
+
 nsresult
 PluginModuleChromeParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPError* error)
 {
@@ -1928,9 +1977,7 @@ PluginModuleParent::RecvNP_InitializeResult(const NPError& aError)
     }
 
     if (mIsStartingAsync) {
-#if defined(XP_WIN)
         SetPluginFuncs(mNPPIface);
-#endif
         InitAsyncSurrogates();
     }
 

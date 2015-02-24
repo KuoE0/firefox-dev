@@ -43,7 +43,6 @@
 #include "jsatominlines.h"
 #include "jsboolinlines.h"
 #include "jsfuninlines.h"
-#include "jsinferinlines.h"
 #include "jsscriptinlines.h"
 
 #include "jit/JitFrames-inl.h"
@@ -167,7 +166,8 @@ js::OnUnknownMethod(JSContext *cx, HandleObject obj, Value idval_, MutableHandle
         return false;
 
     if (value.isObject()) {
-        NativeObject *obj = NewNativeObjectWithClassProto(cx, &js_NoSuchMethodClass, nullptr, nullptr);
+        NativeObject *obj = NewNativeObjectWithClassProto(cx, &js_NoSuchMethodClass, NullPtr(),
+                                                          NullPtr());
         if (!obj)
             return false;
 
@@ -199,6 +199,12 @@ NoSuchMethod(JSContext *cx, unsigned argc, Value *vp)
     args[1].setObject(*argsobj);
     bool ok = Invoke(cx, args);
     vp[0] = args.rval();
+
+    if (JSScript *script = cx->currentScript()) {
+        const char *filename = script->filename();
+        cx->compartment()->addTelemetry(filename, JSCompartment::DeprecatedNoSuchMethod);
+    }
+
     return ok;
 }
 
@@ -442,11 +448,11 @@ js::RunScript(JSContext *cx, RunState &state)
     return Interpret(cx, state);
 }
 
-struct AutoGCIfNeeded
+struct AutoGCIfRequested
 {
-    JSContext *cx_;
-    explicit AutoGCIfNeeded(JSContext *cx) : cx_(cx) {}
-    ~AutoGCIfNeeded() { cx_->gcIfNeeded(); }
+    JSRuntime *runtime;
+    explicit AutoGCIfRequested(JSRuntime *rt) : runtime(rt) {}
+    ~AutoGCIfRequested() { runtime->gc.gcIfRequested(); }
 };
 
 /*
@@ -462,7 +468,7 @@ js::Invoke(JSContext *cx, CallArgs args, MaybeConstruct construct)
     MOZ_ASSERT(!cx->zone()->types.activeAnalysis);
 
     /* Perform GC if necessary on exit from the function. */
-    AutoGCIfNeeded gcIfNeeded(cx);
+    AutoGCIfRequested gcIfRequested(cx->runtime());
 
     /* MaybeConstruct is a subset of InitialFrameFlags */
     InitialFrameFlags initial = (InitialFrameFlags) construct;
@@ -566,15 +572,12 @@ js::InvokeConstructor(JSContext *cx, CallArgs args)
     if (callee.is<JSFunction>()) {
         RootedFunction fun(cx, &callee.as<JSFunction>());
 
-        if (fun->isNativeConstructor()) {
-            bool ok = CallJSNativeConstructor(cx, fun->native(), args);
-            return ok;
-        }
+        if (fun->isNativeConstructor())
+            return CallJSNativeConstructor(cx, fun->native(), args);
 
-        if (!fun->isInterpretedConstructor()) {
-            RootedValue orig(cx, ObjectValue(*fun->originalFunction()));
-            return ReportIsNotFunction(cx, orig, args.length() + 1, CONSTRUCT);
-        }
+        if (!fun->isInterpretedConstructor())
+            return ReportIsNotFunction(cx, args.calleev(), args.length() + 1, CONSTRUCT);
+
         if (!Invoke(cx, args, CONSTRUCT))
             return false;
 
@@ -703,7 +706,7 @@ js::HasInstance(JSContext *cx, HandleObject obj, HandleValue v, bool *bp)
 }
 
 static inline bool
-EqualGivenSameType(JSContext *cx, const Value &lval, const Value &rval, bool *equal)
+EqualGivenSameType(JSContext *cx, HandleValue lval, HandleValue rval, bool *equal)
 {
     MOZ_ASSERT(SameType(lval, rval));
 
@@ -717,68 +720,118 @@ EqualGivenSameType(JSContext *cx, const Value &lval, const Value &rval, bool *eq
         *equal = (lval.toGCThing() == rval.toGCThing());
         return true;
     }
-    *equal = lval.payloadAsRawUint32() == rval.payloadAsRawUint32();
-    MOZ_ASSERT_IF(lval.isUndefined(), *equal);
+    *equal = lval.get().payloadAsRawUint32() == rval.get().payloadAsRawUint32();
+    MOZ_ASSERT_IF(lval.isUndefined() || lval.isNull(), *equal);
     return true;
 }
 
-bool
-js::LooselyEqual(JSContext *cx, const Value &lval, const Value &rval, bool *result)
+static inline bool
+LooselyEqualBooleanAndOther(JSContext *cx, HandleValue lval, HandleValue rval, bool *result)
 {
+    MOZ_ASSERT(!rval.isBoolean());
+    RootedValue lvalue(cx, Int32Value(lval.toBoolean() ? 1 : 0));
+
+    // The tail-call would end up in Step 3.
+    if (rval.isNumber()) {
+        *result = (lvalue.toNumber() == rval.toNumber());
+        return true;
+    }
+    // The tail-call would end up in Step 6.
+    if (rval.isString()) {
+        double num;
+        if (!StringToNumber(cx, rval.toString(), &num))
+            return false;
+        *result = (lvalue.toNumber() == num);
+        return true;
+    }
+
+    return LooselyEqual(cx, lvalue, rval, result);
+}
+
+// ES6 draft rev32 7.2.12 Abstract Equality Comparison
+bool
+js::LooselyEqual(JSContext *cx, HandleValue lval, HandleValue rval, bool *result)
+{
+    // Step 3.
     if (SameType(lval, rval))
         return EqualGivenSameType(cx, lval, rval, result);
 
+    // Handle int32 x double.
+    if (lval.isNumber() && rval.isNumber()) {
+        *result = (lval.toNumber() == rval.toNumber());
+        return true;
+    }
+
+    // Step 4. This a bit more complex, because of the undefined emulating object.
     if (lval.isNullOrUndefined()) {
+        // We can return early here, because null | undefined is only equal to the same set.
         *result = rval.isNullOrUndefined() ||
                   (rval.isObject() && EmulatesUndefined(&rval.toObject()));
         return true;
     }
 
+    // Step 5.
     if (rval.isNullOrUndefined()) {
-        *result = (lval.isObject() && EmulatesUndefined(&lval.toObject()));
+        MOZ_ASSERT(!lval.isNullOrUndefined());
+        *result = lval.isObject() && EmulatesUndefined(&lval.toObject());
         return true;
     }
 
-    RootedValue lvalue(cx, lval);
-    RootedValue rvalue(cx, rval);
-
-    if (!ToPrimitive(cx, &lvalue))
-        return false;
-    if (!ToPrimitive(cx, &rvalue))
-        return false;
-
-    if (SameType(lvalue, rvalue))
-        return EqualGivenSameType(cx, lvalue, rvalue, result);
-
-    if (lvalue.isSymbol() || rvalue.isSymbol()) {
-        *result = false;
+    // Step 6.
+    if (lval.isNumber() && rval.isString()) {
+        double num;
+        if (!StringToNumber(cx, rval.toString(), &num))
+            return false;
+        *result = (lval.toNumber() == num);
         return true;
     }
 
-    double l, r;
-    if (!ToNumber(cx, lvalue, &l) || !ToNumber(cx, rvalue, &r))
-        return false;
-    *result = (l == r);
+    // Step 7.
+    if (lval.isString() && rval.isNumber()) {
+        double num;
+        if (!StringToNumber(cx, lval.toString(), &num))
+            return false;
+        *result = (num == rval.toNumber());
+        return true;
+    }
+
+    // Step 8.
+    if (lval.isBoolean())
+        return LooselyEqualBooleanAndOther(cx, lval, rval, result);
+
+    // Step 9.
+    if (rval.isBoolean())
+        return LooselyEqualBooleanAndOther(cx, rval, lval, result);
+
+    // Step 10.
+    if ((lval.isString() || lval.isNumber() || lval.isSymbol()) && rval.isObject()) {
+        RootedValue rvalue(cx, rval);
+        if (!ToPrimitive(cx, &rvalue))
+            return false;
+        return LooselyEqual(cx, lval, rvalue, result);
+    }
+
+    // Step 11.
+    if (lval.isObject() && (rval.isString() || rval.isNumber() || rval.isSymbol())) {
+        RootedValue lvalue(cx, lval);
+        if (!ToPrimitive(cx, &lvalue))
+            return false;
+        return LooselyEqual(cx, lvalue, rval, result);
+    }
+
+    // Step 12.
+    *result = false;
     return true;
 }
 
 bool
-js::StrictlyEqual(JSContext *cx, const Value &lref, const Value &rref, bool *equal)
+js::StrictlyEqual(JSContext *cx, HandleValue lval, HandleValue rval, bool *equal)
 {
-    Value lval = lref, rval = rref;
     if (SameType(lval, rval))
         return EqualGivenSameType(cx, lval, rval, equal);
 
-    if (lval.isDouble() && rval.isInt32()) {
-        double ld = lval.toDouble();
-        double rd = rval.toInt32();
-        *equal = (ld == rd);
-        return true;
-    }
-    if (lval.isInt32() && rval.isDouble()) {
-        double ld = lval.toInt32();
-        double rd = rval.toDouble();
-        *equal = (ld == rd);
+    if (lval.isNumber() && rval.isNumber()) {
+        *equal = (lval.toNumber() == rval.toNumber());
         return true;
     }
 
@@ -799,7 +852,7 @@ IsNaN(const Value &v)
 }
 
 bool
-js::SameValue(JSContext *cx, const Value &v1, const Value &v2, bool *same)
+js::SameValue(JSContext *cx, HandleValue v1, HandleValue v2, bool *same)
 {
     if (IsNegativeZero(v1)) {
         *same = IsNegativeZero(v2);
@@ -2041,10 +2094,10 @@ END_CASE(JSOP_NE)
 
 #define STRICT_EQUALITY_OP(OP, COND)                                          \
     JS_BEGIN_MACRO                                                            \
-        const Value &rref = REGS.sp[-1];                                      \
-        const Value &lref = REGS.sp[-2];                                      \
+        HandleValue lval = REGS.stackHandleAt(-2);                            \
+        HandleValue rval = REGS.stackHandleAt(-1);                            \
         bool equal;                                                           \
-        if (!StrictlyEqual(cx, lref, rref, &equal))                           \
+        if (!StrictlyEqual(cx, lval, rval, &equal))                           \
             goto error;                                                       \
         (COND) = equal OP true;                                               \
         REGS.sp--;                                                            \
@@ -2358,11 +2411,9 @@ CASE(JSOP_THIS)
 END_CASE(JSOP_THIS)
 
 CASE(JSOP_GETPROP)
-CASE(JSOP_GETXPROP)
 CASE(JSOP_LENGTH)
 CASE(JSOP_CALLPROP)
 {
-
     MutableHandleValue lval = REGS.stackHandleAt(-1);
     if (!GetPropertyOperation(cx, REGS.fp(), script, REGS.pc, lval, lval))
         goto error;
@@ -2371,6 +2422,21 @@ CASE(JSOP_CALLPROP)
     assertSameCompartmentDebugOnly(cx, lval);
 }
 END_CASE(JSOP_GETPROP)
+
+CASE(JSOP_GETXPROP)
+{
+    RootedObject &obj = rootObject0;
+    obj = &REGS.sp[-1].toObject();
+    RootedId &id = rootId0;
+    id = NameToId(script->getName(REGS.pc));
+    MutableHandleValue rval = REGS.stackHandleAt(-1);
+    if (!GetPropertyForNameLookup(cx, obj, id, rval))
+        goto error;
+
+    TypeScript::Monitor(cx, script, REGS.pc, rval);
+    assertSameCompartmentDebugOnly(cx, rval);
+}
+END_CASE(JSOP_GETXPROP)
 
 CASE(JSOP_SETINTRINSIC)
 {
@@ -2517,30 +2583,14 @@ CASE(JSOP_FUNCALL)
 {
     if (REGS.fp()->hasPushedSPSFrame())
         cx->runtime()->spsProfiler.updatePC(script, REGS.pc);
+
     MOZ_ASSERT(REGS.stackDepth() >= 2u + GET_ARGC(REGS.pc));
     CallArgs args = CallArgsFromSp(GET_ARGC(REGS.pc), REGS.sp);
 
     bool construct = (*REGS.pc == JSOP_NEW);
 
     RootedFunction &fun = rootFunction0;
-    RootedScript &funScript = rootScript0;
     bool isFunction = IsFunctionObject(args.calleev(), fun.address());
-
-    /*
-     * Some builtins are marked as clone-at-callsite to increase precision of
-     * TI and JITs.
-     */
-    if (isFunction && fun->isInterpreted()) {
-        funScript = fun->getOrCreateScript(cx);
-        if (!funScript)
-            goto error;
-        if (funScript->shouldCloneAtCallsite()) {
-            fun = CloneFunctionAtCallsite(cx, fun, script, REGS.pc);
-            if (!fun)
-                goto error;
-            args.setCallee(ObjectValue(*fun));
-        }
-    }
 
     /* Don't bother trying to fast-path calls to scripted non-constructors. */
     if (!isFunction || !fun->isInterpretedConstructor()) {
@@ -2556,6 +2606,11 @@ CASE(JSOP_FUNCALL)
         REGS.sp = newsp;
         ADVANCE_AND_DISPATCH(JSOP_CALL_LENGTH);
     }
+
+    RootedScript &funScript = rootScript0;
+    funScript = fun->getOrCreateScript(cx);
+    if (!funScript)
+        goto error;
 
     InitialFrameFlags initial = construct ? INITIAL_CONSTRUCT : INITIAL_NONE;
     bool createSingleton = ObjectGroup::useSingletonForNewObject(cx, script, REGS.pc);
@@ -3084,7 +3139,7 @@ CASE(JSOP_NEWINIT)
     if (i == JSProto_Array) {
         if (ObjectGroup::useSingletonForAllocationSite(script, REGS.pc, &ArrayObject::class_))
             newKind = SingletonObject;
-        obj = NewDenseEmptyArray(cx, nullptr, newKind);
+        obj = NewDenseEmptyArray(cx, NullPtr(), newKind);
     } else {
         gc::AllocKind allocKind = GuessObjectGCKind(0);
         if (ObjectGroup::useSingletonForAllocationSite(script, REGS.pc, &PlainObject::class_))
@@ -3108,7 +3163,7 @@ CASE(JSOP_NEWARRAY)
     NewObjectKind newKind = GenericObject;
     if (ObjectGroup::useSingletonForAllocationSite(script, REGS.pc, &ArrayObject::class_))
         newKind = SingletonObject;
-    obj = NewDenseFullyAllocatedArray(cx, count, nullptr, newKind);
+    obj = NewDenseFullyAllocatedArray(cx, count, NullPtr(), newKind);
     if (!obj || !ObjectGroup::setAllocationSiteObjectGroup(cx, script, REGS.pc, obj,
                                                            newKind == SingletonObject))
     {

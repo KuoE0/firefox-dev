@@ -15,13 +15,13 @@
 #include "jsgc.h"
 #include "jsobj.h"
 #include "jsprf.h"
-#include "jsproxy.h"
 #include "jswatchpoint.h"
 #include "jsweakmap.h"
 #include "jswrapper.h"
 #include "prmjtime.h"
 
 #include "builtin/TestingFunctions.h"
+#include "js/Proxy.h"
 #include "proxy/DeadObjectProxy.h"
 #include "vm/ArgumentsObject.h"
 #include "vm/WrapperObject.h"
@@ -136,7 +136,7 @@ JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, HandleObject pro
      * ObjectGroup attached to our proto with information about our object, since
      * we're not going to be using that ObjectGroup anyway.
      */
-    RootedObject obj(cx, NewObjectWithGivenProto(cx, (const js::Class *)clasp, nullptr,
+    RootedObject obj(cx, NewObjectWithGivenProto(cx, (const js::Class *)clasp, NullPtr(),
                                                  parent, SingletonObject));
     if (!obj)
         return nullptr;

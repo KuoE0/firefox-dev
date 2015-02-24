@@ -617,7 +617,13 @@ class AutoDetectInvalidation
     void setReturnOverride();
 
   public:
-    AutoDetectInvalidation(JSContext *cx, MutableHandleValue rval, IonScript *ionScript = nullptr);
+    AutoDetectInvalidation(JSContext *cx, MutableHandleValue rval, IonScript *ionScript)
+      : cx_(cx), ionScript_(ionScript), rval_(rval), disabled_(false)
+    {
+        MOZ_ASSERT(ionScript);
+    }
+
+    AutoDetectInvalidation(JSContext *cx, MutableHandleValue rval);
 
     void disable() {
         MOZ_ASSERT(!disabled_);
@@ -698,6 +704,7 @@ uint32_t GetIndexFromString(JSString *str);
 bool DebugPrologue(JSContext *cx, BaselineFrame *frame, jsbytecode *pc, bool *mustReturn);
 bool DebugEpilogue(JSContext *cx, BaselineFrame *frame, jsbytecode *pc, bool ok);
 bool DebugEpilogueOnBaselineReturn(JSContext *cx, BaselineFrame *frame, jsbytecode *pc);
+void FrameIsDebuggeeCheck(BaselineFrame *frame);
 
 JSObject *CreateGenerator(JSContext *cx, BaselineFrame *frame);
 bool NormalSuspend(JSContext *cx, HandleObject obj, BaselineFrame *frame, jsbytecode *pc,

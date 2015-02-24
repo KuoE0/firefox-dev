@@ -8,8 +8,9 @@
 #define vm_UnboxedObject_h
 
 #include "jsgc.h"
-#include "jsinfer.h"
 #include "jsobj.h"
+
+#include "vm/TypeInference.h"
 
 namespace js {
 
@@ -64,9 +65,16 @@ class UnboxedLayout : public mozilla::LinkedListElement<UnboxedLayout>
     // structure as the trace list on a TypeDescr.
     int32_t *traceList_;
 
+    // If objects in this group have ever been converted to native objects,
+    // these store the corresponding native group and initial shape for such
+    // objects. Type information for this object is reflected in nativeGroup.
+    HeapPtrObjectGroup nativeGroup_;
+    HeapPtrShape nativeShape_;
+
   public:
     UnboxedLayout(const PropertyVector &properties, size_t size)
-      : size_(size), newScript_(nullptr), traceList_(nullptr)
+      : size_(size), newScript_(nullptr), traceList_(nullptr),
+        nativeGroup_(nullptr), nativeShape_(nullptr)
     {
         properties_.appendAll(properties);
     }
@@ -112,11 +120,21 @@ class UnboxedLayout : public mozilla::LinkedListElement<UnboxedLayout>
         return size_;
     }
 
+    ObjectGroup *nativeGroup() const {
+        return nativeGroup_;
+    }
+
+    Shape *nativeShape() const {
+        return nativeShape_;
+    }
+
     inline gc::AllocKind getAllocKind() const;
 
     void trace(JSTracer *trc);
 
     size_t sizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf);
+
+    static bool makeNativeGroup(JSContext *cx, ObjectGroup *group);
 };
 
 // Class for a plain object using an unboxed representation. The physical
@@ -138,17 +156,16 @@ class UnboxedPlainObject : public JSObject
     static bool obj_defineProperty(JSContext *cx, HandleObject obj, HandleId id, HandleValue v,
                                    PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
 
+    static bool obj_hasProperty(JSContext *cx, HandleObject obj, HandleId id, bool *foundp);
+
     static bool obj_getProperty(JSContext *cx, HandleObject obj, HandleObject receiver,
                                 HandleId id, MutableHandleValue vp);
 
-    static bool obj_setProperty(JSContext *cx, HandleObject obj, HandleId id,
-                                MutableHandleValue vp, bool strict);
+    static bool obj_setProperty(JSContext *cx, HandleObject obj, HandleObject receiver,
+                                HandleId id, MutableHandleValue vp, bool strict);
 
     static bool obj_getOwnPropertyDescriptor(JSContext *cx, HandleObject obj, HandleId id,
                                              MutableHandle<JSPropertyDescriptor> desc);
-
-    static bool obj_setPropertyAttributes(JSContext *cx, HandleObject obj,
-                                          HandleId id, unsigned *attrsp);
 
     static bool obj_deleteProperty(JSContext *cx, HandleObject obj, HandleId id, bool *succeeded);
 
@@ -159,6 +176,10 @@ class UnboxedPlainObject : public JSObject
         return group()->unboxedLayout();
     }
 
+    const UnboxedLayout &layoutDontCheckGeneration() const {
+        return group()->unboxedLayoutDontCheckGeneration();
+    }
+
     uint8_t *data() {
         return &data_[0];
     }
@@ -166,8 +187,7 @@ class UnboxedPlainObject : public JSObject
     bool setValue(JSContext *cx, const UnboxedLayout::Property &property, const Value &v);
     Value getValue(const UnboxedLayout::Property &property);
 
-    bool convertToNative(JSContext *cx);
-
+    static bool convertToNative(JSContext *cx, JSObject *obj);
     static UnboxedPlainObject *create(JSContext *cx, HandleObjectGroup group, NewObjectKind newKind);
 
     static void trace(JSTracer *trc, JSObject *object);

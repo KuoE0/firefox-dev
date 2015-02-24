@@ -250,11 +250,6 @@ const char*     nsWindow::sDefaultMainWindowClass = kClassNameGeneral;
 
 TriStateBool nsWindow::sHasBogusPopupsDropShadowOnMultiMonitor = TRI_UNKNOWN;
 
-// Used in OOPP plugin focus processing.
-const wchar_t* kOOPPPluginFocusEventId   = L"OOPP Plugin Focus Widget Event";
-uint32_t        nsWindow::sOOPPPluginFocusEvent   =
-                  RegisterWindowMessageW(kOOPPPluginFocusEventId);
-
 DWORD           nsWindow::sFirstEventTime = 0;
 TimeStamp       nsWindow::sFirstEventTimeStamp = TimeStamp();
 
@@ -1706,8 +1701,6 @@ NS_METHOD nsWindow::ConstrainPosition(bool aAllowSlop,
   int32_t logWidth = std::max<int32_t>(NSToIntRound(mBounds.width / dpiScale), 1);
   int32_t logHeight = std::max<int32_t>(NSToIntRound(mBounds.height / dpiScale), 1);
 
-  bool doConstrain = false; // whether we have enough info to do anything
-
   /* get our playing field. use the current screen, or failing that
     for any reason, use device caps for the default screen. */
   RECT screenRect;
@@ -1731,7 +1724,6 @@ NS_METHOD nsWindow::ConstrainPosition(bool aAllowSlop,
       screenRect.right = left + width;
       screenRect.top = top;
       screenRect.bottom = top + height;
-      doConstrain = true;
     }
   } else {
     if (mWnd) {
@@ -1745,7 +1737,6 @@ NS_METHOD nsWindow::ConstrainPosition(bool aAllowSlop,
             screenRect.right = GetSystemMetrics(SM_CXFULLSCREEN);
             screenRect.bottom = GetSystemMetrics(SM_CYFULLSCREEN);
           }
-          doConstrain = true;
         }
         ::ReleaseDC(mWnd, dc);
       }
@@ -2705,6 +2696,8 @@ void nsWindow::UpdateGlass()
     // Fall through
   case eTransparencyGlass:
     policy = DWMNCRP_ENABLED;
+    break;
+  default:
     break;
   }
 
@@ -4337,9 +4330,9 @@ LRESULT CALLBACK nsWindow::WindowProcInternal(HWND hWnd, UINT msg, WPARAM wParam
 
   // Hold the window for the life of this method, in case it gets
   // destroyed during processing, unless we're in the dtor already.
-  nsCOMPtr<nsISupports> kungFuDeathGrip;
+  nsCOMPtr<nsIWidget> kungFuDeathGrip;
   if (!targetWindow->mInDtor)
-    kungFuDeathGrip = do_QueryInterface((nsBaseWidget*)targetWindow);
+    kungFuDeathGrip = targetWindow;
 
   targetWindow->IPCWindowProcHandler(msg, wParam, lParam);
 
@@ -5184,7 +5177,7 @@ nsWindow::ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
       *aRetValue = 0;
       // Do explicit casting to make it working on 64bit systems (see bug 649236
       // for details).
-      DWORD objId = static_cast<DWORD>(lParam);
+      int32_t objId = static_cast<DWORD>(lParam);
       if (objId == OBJID_CLIENT) { // oleacc.dll will be loaded dynamically
         a11y::Accessible* rootAccessible = GetAccessible(); // Held by a11y cache
         if (rootAccessible) {
@@ -5392,26 +5385,6 @@ nsWindow::ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
     }
     break;
 
-    default:
-    {
-      if (msg == nsAppShell::GetTaskbarButtonCreatedMessage())
-        SetHasTaskbarIconBeenCreated();
-      if (msg == sOOPPPluginFocusEvent) {
-        if (wParam == 1) {
-          // With OOPP, the plugin window exists in another process and is a child of
-          // this window. This window is a placeholder plugin window for the dom. We
-          // receive this event when the child window receives focus. (sent from
-          // PluginInstanceParent.cpp)
-          ::SendMessage(mWnd, WM_MOUSEACTIVATE, 0, 0); // See nsPluginNativeWindowWin.cpp
-        } else {
-          // WM_KILLFOCUS was received by the child process.
-          if (sJustGotDeactivate) {
-            DispatchFocusToTopLevelWindow(false);
-          }
-        }
-      }
-    }
-    break;
     case WM_SETTINGCHANGE:
       if (IsWin8OrLater() && lParam &&
           !wcsicmp(L"ConvertibleSlateMode", (wchar_t*)lParam)) {
@@ -5427,6 +5400,14 @@ nsWindow::ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
           }
         }
       }
+    break;
+
+    default:
+    {
+      if (msg == nsAppShell::GetTaskbarButtonCreatedMessage()) {
+        SetHasTaskbarIconBeenCreated();
+      }
+    }
     break;
 
   }
@@ -5818,7 +5799,7 @@ nsWindow::SynthesizeNativeKeyEvent(int32_t aNativeKeyboardLayout,
 }
 
 nsresult
-nsWindow::SynthesizeNativeMouseEvent(nsIntPoint aPoint,
+nsWindow::SynthesizeNativeMouseEvent(LayoutDeviceIntPoint aPoint,
                                      uint32_t aNativeMessage,
                                      uint32_t aModifierFlags)
 {
@@ -5835,7 +5816,7 @@ nsWindow::SynthesizeNativeMouseEvent(nsIntPoint aPoint,
 }
 
 nsresult
-nsWindow::SynthesizeNativeMouseScrollEvent(nsIntPoint aPoint,
+nsWindow::SynthesizeNativeMouseScrollEvent(LayoutDeviceIntPoint aPoint,
                                            uint32_t aNativeMessage,
                                            double aDeltaX,
                                            double aDeltaY,
@@ -6585,8 +6566,6 @@ nsWindow::GetPreferredCompositorBackends(nsTArray<LayersBackend>& aHints)
       aHints.AppendElement(LayersBackend::LAYERS_OPENGL);
     }
 
-    ID3D11Device* device = gfxWindowsPlatform::GetPlatform()->GetD3D11Device();
-
     if (!prefs.mPreferD3D9) {
       aHints.AppendElement(LayersBackend::LAYERS_D3D11);
     }
@@ -6715,7 +6694,7 @@ nsWindow::GetIMEUpdatePreference()
 #ifdef DEBUG
 #define NS_LOG_WMGETOBJECT(aWnd, aHwnd, aAcc)                                  \
   if (a11y::logging::IsEnabled(a11y::logging::ePlatforms)) {                   \
-    printf("Get the window:\n  {\n     HWND: %d, parent HWND: %d, wndobj: %p,\n",\
+    printf("Get the window:\n  {\n     HWND: %p, parent HWND: %p, wndobj: %p,\n",\
            aHwnd, ::GetParent(aHwnd), aWnd);                                   \
     printf("     acc: %p", aAcc);                                              \
     if (aAcc) {                                                                \

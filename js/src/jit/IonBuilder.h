@@ -384,6 +384,7 @@ class IonBuilder
 
     MDefinition *createThisScripted(MDefinition *callee);
     MDefinition *createThisScriptedSingleton(JSFunction *target, MDefinition *callee);
+    MDefinition *createThisScriptedBaseline(MDefinition *callee);
     MDefinition *createThis(JSFunction *target, MDefinition *callee);
     MInstruction *createDeclEnvObject(MDefinition *callee, MDefinition *scopeObj);
     MInstruction *createCallObject(MDefinition *callee, MDefinition *scopeObj);
@@ -756,6 +757,7 @@ class IonBuilder
 
     // String natives.
     InliningStatus inlineStringObject(CallInfo &callInfo);
+    InliningStatus inlineConstantStringSplit(CallInfo &callInfo);
     InliningStatus inlineStringSplit(CallInfo &callInfo);
     InliningStatus inlineStrCharCodeAt(CallInfo &callInfo);
     InliningStatus inlineConstantCharCodeAt(CallInfo &callInfo);
@@ -803,10 +805,10 @@ class IonBuilder
 
     // SIMD intrinsics and natives.
     InliningStatus inlineConstructSimdObject(CallInfo &callInfo, SimdTypeDescr *target);
-    InliningStatus inlineSimdInt32x4BinaryArith(CallInfo &callInfo, JSNative native,
-                                                MSimdBinaryArith::Operation op);
-    InliningStatus inlineSimdInt32x4BinaryBitwise(CallInfo &callInfo, JSNative native,
-                                                  MSimdBinaryBitwise::Operation op);
+
+    template <typename T>
+    InliningStatus inlineBinarySimd(CallInfo &callInfo, JSNative native,
+                                    typename T::Operation op, SimdTypeDescr::Type type);
 
     // Utility intrinsics.
     InliningStatus inlineIsCallable(CallInfo &callInfo);
@@ -837,14 +839,12 @@ class IonBuilder
     InliningStatus inlineSingleCall(CallInfo &callInfo, JSObject *target);
 
     // Call functions
-    InliningStatus inlineCallsite(const ObjectVector &targets, ObjectVector &originals,
-                                  CallInfo &callInfo);
-    bool inlineCalls(CallInfo &callInfo, const ObjectVector &targets, ObjectVector &originals,
-                     BoolVector &choiceSet, MGetPropertyCache *maybeCache);
+    InliningStatus inlineCallsite(const ObjectVector &targets, CallInfo &callInfo);
+    bool inlineCalls(CallInfo &callInfo, const ObjectVector &targets, BoolVector &choiceSet,
+                     MGetPropertyCache *maybeCache);
 
     // Inlining helpers.
-    bool inlineGenericFallback(JSFunction *target, CallInfo &callInfo, MBasicBlock *dispatchBlock,
-                               bool clonedAtCallsite);
+    bool inlineGenericFallback(JSFunction *target, CallInfo &callInfo, MBasicBlock *dispatchBlock);
     bool inlineObjectGroupFallback(CallInfo &callInfo, MBasicBlock *dispatchBlock,
                                    MObjectGroupDispatch *dispatch, MGetPropertyCache *cache,
                                    MBasicBlock **fallbackTarget);
@@ -854,9 +854,8 @@ class IonBuilder
 
     bool testNeedsArgumentCheck(JSFunction *target, CallInfo &callInfo);
 
-    MDefinition *makeCallsiteClone(JSFunction *target, MDefinition *fun);
-    MCall *makeCallHelper(JSFunction *target, CallInfo &callInfo, bool cloneAtCallsite);
-    bool makeCall(JSFunction *target, CallInfo &callInfo, bool cloneAtCallsite);
+    MCall *makeCallHelper(JSFunction *target, CallInfo &callInfo);
+    bool makeCall(JSFunction *target, CallInfo &callInfo);
 
     MDefinition *patchInlinedReturn(CallInfo &callInfo, MBasicBlock *exit, MBasicBlock *bottom);
     MDefinition *patchInlinedReturns(CallInfo &callInfo, MIRGraphReturns &returns,
@@ -890,7 +889,10 @@ class IonBuilder
     JSObject *testSingletonProperty(JSObject *obj, PropertyName *name);
     bool testSingletonPropertyTypes(MDefinition *obj, JSObject *singleton, PropertyName *name,
                                     bool *testObject, bool *testString);
-    uint32_t getDefiniteSlot(TemporaryTypeSet *types, PropertyName *name);
+    uint32_t getDefiniteSlot(TemporaryTypeSet *types, PropertyName *name, uint32_t *pnfixed,
+                             BaselineInspector::ObjectGroupVector &convertUnboxedGroups);
+    MDefinition *convertUnboxedObjects(MDefinition *obj,
+                                       const BaselineInspector::ObjectGroupVector &list);
     uint32_t getUnboxedOffset(TemporaryTypeSet *types, PropertyName *name,
                               JSValueType *punboxedType);
     MInstruction *loadUnboxedProperty(MDefinition *obj, size_t offset, JSValueType unboxedType,

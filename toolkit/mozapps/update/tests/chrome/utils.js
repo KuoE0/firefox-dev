@@ -114,6 +114,8 @@
  *   install completes.
  */
 
+'use strict';
+
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 
 // The tests have to use the pageid instead of the pageIndex due to the
@@ -150,11 +152,14 @@ const URI_UPDATE_PROMPT_DIALOG  = "chrome://mozapps/content/update/updates.xul";
 
 const ADDON_ID_SUFFIX = "@appupdatetest.mozilla.org";
 const ADDON_PREP_DIR = "appupdateprep";
+
+const PREF_APP_UPDATE_INTERVAL = "app.update.interval";
+const PREF_APP_UPDATE_LASTUPDATETIME = "app.update.lastUpdateTime.background-update-timer";
+
 // Preference for storing add-ons that are disabled by the tests to prevent them
 // from interefering with the tests.
 const PREF_DISABLEDADDONS = "app.update.test.disabledAddons";
 const PREF_EM_HOTFIX_ID = "extensions.hotfix.id";
-const PREF_EM_SILENT = "app.update.silent";
 const TEST_ADDONS = [ "appdisabled_1", "appdisabled_2",
                       "compatible_1", "compatible_2",
                       "noupdate_1", "noupdate_2",
@@ -877,6 +882,14 @@ function setupPrefs() {
     Services.prefs.setBoolPref(PREF_APP_UPDATE_LOG, true);
   }
 
+  // Prevent nsIUpdateTimerManager from notifying nsIApplicationUpdateService
+  // to check for updates by setting the app update last update time to the
+  // current time minus one minute in seconds and the interval time to 12 hours
+  // in seconds.
+  let now = Math.round(Date.now() / 1000) - 60;
+  Services.prefs.setIntPref(PREF_APP_UPDATE_LASTUPDATETIME, now);
+  Services.prefs.setIntPref(PREF_APP_UPDATE_INTERVAL, 43200);
+
   if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_URL_OVERRIDE)) {
     gAppUpdateURL = Services.prefs.getCharPref(PREF_APP_UPDATE_URL_OVERRIDE);
   }
@@ -910,9 +923,9 @@ function setupPrefs() {
 
   Services.prefs.setIntPref(PREF_APP_UPDATE_IDLETIME, 0);
   Services.prefs.setIntPref(PREF_APP_UPDATE_PROMPTWAITTIME, 0);
+  Services.prefs.setBoolPref(PREF_APP_UPDATE_SILENT, false);
   Services.prefs.setBoolPref(PREF_EXTENSIONS_STRICT_COMPAT, true);
   Services.prefs.setCharPref(PREF_EM_HOTFIX_ID, "hotfix" + ADDON_ID_SUFFIX);
-  Services.prefs.setBoolPref(PREF_EM_SILENT, false);
 }
 
 /**
@@ -1066,16 +1079,16 @@ function resetPrefs() {
   catch(e) {
   }
 
+  if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_SILENT)) {
+    Services.prefs.clearUserPref(PREF_APP_UPDATE_SILENT);
+  }
+
   if (Services.prefs.prefHasUserValue(PREF_EXTENSIONS_STRICT_COMPAT)) {
 		Services.prefs.clearUserPref(PREF_EXTENSIONS_STRICT_COMPAT);
   }
 
   if (Services.prefs.prefHasUserValue(PREF_EM_HOTFIX_ID)) {
     Services.prefs.clearUserPref(PREF_EM_HOTFIX_ID);
-  }
-
-  if (Services.prefs.prefHasUserValue(PREF_EM_SILENT)) {
-    Services.prefs.clearUserPref(PREF_EM_SILENT);
   }
 }
 
@@ -1175,7 +1188,7 @@ function setupAddons(aCallback) {
 
         if (--xpiCount == 0) {
           let installCount = installs.length;
-          function installCompleted(aInstall) {
+          let installCompleted = function(aInstall) {
             aInstall.removeListener(listener);
 
             if (getAddonTestType(aInstall.addon.name) == "userdisabled") {
@@ -1184,7 +1197,7 @@ function setupAddons(aCallback) {
             if (--installCount == 0) {
               setNoUpdateAddonsDisabledState();
             }
-          }
+          };
 
           let listener = {
             onDownloadFailed: installCompleted,

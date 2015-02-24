@@ -3117,8 +3117,12 @@ nsIPresShell::PostRecreateFramesFor(Element* aElement)
 void
 nsIPresShell::RestyleForAnimation(Element* aElement, nsRestyleHint aHint)
 {
-  mPresContext->RestyleManager()->PostAnimationRestyleEvent(aElement, aHint,
-                                                            NS_STYLE_HINT_NONE);
+  // Now that we no longer have separate non-animation and animation
+  // restyles, this method having a distinct identity is less important,
+  // but it still seems useful to offer as a "more public" API and as a
+  // chokepoint for these restyles to go through.
+  mPresContext->RestyleManager()->PostRestyleEvent(aElement, aHint,
+                                                   NS_STYLE_HINT_NONE);
 }
 
 void
@@ -10885,9 +10889,8 @@ void PresShell::QueryIsActive()
       // Ok, we're an external resource document -- we need to use our display
       // document's docshell to determine "IsActive" status, since we lack
       // a container.
-      NS_ABORT_IF_FALSE(!container,
-                        "external resource doc shouldn't have "
-                        "its own container");
+      MOZ_ASSERT(!container,
+                 "external resource doc shouldn't have its own container");
 
       nsIPresShell* displayPresShell = displayDoc->GetShell();
       if (displayPresShell) {

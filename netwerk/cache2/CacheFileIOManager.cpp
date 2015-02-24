@@ -2612,7 +2612,7 @@ CacheFileIOManager::OverLimitEvictionInternal()
     SHA1Sum::Hash hash;
     uint32_t cnt;
     static uint32_t consecutiveFailures = 0;
-    rv = CacheIndex::GetEntryForEviction(&hash, &cnt);
+    rv = CacheIndex::GetEntryForEviction(false, &hash, &cnt);
     NS_ENSURE_SUCCESS(rv, rv);
 
     rv = DoomFileByKeyInternal(&hash, true);
@@ -3576,6 +3576,45 @@ CacheFileIOManager::CreateCacheTree()
 
   StartRemovingTrash();
 
+  if (!CacheObserver::CacheFSReported()) {
+    uint32_t fsType = 4; // Other OS
+
+#ifdef XP_WIN
+    nsAutoString target;
+    nsresult rv = mCacheDirectory->GetTarget(target);
+    if (NS_FAILED(rv)) {
+      return NS_OK;
+    }
+
+    wchar_t volume_path[MAX_PATH + 1] = { 0 };
+    if (!::GetVolumePathNameW(target.get(),
+                              volume_path,
+                              mozilla::ArrayLength(volume_path))) {
+      return NS_OK;
+    }
+
+    wchar_t fsName[6] = { 0 };
+    if (!::GetVolumeInformationW(volume_path, nullptr, 0, nullptr, nullptr,
+                                 nullptr, fsName,
+                                 mozilla::ArrayLength(fsName))) {
+      return NS_OK;
+    }
+
+    if (wcscmp(fsName, L"NTFS") == 0) {
+      fsType = 0;
+    } else if (wcscmp(fsName, L"FAT32") == 0) {
+      fsType = 1;
+    } else if (wcscmp(fsName, L"FAT") == 0) {
+      fsType = 2;
+    } else {
+      fsType = 3;
+    }
+#endif
+
+    Telemetry::Accumulate(Telemetry::NETWORK_CACHE_FS_TYPE, fsType);
+    CacheObserver::SetCacheFSReported();
+  }
+
   return NS_OK;
 }
 
@@ -3600,7 +3639,8 @@ CacheFileIOManager::OpenNSPRHandle(CacheFileHandle *aHandle, bool aCreate)
   if (aCreate) {
     rv = aHandle->mFile->OpenNSPRFileDesc(
            PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, 0600, &aHandle->mFD);
-    if (rv == NS_ERROR_FILE_NO_DEVICE_SPACE) {
+    if (rv == NS_ERROR_FILE_ALREADY_EXISTS ||  // error from nsLocalFileWin
+        rv == NS_ERROR_FILE_NO_DEVICE_SPACE) { // error from nsLocalFileUnix
       LOG(("CacheFileIOManager::OpenNSPRHandle() - Cannot create a new file, we"
            " might reached a limit on FAT32. Will evict a single entry and try "
            "again. [hash=%08x%08x%08x%08x%08x]", LOGSHA1(aHandle->Hash())));
@@ -3608,7 +3648,7 @@ CacheFileIOManager::OpenNSPRHandle(CacheFileHandle *aHandle, bool aCreate)
       SHA1Sum::Hash hash;
       uint32_t cnt;
 
-      rv = CacheIndex::GetEntryForEviction(&hash, &cnt);
+      rv = CacheIndex::GetEntryForEviction(true, &hash, &cnt);
       if (NS_SUCCEEDED(rv)) {
         rv = DoomFileByKeyInternal(&hash, true);
       }
@@ -3618,6 +3658,18 @@ CacheFileIOManager::OpenNSPRHandle(CacheFileHandle *aHandle, bool aCreate)
         LOG(("CacheFileIOManager::OpenNSPRHandle() - Successfully evicted entry"
              " with hash %08x%08x%08x%08x%08x. %s to create the new file.",
              LOGSHA1(&hash), NS_SUCCEEDED(rv) ? "Succeeded" : "Failed"));
+
+        // Report the full size only once per session
+        static bool sSizeReported = false;
+        if (!sSizeReported) {
+          uint32_t cacheUsage;
+          if (NS_SUCCEEDED(CacheIndex::GetCacheSize(&cacheUsage))) {
+            cacheUsage >>= 10;
+            Telemetry::Accumulate(Telemetry::NETWORK_CACHE_SIZE_FULL_FAT,
+                                  cacheUsage);
+            sSizeReported = true;
+          }
+        }
       } else {
         LOG(("CacheFileIOManager::OpenNSPRHandle() - Couldn't evict an existing"
              " entry."));
