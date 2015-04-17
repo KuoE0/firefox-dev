@@ -139,6 +139,8 @@ class B2GMochitest(MochitestUtilsMixin):
                     options.timeout = 300
             timeout = options.timeout + 30.0
 
+        timeout = 30
+
         self.log.info("runtestsb2g.py | Running tests: start.")
         status = 0
         try:
