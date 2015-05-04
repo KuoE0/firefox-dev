@@ -32,6 +32,8 @@
 #include "nsIDOMDesktopNotification.h"
 #endif
 
+#define MY_LOG(args...) __android_log_print(ANDROID_LOG_INFO, "MyTag", ##args)
+
 namespace mozilla {
 namespace dom {
 
@@ -447,6 +449,7 @@ Notification::Notification(const nsAString& aID, const nsAString& aTitle, const 
   }
 
   mAlertName = alertName;
+  MY_LOG("Notification|mAlertName: %s", NS_ConvertUTF16toUTF8(mAlertName).get());
 }
 
 // static
@@ -465,6 +468,10 @@ Notification::Constructor(const GlobalObject& aGlobal,
                                                        aTitle,
                                                        aOptions);
 
+
+  MY_LOG("Notification|After CreateInternal");
+  MY_LOG("Notification|mAlertName: %s", NS_ConvertUTF16toUTF8(notification->mAlertName).get());
+  MY_LOG("Notification|mID: %s", NS_ConvertUTF16toUTF8(notification->mID).get());
   // Make a structured clone of the aOptions.mData object
   JS::Rooted<JS::Value> data(aGlobal.Context(), aOptions.mData);
   notification->InitFromJSVal(aGlobal.Context(), data, aRv);
@@ -507,11 +514,15 @@ Notification::Constructor(const GlobalObject& aGlobal,
   }
 #endif
 
+  MY_LOG("Construct|origin: %s", NS_ConvertUTF16toUTF8(origin).get());
+
   nsString id;
   notification->GetID(id);
 
   nsString alertName;
   notification->GetAlertName(alertName);
+
+  MY_LOG("Constructor|alertName: %s", NS_ConvertUTF16toUTF8(alertName).get());
 
   nsString dataString;
   nsCOMPtr<nsIStructuredCloneContainer> scContainer;
@@ -671,6 +682,8 @@ Notification::ShowInternal()
     nsCOMPtr<nsPIDOMWindow> window = GetOwner();
     uint32_t appId = (window.get())->GetDoc()->NodePrincipal()->GetAppId();
 
+    MY_LOG("Notification::ShowInternal|appId: %u", appId);
+
     if (appId != nsIScriptSecurityManager::UNKNOWN_APP_ID) {
       nsCOMPtr<nsIAppsService> appsService = do_GetService("@mozilla.org/AppsService;1");
       nsString manifestUrl = EmptyString();
@@ -689,6 +702,12 @@ Notification::ShowInternal()
         ops.mData = dataStr;
         ops.mMozbehavior = mBehavior;
         ops.mMozbehavior.mSoundFile = soundUrl;
+
+        MY_LOG("Notification::ShowInternal|mManifestURL: %s", NS_ConvertUTF16toUTF8(ops.mManifestURL).get());
+        MY_LOG("Notification::ShowInternal|mId:          %s", NS_ConvertUTF16toUTF8(ops.mId).get());
+        MY_LOG("Notification::ShowInternal|mDbId:        %s", NS_ConvertUTF16toUTF8(ops.mDbId).get());
+        MY_LOG("Notification::ShowInternal|mData:        %s", NS_ConvertUTF16toUTF8(ops.mData).get());
+
 
         if (!ToJSValue(cx, ops, &val)) {
           NS_WARNING("Converting dict to object failed!");

@@ -49,6 +49,8 @@ ChromeNotifications.prototype = {
 
     notifications.forEach(function(notification) {
       let behavior;
+
+
       try {
         behavior = JSON.parse(notification.mozbehavior);
       } catch(e) {
@@ -58,6 +60,18 @@ ChromeNotifications.prototype = {
       if (behavior && behavior.showOnlyOnce === true) {
         return;
       }
+
+      debug("--- ChromeNotifications::performResend ---");
+      debug("notification: " + JSON.stringify(notification));
+      debug("notification.origin: " + notification.origin);
+      debug("notification.id: " + notification.id);
+      debug("notification.dir: " + notification.dir);
+      debug("notification.tag: " + notification.tag);
+      debug("notification.dbId: " + notification.dbId);
+      debug("notification.title: " + notification.title);
+      debug("notification.body: " + notification.body);
+      debug("notification.data: " + notification.data);
+      debug("notification.mozbehavior: " + notification.mozbehavior);
 
       appNotifier.showAppNotification(
         notification.icon,

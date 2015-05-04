@@ -5,7 +5,7 @@
 "use strict"
 
 function debug(s) {
-  //dump("-*- AppsService.js: " + s + "\n");
+  dump("-*- AppsService.js: " + s + "\n");
 }
 
 const Cc = Components.classes;
