@@ -26,6 +26,14 @@ XPCOMUtils.defineLazyServiceGetter(this, "appNotifier",
                                    "@mozilla.org/system-alerts-service;1",
                                    "nsIAppNotificationService");
 
+XPCOMUtils.defineLazyServiceGetter(this, "appsService",
+                                   "@mozilla.org/AppsService;1",
+                                   "nsIAppsService");
+
+XPCOMUtils.defineLazyServiceGetter(this, "notificationStorage",
+                                   "@mozilla.org/notificationStorage;1",
+                                   "nsINotificationStorage");
+
 const CHROMENOTIFICATIONS_CID = "{74f94093-8b37-497e-824f-c3b250a911da}";
 const CHROMENOTIFICATIONS_CONTRACTID = "@mozilla.org/mozChromeNotifications;1";
 
@@ -49,6 +57,8 @@ ChromeNotifications.prototype = {
 
     notifications.forEach(function(notification) {
       let behavior;
+      let app;
+
       try {
         behavior = JSON.parse(notification.mozbehavior);
       } catch(e) {
@@ -59,24 +69,30 @@ ChromeNotifications.prototype = {
         return;
       }
 
-      appNotifier.showAppNotification(
-        notification.icon,
-        notification.title,
-        notification.body,
-        null,
-        {
-          manifestURL: notification.origin,
-          id: notification.alertName,
-          dir: notification.dir,
-          lang: notification.lang,
-          tag: notification.tag,
-          dbId: notification.id,
-          timestamp: notification.timestamp,
-          data: notification.data,
-          mozbehavior: behavior
-        }
-      );
-      resentNotifications++;
+      app = appsService.getAppByManifestURL(notification.origin);
+      if (app) {
+        appNotifier.showAppNotification(
+          notification.icon,
+          notification.title,
+          notification.body,
+          null,
+          {
+            manifestURL: notification.origin,
+            id: notification.alertName,
+            dir: notification.dir,
+            lang: notification.lang,
+            tag: notification.tag,
+            dbId: notification.id,
+            timestamp: notification.timestamp,
+            data: notification.data,
+            mozbehavior: behavior
+          }
+        );
+        resentNotifications++;
+      }
+      else {
+        notificationStorage.delete(notification.origin, notification.id);
+      }
     });
 
     try {
