@@ -113,6 +113,15 @@ AlertsService.prototype = {
       dataObj: dataObj || undefined
     };
 
+    debug("--- AlertsService.js::showAppNotification ---");
+    debug("aDetails: " + JSON.stringify(aDetails));
+    debug("aDetails.manifestURL: " + aDetails.manifestURL);
+    debug("aDetails.lang: " + aDetails.lang);
+    debug("aDetails.id: " + aDetails.id);
+    debug("aDetails.dbId: " + aDetails.dbId);
+    debug("aDetails.dir: " + aDetails.dir);
+    debug("aDetails.tag: " + aDetails.tag);
+
     cpmm.sendAsyncMessage(kMessageAppNotificationSend, {
       imageURL: aImageURL,
       title: aTitle,

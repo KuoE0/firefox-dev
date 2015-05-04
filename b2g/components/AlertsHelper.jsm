@@ -35,7 +35,7 @@ XPCOMUtils.defineLazyGetter(this, "ppmm", function() {
 });
 
 function debug(str) {
-  //dump("=*= AlertsHelper.jsm : " + str + "\n");
+  dump("=*= AlertsHelper.jsm : " + str + "\n");
 }
 
 const kNotificationIconSize = 128;
@@ -252,6 +252,14 @@ let AlertsHelper = {
       });
     }
 
+    debug("--- AlertsHelper.jsm ---");
+    debug("uid: " + uid);
+    debug("bidi: " + bidi);
+    debug("lang: " + lang);
+    debug("dataObj: " + dataObj);
+    debug("manifestURL: " + manifestURL);
+    debug("behavior: " + behavior);
+
     if (!manifestURL || !manifestURL.length) {
       send(null, null);
       return;
@@ -260,9 +268,12 @@ let AlertsHelper = {
     // If we have a manifest URL, get the icon and title from the manifest
     // to prevent spoofing.
     appsService.getManifestFor(manifestURL).then((manifest) => {
+      debug("getManifestFor " + manifest + " succeed!");
       let app = appsService.getAppByManifestURL(manifestURL);
       let helper = new ManifestHelper(manifest, app.origin, manifestURL);
       send(helper.name, helper.iconURLForSize(kNotificationIconSize));
+    }, (error) => {
+      debug("getManifestFor " + manifest + " failed!");
     });
   },
 
@@ -298,6 +309,16 @@ let AlertsHelper = {
       timestamp: details.timestamp || undefined,
       dataObj: dataObject || undefined
     };
+
+    debug("--- AlertsHelper.jsm::showAppNotification ---");
+    debug("details: " + JSON.stringify(details));
+    debug("details.manifestURL: " + details.manifestURL);
+    debug("details.lang: " + details.lang);
+    debug("details.id: " + details.id);
+    debug("details.dbId: " + details.dbId);
+    debug("details.dir: " + details.dir);
+    debug("details.tag: " + details.tag);
+
     this.registerAppListener(data.uid, listener);
     this.showNotification(data.imageURL, data.title, data.text,
                           details.textClickable, null, data.uid, details.dir,
