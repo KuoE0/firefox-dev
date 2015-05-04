@@ -492,6 +492,21 @@ Notification::Constructor(const GlobalObject& aGlobal,
     return nullptr;
   }
 
+#ifdef MOZ_B2G
+  nsCOMPtr<nsIAppNotificationService> appNotifier =
+    do_GetService("@mozilla.org/system-alerts-service;1");
+  if (appNotifier) {
+    uint32_t appId = (window.get())->GetDoc()->NodePrincipal()->GetAppId();
+    if (appId != nsIScriptSecurityManager::UNKNOWN_APP_ID) {
+      nsCOMPtr<nsIAppsService> appsService = do_GetService("@mozilla.org/AppsService;1");
+      rv = appsService->GetManifestURLByLocalId(appId, origin);
+      if (NS_FAILED(rv)) {
+        return nullptr;
+      }
+    }
+  }
+#endif
+
   nsString id;
   notification->GetID(id);
 
