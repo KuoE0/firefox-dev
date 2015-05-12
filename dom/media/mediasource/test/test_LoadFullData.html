@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+  <title>MSE: append entire video data</title>
+  <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="text/javascript" src="mediasource.js"></script>
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
+</head>
+<body>
+<pre id="test"><script class="testbody" type="text/javascript">
+
+SimpleTest.waitForExplicitFinish();
+
+var receivedSourceOpen = false;
+runWithMSE(function(ms, v) {
+  ms.addEventListener("sourceopen", function() {
+    ok(true, "Receive a sourceopen event");
+    ok(!receivedSourceOpen, "Should only receive one sourceopen for this test");
+    receivedSourceOpen = true;
+    var sb = ms.addSourceBuffer("video/webm");
+    ok(sb, "Create a SourceBuffer");
+
+    function once(target, name, cb) {
+      target.addEventListener(name, function() {
+        target.removeEventListener(name, cb);
+        cb();
+      });
+    }
+    function loadSegment(typedArray) {
+      info(`Loading buffer: [${typedArray.byteOffset}, ${typedArray.byteOffset + typedArray.byteLength})`);
+      return new Promise(function(resolve, reject) {
+        once(sb, 'update', resolve);
+        sb.appendBuffer(typedArray);
+      });
+    }
+
+    fetchWithXHR("seek.webm", function(arrayBuffer) {
+      sb.addEventListener('error', (e) => { ok(false, "Got Error: " + e); SimpleTest.finish(); });
+      loadSegment.bind(null, new Uint8Array(arrayBuffer))().then(function() {
+        v.play();
+      });
+    });
+  });
+  v.addEventListener("ended", function () {
+    ok(Math.abs(v.duration - 4) < 0.1, "Video has correct duration. This fuzz factor is due to bug 1065207");
+    ok(Math.abs(v.currentTime - 4) < 0.1, "Video has correct currentTime. See bug 1101062");
+    ok(gotWaiting, "Received waiting event and playback continued after data added");
+    SimpleTest.finish();
+  });
+});
+</script>
+</pre>
+</body>
+</html>
