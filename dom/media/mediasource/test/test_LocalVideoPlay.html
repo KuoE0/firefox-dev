@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+  <title>MSE: |waiting| event when source data is missing</title>
+  <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="text/javascript" src="mediasource.js"></script>
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
+</head>
+<body>
+<video id="video">
+	<source src="seek.webm" type="video/webm"></source>
+</video>
+<pre id="test"><script class="testbody" type="text/javascript">
+var el = document.getElementById("video");
+el.play();
+</script>
+</pre>
+</body>
+</html>
