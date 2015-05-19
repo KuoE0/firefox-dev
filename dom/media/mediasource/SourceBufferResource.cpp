@@ -41,7 +41,7 @@ SourceBufferResource::Close()
 nsresult
 SourceBufferResource::Read(char* aBuffer, uint32_t aCount, uint32_t* aBytes)
 {
-  SBR_DEBUGV("Read(aBuffer=%p, aCount=%u, aBytes=%p)",
+  SBR_DEBUG("Read(aBuffer=%p, aCount=%u, aBytes=%p)",
              aBuffer, aCount, aBytes);
   ReentrantMonitorAutoEnter mon(mMonitor);
 
@@ -62,7 +62,7 @@ SourceBufferResource::ReadInternal(char* aBuffer, uint32_t aCount, uint32_t* aBy
   while (aMayBlock &&
          !mEnded &&
          readOffset + aCount > static_cast<uint64_t>(GetLength())) {
-    SBR_DEBUGV("waiting for data");
+    SBR_DEBUG("waiting for data");
     mMonitor.Wait();
     // The callers of this function should have checked this, but it's
     // possible that we had an eviction while waiting on the monitor.
@@ -73,10 +73,10 @@ SourceBufferResource::ReadInternal(char* aBuffer, uint32_t aCount, uint32_t* aBy
 
   uint32_t available = GetLength() - readOffset;
   uint32_t count = std::min(aCount, available);
-  SBR_DEBUGV("readOffset=%llu GetLength()=%u available=%u count=%u mEnded=%d",
+  SBR_DEBUG("readOffset=%llu GetLength()=%u available=%u count=%u mEnded=%d",
              readOffset, GetLength(), available, count, mEnded);
   if (available == 0) {
-    SBR_DEBUGV("reached EOF");
+    SBR_DEBUG("reached EOF");
     *aBytes = 0;
     return NS_OK;
   }
@@ -134,7 +134,7 @@ SourceBufferResource::Seek(int32_t aWhence, int64_t aOffset)
     break;
   }
 
-  SBR_DEBUGV("newOffset=%lld GetOffset()=%llu GetLength()=%llu)",
+  SBR_DEBUG("newOffset=%lld GetOffset()=%llu GetLength()=%llu)",
              newOffset, mInputBuffer.GetOffset(), GetLength());
   nsresult rv = SeekInternal(newOffset);
   mon.NotifyAll();
@@ -249,5 +249,4 @@ SourceBufferResource::SourceBufferResource(const nsACString& aType)
 }
 
 #undef SBR_DEBUG
-#undef SBR_DEBUGV
 } // namespace mozilla

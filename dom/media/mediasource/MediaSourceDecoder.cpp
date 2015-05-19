@@ -59,6 +59,7 @@ MediaSourceDecoder::CreateStateMachine()
 nsresult
 MediaSourceDecoder::Load(nsIStreamListener**, MediaDecoder*)
 {
+  MSE_DEBUG("In MediaSourceDecoder::Load");
   MOZ_ASSERT(!GetStateMachine());
   SetStateMachine(CreateStateMachine());
   if (!GetStateMachine()) {

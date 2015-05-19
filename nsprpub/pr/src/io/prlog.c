@@ -311,7 +311,7 @@ static void _PR_SetLogModuleLevel( PRLogModuleInfo *lm )
 {
     char *ev;
 
-    ev = "timestamp,MediaSource:5,MediaResource:5,MediaDecoder:5";
+    ev = "timestamp,MediaSource:5,MediaResource:5,MediaDecoder:5,nsMediaElement:5";
     if (ev && ev[0]) {
         char module[64];  /* Security-Critical: If you change this
                            * size, you must also change the sscanf

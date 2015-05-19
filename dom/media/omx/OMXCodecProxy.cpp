@@ -159,8 +159,10 @@ void OMXCodecProxy::statusChanged(int event)
 
   if (!strncasecmp(mime, "video/", 6)) {
     sp<MediaSource> codec;
+    ALOGI("OMXCodecProxy::statusChanged");
     mOMXCodec = OMXCodec::Create(mOMX, mSrcMeta, mIsEncoder, mSource, mComponentName, mFlags, mNativeWindow);
     if (mOMXCodec == nullptr) {
+      ALOGI("OMXCodec::Create Failed");
       mState = MediaResourceManagerClient::CLIENT_STATE_SHUTDOWN;
       notifyResourceCanceled();
       return;
@@ -174,12 +176,14 @@ void OMXCodecProxy::statusChanged(int event)
     property_get("ro.moz.omx.hw.max_height", propValue, "-1");
     maxHeight = atoi(propValue);
 
+    ALOGI("maxWidth: %d / maxHeight: %d", maxWidth, maxHeight);
+
     int32_t width = -1, height = -1;
     if (maxWidth > 0 && maxHeight > 0 &&
         !(mOMXCodec->getFormat()->findInt32(kKeyWidth, &width) &&
           mOMXCodec->getFormat()->findInt32(kKeyHeight, &height) &&
           width * height <= maxWidth * maxHeight)) {
-      printf_stderr("Failed to get video size, or it was too large for HW decoder (<w=%d, h=%d> but <maxW=%d, maxH=%d>)",
+      ALOGI("Failed to get video size, or it was too large for HW decoder (<w=%d, h=%d> but <maxW=%d, maxH=%d>)",
                     width, height, maxWidth, maxHeight);
       mOMXCodec.clear();
       mState = MediaResourceManagerClient::CLIENT_STATE_SHUTDOWN;
@@ -188,7 +192,7 @@ void OMXCodecProxy::statusChanged(int event)
     }
 
     if (mOMXCodec->start() != OK) {
-      NS_WARNING("Couldn't start OMX video source");
+      ALOGI("Couldn't start OMX video source");
       mOMXCodec.clear();
       mState = MediaResourceManagerClient::CLIENT_STATE_SHUTDOWN;
       notifyResourceCanceled();

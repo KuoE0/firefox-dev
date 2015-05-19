@@ -240,6 +240,7 @@ MediaDecoderStateMachine::MediaDecoderStateMachine(MediaDecoder* aDecoder,
   mSentPlaybackEndedEvent(false),
   mDecodedStream(mDecoder->GetReentrantMonitor())
 {
+  DECODER_LOG("Create MediaDecoderStateMachine");
   MOZ_COUNT_CTOR(MediaDecoderStateMachine);
   NS_ASSERTION(NS_IsMainThread(), "Should be on main thread.");
 
@@ -2114,6 +2115,7 @@ MediaDecoderStateMachine::DecodeError()
 void
 MediaDecoderStateMachine::OnMetadataRead(MetadataHolder* aMetadata)
 {
+  DECODER_LOG("In MediaDecoderStateMachine::OnMetadataRead");
   MOZ_ASSERT(OnTaskQueue());
   MOZ_ASSERT(mState == DECODER_STATE_DECODING_METADATA);
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
@@ -2188,16 +2190,18 @@ MediaDecoderStateMachine::OnMetadataRead(MetadataHolder* aMetadata)
 void
 MediaDecoderStateMachine::OnMetadataNotRead(ReadMetadataFailureReason aReason)
 {
+  DECODER_LOG("In MediaDecoderStateMachine::OnMetadataNotRead");
   MOZ_ASSERT(OnTaskQueue());
   MOZ_ASSERT(mState == DECODER_STATE_DECODING_METADATA);
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
   mMetadataRequest.Complete();
 
   if (aReason == ReadMetadataFailureReason::WAITING_FOR_RESOURCES) {
+    DECODER_LOG("Reason: WAITING_FOR_RESOURCES");
     SetState(DECODER_STATE_WAIT_FOR_RESOURCES);
   } else {
     MOZ_ASSERT(aReason == ReadMetadataFailureReason::METADATA_ERROR);
-    DECODER_WARN("Decode metadata failed, shutting down decoder");
+    DECODER_LOG("Decode metadata failed, shutting down decoder");
     DecodeError();
   }
 }
@@ -2523,6 +2527,7 @@ nsresult MediaDecoderStateMachine::RunStateMachine()
 {
   MOZ_ASSERT(OnTaskQueue());
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
+  DECODER_LOG("MediaDecoderStateMachine::RunStateMachine");
 
   mDelayedScheduler.Reset(); // Must happen on state machine task queue.
   mDispatchedStateMachine = false;

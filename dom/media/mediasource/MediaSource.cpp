@@ -76,9 +76,11 @@ static const char* const gMediaSourceTypes[6] = {
 static nsresult
 IsTypeSupported(const nsAString& aType)
 {
+#define this nullptr
   if (aType.IsEmpty()) {
     return NS_ERROR_DOM_INVALID_ACCESS_ERR;
   }
+  MSE_DEBUG("IsTypeSupported: type=%s", NS_ConvertUTF16toUTF8(aType).get());
   nsContentTypeParser parser(aType);
   nsAutoString mimeType;
   nsresult rv = parser.GetType(mimeType);
@@ -102,10 +104,12 @@ IsTypeSupported(const nsAString& aType)
           )) {
         break;
       }
-      if ((mimeType.EqualsASCII("video/webm") ||
-           mimeType.EqualsASCII("audio/webm")) &&
-          !Preferences::GetBool("media.mediasource.webm.enabled", false)) {
-        break;
+      if ((mimeType.EqualsASCII("video/webm") || mimeType.EqualsASCII("audio/webm"))) {
+        bool pref = Preferences::GetBool("media.mediasource.webm.enabled", false);
+        if (!pref) {
+          MSE_DEBUG("IsTypeSupported: webm supported!");
+          break;
+        }
       }
       found = true;
       break;
@@ -120,6 +124,8 @@ IsTypeSupported(const nsAString& aType)
   if (dom::HTMLMediaElement::GetCanPlay(aType) == CANPLAY_NO) {
     return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
   }
+  MSE_DEBUG("IsTypeSupported: return true");
+#undef this
   return NS_OK;
 }
 

@@ -79,6 +79,7 @@ bool
 MediaSourceReader::IsWaitingMediaResources()
 {
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
+  MSE_DEBUG("In MediaSourceReader::IsWaitingMediaResource");
 
   for (uint32_t i = 0; i < mEssentialTrackBuffers.Length(); ++i) {
     if (!mEssentialTrackBuffers[i]->IsReady()) {
@@ -694,6 +695,7 @@ MediaSourceReader::IsDormantNeeded()
 void
 MediaSourceReader::ReleaseMediaResources()
 {
+  MSE_DEBUG("MediaSourceReader::ReleaseMediaResources");
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
   if (GetVideoReader()) {
     GetVideoReader()->ReleaseMediaResources();
@@ -1142,6 +1144,8 @@ MediaSourceReader::MaybeNotifyHaveData()
 nsresult
 MediaSourceReader::ReadMetadata(MediaInfo* aInfo, MetadataTags** aTags)
 {
+  MSE_DEBUG("In MediaSourceReader::ReadMetadata");
+
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
 
   MSE_DEBUG("tracks=%u/%u audio=%p video=%p",

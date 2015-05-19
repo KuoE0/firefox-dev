@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 // ---------------------------------------------------------------------------
 namespace android {
@@ -583,6 +584,7 @@ void wp<T>::set_object_and_refs(T* other, weakref_type* refs)
 template<typename T>
 sp<T> wp<T>::promote() const
 {
+	fprintf(stderr, "promote me 2!");
     return sp<T>(m_ptr, m_refs);
 }
 

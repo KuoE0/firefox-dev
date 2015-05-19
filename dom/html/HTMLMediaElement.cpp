@@ -1155,6 +1155,7 @@ nsresult HTMLMediaElement::LoadResource()
 {
   NS_ASSERTION(mDelayingLoadEvent,
                "Should delay load event (if in document) during load");
+  LOG(LogLevel::Debug, ("In HTMLMediaElement::LoadResource"));
 
   if (mChannel) {
     mChannel->Cancel(NS_BINDING_ABORTED);
@@ -2797,6 +2798,7 @@ nsresult HTMLMediaElement::FinishDecoderSetup(MediaDecoder* aDecoder,
                                               MediaDecoder* aCloneDonor)
 {
   ChangeNetworkState(nsIDOMHTMLMediaElement::NETWORK_LOADING);
+  LOG(LogLevel::Debug, ("In HTMLMediaElement::FinishDecoderSetup"));
 
   // Force a same-origin check before allowing events for this media resource.
   mMediaSecurityVerified = false;

@@ -164,6 +164,8 @@ TrackBuffer::BufferAppend()
   DecodersToInitialize decoders(this);
   nsRefPtr<AppendPromise> p = mInitializationPromise.Ensure(__func__);
   bool hadInitData = mParser->HasInitData();
+  MSE_DEBUG("hadInitData: %s", hadInitData ? "true" : "false");
+  
   bool hadCompleteInitData = mParser->HasCompleteInitData();
   nsRefPtr<MediaByteBuffer> oldInit = mParser->InitData();
   bool newInitData = mParser->IsInitSegmentPresent(mInputBuffer);
@@ -181,8 +183,12 @@ TrackBuffer::BufferAppend()
   bool gotMedia = mParser->ParseStartAndEndTimestamps(mInputBuffer, start, end);
   bool gotInit = mParser->HasCompleteInitData();
 
+  MSE_DEBUG("gotMedia: %s", gotMedia ? "true" : "false");
+  MSE_DEBUG("gotInit: %s", gotInit ? "true" : "false");
+
   if (newInitData) {
     if (!gotInit) {
+      MSE_DEBUG("no enough init data");
       // We need a new decoder, but we can't initialize it yet.
       nsRefPtr<SourceBufferDecoder> decoder =
         NewDecoder(mTimestampOffset);
@@ -660,6 +666,8 @@ TrackBuffer::NewDecoder(TimeUnit aTimestampOffset)
   MOZ_ASSERT(mParentDecoder);
 
   DiscardCurrentDecoder();
+
+  MSE_DEBUG("aTimestampOffset: %lld", aTimestampOffset);
 
   nsRefPtr<SourceBufferDecoder> decoder =
     mParentDecoder->CreateSubDecoder(mType, (aTimestampOffset - mAdjustedTimestamp).ToMicroseconds());

@@ -29,7 +29,8 @@ using namespace android;
 namespace mozilla {
 
 extern PRLogModuleInfo* gMediaDecoderLog;
-#define DECODER_LOG(type, msg) MOZ_LOG(gMediaDecoderLog, type, msg)
+#define DECODER_LOG(x, ...) \
+  MOZ_LOG(gMediaDecoderLog, mozilla::LogLevel::Debug, ("Decoder=%p " x, mDecoder, ##__VA_ARGS__))
 
 class MediaOmxReader::ProcessCachedDataTask : public Task
 {
@@ -165,6 +166,7 @@ void MediaOmxReader::ReleaseDecoder()
 nsRefPtr<ShutdownPromise>
 MediaOmxReader::Shutdown()
 {
+  DECODER_LOG("MediaOmxReader::Shutdown");
   {
     MutexAutoLock lock(mShutdownMutex);
     mIsShutdown = true;
@@ -198,18 +200,22 @@ void MediaOmxReader::ReleaseMediaResources()
 
 nsresult MediaOmxReader::InitOmxDecoder()
 {
+  DECODER_LOG("MediaOmxReader::InitOmxDecoder");
   if (!mOmxDecoder.get()) {
     //register sniffers, if they are not registered in this process.
     DataSource::RegisterDefaultSniffers();
     mDecoder->GetResource()->SetReadMode(MediaCacheStream::MODE_METADATA);
 
+    DECODER_LOG("Create DataSource");
     sp<DataSource> dataSource = new MediaStreamSource(mDecoder->GetResource());
     dataSource->initCheck();
 
+    DECODER_LOG("Create MediaExtractor");
     mExtractor = MediaExtractor::Create(dataSource);
     if (!mExtractor.get()) {
       return NS_ERROR_FAILURE;
     }
+    DECODER_LOG("Create OmxDecoder");
     mOmxDecoder = new OmxDecoder(mDecoder->GetResource(), mDecoder);
     if (!mOmxDecoder->Init(mExtractor)) {
       return NS_ERROR_FAILURE;
@@ -221,6 +227,7 @@ nsresult MediaOmxReader::InitOmxDecoder()
 nsRefPtr<MediaDecoderReader::MetadataPromise>
 MediaOmxReader::AsyncReadMetadata()
 {
+  DECODER_LOG("In MediaOmxReader::ReadMetadata");
   MOZ_ASSERT(OnTaskQueue());
   EnsureActive();
 
@@ -286,6 +293,7 @@ void MediaOmxReader::HandleResourceAllocated()
   }
 
   if (mOmxDecoder->HasVideo()) {
+    DECODER_LOG("HasVideo!!!!!");
     int32_t displayWidth, displayHeight, width, height;
     mOmxDecoder->GetVideoParameters(&displayWidth, &displayHeight,
                                     &width, &height);
@@ -314,6 +322,7 @@ void MediaOmxReader::HandleResourceAllocated()
   }
 
   if (mOmxDecoder->HasAudio()) {
+    DECODER_LOG("HasAudio!!!!!");
     int32_t numChannels, sampleRate;
     mOmxDecoder->GetAudioParameters(&numChannels, &sampleRate);
     mHasAudio = true;

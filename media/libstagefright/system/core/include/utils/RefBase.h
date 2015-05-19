@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <utils/StrongPointer.h>
 #include <utils/TypeHelpers.h>
@@ -445,6 +446,7 @@ template<typename T>
 sp<T> wp<T>::promote() const
 {
     sp<T> result;
+	fprintf(stderr, "promote me 1!");
     if (m_ptr && m_refs->attemptIncStrong(&result)) {
         result.set_pointer(m_ptr);
     }

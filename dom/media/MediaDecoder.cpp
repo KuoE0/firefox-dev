@@ -519,6 +519,7 @@ nsresult MediaDecoder::ScheduleStateMachine()
   NS_ASSERTION(mDecoderStateMachine,
                "Must have state machine to start state machine thread");
   NS_ENSURE_STATE(mDecoderStateMachine);
+  DECODER_LOG("Media::ScheduleStateMachine");
 
   if (mShuttingDown)
     return NS_OK;

@@ -5,6 +5,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 #include "base/basictypes.h"
 #include <cutils/properties.h>
@@ -34,7 +35,6 @@
 #include "OmxDecoder.h"
 
 #include <android/log.h>
-#define OD_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "OmxDecoder", __VA_ARGS__)
 
 #undef LOG
 PRLogModuleInfo *gOmxDecoderLog;
@@ -81,6 +81,7 @@ OmxDecoder::OmxDecoder(MediaResource *aResource,
 
 OmxDecoder::~OmxDecoder()
 {
+  LOG(LogLevel::Debug, "release OmxDecoder!\n");
   MOZ_ASSERT(NS_IsMainThread());
 
   ReleaseMediaResources();
@@ -114,6 +115,8 @@ bool OmxDecoder::Init(sp<MediaExtractor>& extractor) {
     gOmxDecoderLog = PR_NewLogModule("OmxDecoder");
   }
 
+  LOG(LogLevel::Debug, "Init OmxDecoder\n");
+
   sp<MetaData> meta = extractor->getMetaData();
 
   ssize_t audioTrackIndex = -1;
@@ -138,14 +141,17 @@ bool OmxDecoder::Init(sp<MediaExtractor>& extractor) {
     }
   }
 
+  LOG(LogLevel::Debug, "videoTrackIndex=%d / audioTrackIndex=%d\n", videoTrackIndex, audioTrackIndex);
+
   if (videoTrackIndex == -1 && audioTrackIndex == -1) {
-    NS_WARNING("OMX decoder could not find video or audio tracks");
+    LOG(LogLevel::Debug, "OMX decoder could not find video or audio tracks\n");
     return false;
   }
 
   mResource->SetReadMode(MediaCacheStream::MODE_PLAYBACK);
 
   if (videoTrackIndex != -1 && mDecoder->GetImageContainer()) {
+    LOG(LogLevel::Debug, "OmxDecoder::Init => get video track\n");
     mVideoTrack = extractor->getTrack(videoTrackIndex);
   }
 
@@ -265,6 +271,7 @@ nsRefPtr<mozilla::MediaOmxCommonReader::MediaResourcePromise> OmxDecoder::Alloca
       // If we are in emulator, allow to fall back to software.
       flags = 0;
     }
+    LOG(LogLevel::Debug, "Before OMXCodecProxy::Create\n");
     mVideoSource =
           OMXCodecProxy::Create(omx,
                                 mVideoTrack->getFormat(),
@@ -273,6 +280,7 @@ nsRefPtr<mozilla::MediaOmxCommonReader::MediaResourcePromise> OmxDecoder::Alloca
                                 nullptr,
                                 flags,
                                 mNativeWindowClient);
+    LOG(LogLevel::Debug, "After OMXCodecProxy::Create\n");
     if (mVideoSource == nullptr) {
       NS_WARNING("Couldn't create OMX video source");
       mMediaResourcePromise.Reject(true, __func__);
@@ -282,6 +290,8 @@ nsRefPtr<mozilla::MediaOmxCommonReader::MediaResourcePromise> OmxDecoder::Alloca
       mVideoSource->setListener(listener);
       mVideoSource->requestResource();
     }
+
+    LOG(LogLevel::Debug, "%s\n", mVideoSource == nullptr ? "No Video" : "Has Video");
   }
 
   if ((mAudioTrack != nullptr) && (mAudioSource == nullptr)) {
@@ -303,23 +313,27 @@ nsRefPtr<mozilla::MediaOmxCommonReader::MediaResourcePromise> OmxDecoder::Alloca
     } else {
       // try to load hardware codec in mediaserver process.
       int flags = kHardwareCodecsOnly;
+      LOG(LogLevel::Debug, "Before OMXCodec::Create - 1\n");
       mAudioSource = OMXCodec::Create(omx,
                                      mAudioTrack->getFormat(),
                                      false, // decoder
                                      mAudioTrack,
                                      nullptr,
                                      flags);
+      LOG(LogLevel::Debug, "After OMXCodec::Create - 1\n");
     }
 
     if (mAudioSource == nullptr) {
       // try to load software codec in this process.
       int flags = kSoftwareCodecsOnly;
+      LOG(LogLevel::Debug, "Before OMXCodec::Create - 2\n");
       mAudioSource = OMXCodec::Create(GetOMX(),
                                      mAudioTrack->getFormat(),
                                      false, // decoder
                                      mAudioTrack,
                                      nullptr,
                                      flags);
+      LOG(LogLevel::Debug, "After OMXCodec::Create - 2\n");
       if (mAudioSource == nullptr) {
         NS_WARNING("Couldn't create OMX audio source");
         mMediaResourcePromise.Reject(true, __func__);
@@ -348,6 +362,7 @@ void OmxDecoder::ReleaseMediaResources() {
   ReleaseAudioBuffer();
 
   {
+    LOG(LogLevel::Debug, "OmxDecoder::ReleaseMediaResources\n");
     Mutex::Autolock autoLock(mPendingVideoBuffersLock);
     MOZ_ASSERT(mPendingRecycleTexutreClients.empty());
     // Release all pending recycle TextureClients, if they are not recycled yet.
@@ -567,7 +582,7 @@ bool OmxDecoder::ReadVideo(VideoFrame *aFrame, int64_t aTimeUs,
     MediaSource::ReadOptions::SeekMode seekMode;
     // If the last timestamp of decoded frame is smaller than seekTime,
     // seek to next key frame. Otherwise seek to the previos one.
-    OD_LOG("SeekTime: %lld, mLastSeekTime:%lld", aTimeUs, mLastSeekTime);
+    LOG(LogLevel::Debug, "SeekTime: %lld, mLastSeekTime:%lld\n", aTimeUs, mLastSeekTime);
     if (mLastSeekTime == -1 || mLastSeekTime > aTimeUs) {
       seekMode = MediaSource::ReadOptions::SEEK_PREVIOUS_SYNC;
     } else {
@@ -598,7 +613,7 @@ bool OmxDecoder::ReadVideo(VideoFrame *aFrame, int64_t aTimeUs,
         }
         continue;
       } else if (err != OK) {
-        OD_LOG("Unexpected error when seeking to %lld", aTimeUs);
+        LOG(LogLevel::Debug, "Unexpected error when seeking to %lld\n", aTimeUs);
         break;
       }
       // For some codecs, the length of first decoded frame after seek is 0.
