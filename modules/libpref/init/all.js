@@ -454,8 +454,8 @@ pref("media.mediasource.whitelist", true);
 pref("media.mediasource.whitelist", false);
 #endif // RELEASE_BUILD
 
-pref("media.mediasource.mp4.enabled", true);
-pref("media.mediasource.webm.enabled", false);
+pref("media.mediasource.mp4.enabled", false);
+pref("media.mediasource.webm.enabled", true);
 
 // Enable new MediaSource architecture.
 pref("media.mediasource.format-reader", false);
