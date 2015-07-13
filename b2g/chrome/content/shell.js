@@ -823,6 +823,9 @@ var CustomEventManager = {
       case 'do-command':
         DoCommandHelper.handleEvent(detail.cmd);
         break;
+      case 'get-display-list':
+        MultiscreenHandler.handleEvent(detail);
+        break;
       case 'copypaste-do-command':
         Services.obs.notifyObservers({ wrappedJSObject: shell.contentBrowser },
                                      'ask-children-to-execute-copypaste-command', detail.cmd);

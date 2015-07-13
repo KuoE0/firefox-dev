@@ -10,6 +10,7 @@ const Ci = Components.interfaces;
 const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/SystemAppProxy.jsm");
 
 function debug(aStr) {
   // dump("MultiscreenHandler: " + aStr + "\n");
@@ -22,6 +23,7 @@ let window = Services.wm.getMostRecentWindow("navigator:browser");
 let MultiscreenHandler = {
 
   topLevelWindows: new Map(),
+  displayList: [],
 
   init: function init() {
     Services.obs.addObserver(this, "display-changed", false);
@@ -42,6 +44,10 @@ let MultiscreenHandler = {
         this.uninit();
         break
     }
+  },
+
+  _sendChromeEvent: function _sendChromeEvent(aData) {
+    SystemAppProxy._sendCustomEvent("mozChromeEvent", aData);
   },
 
   openTopLevelWindow: function openTopLevelWindow(aDisplay) {
@@ -78,12 +84,39 @@ let MultiscreenHandler = {
       let isMultiscreenEnabled = req.result[name];
       if (display.connected) {
         if (isMultiscreenEnabled) {
+          this.displayList.push(display);
           this.openTopLevelWindow(display);
         }
       } else {
+        this.displayList = this.displayList.filter(function(d) {
+          return d.id != display.id;
+        });
         this.closeTopLevelWindow(display);
       }
     });
+  },
+
+  handleEvent: function handleEvent(aDetail) {
+    switch(aDetail.type) {
+      case 'get-display-list':
+        try {
+          this._sendChromeEvent({
+            type: 'get-display-list-success',
+            display: this.displayList.map(function(d) {
+              return {
+                id: d.id,
+                name: d.name || ('External Display #' + d.id)
+              };
+            })
+          });
+        } catch (e) {
+          this._sendChromeEvent({
+            type: 'get-display-list-error',
+            error: String(e)
+          });
+        }
+        break;
+    }
   },
 
 };
