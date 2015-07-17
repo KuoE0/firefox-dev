@@ -53,7 +53,7 @@
  * By default the debug message of hwcomposer (LOG_DEBUG level) are undefined,
  * but can be enabled by uncommenting HWC_DEBUG below.
  */
-//#define HWC_DEBUG
+#define HWC_DEBUG
 
 #ifdef HWC_DEBUG
 #define LOGD(args...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, ## args)
@@ -211,12 +211,14 @@ public:
         : mType(aType)
         , mConnected(aConnected)
     {
+        LOGD("<kuoe0> HotplugEvent::Constructor | DisplayType: %d", aType);
     }
 
     NS_IMETHOD Run()
     {
         nsRefPtr<nsScreenManagerGonk> screenManager =
             nsScreenManagerGonk::GetInstance();
+        LOGD("<kuoe0> HotplugEvent::Run | mConnected: %d", int(mConnected));
         if (mConnected) {
             screenManager->AddScreen(mType);
         } else {
@@ -233,6 +235,7 @@ private:
 void
 HwcComposer2D::Hotplug(int aDisplay, int aConnected)
 {
+    LOGD("<kuoe0> HwcComposer2D::Hotplug | aDisplay: %d", aDisplay);
     NS_DispatchToMainThread(new HotplugEvent(GonkDisplay::DISPLAY_EXTERNAL,
                                              aConnected));
 }
@@ -658,6 +661,7 @@ HwcComposer2D::TryHwComposition(nsScreenGonk* aScreen)
 {
     DisplaySurface* dispSurface = aScreen->GetDisplaySurface();
 
+    LOGD("<kuoe0> HwcComposer2D::TryHwComposition");
     if (!(dispSurface && dispSurface->lastHandle)) {
         LOGD("H/W Composition failed. DispSurface not initialized.");
         return false;
@@ -750,6 +754,7 @@ HwcComposer2D::Render(nsIWidget* aWidget)
 {
     nsScreenGonk* screen = static_cast<nsWindow*>(aWidget)->GetScreen();
 
+    LOGD("<kuoe0> HwcComposer2D::Render | DisplayType: %d", screen->GetDisplayType());
     // HWC module does not exist or mList is not created yet.
     if (!mHal->HasHwc() || !mList) {
         return GetGonkDisplay()->SwapBuffers(screen->GetEGLDisplay(), screen->GetEGLSurface());
@@ -781,7 +786,14 @@ HwcComposer2D::Render(nsIWidget* aWidget)
         mList->hwLayers[0].acquireFenceFd = -1;
         mList->hwLayers[0].releaseFenceFd = -1;
         mList->hwLayers[0].displayFrame = {0, 0, mScreenRect.width, mScreenRect.height};
+
+        LOGD("<kuoe0> displayFrame.left: %d", mList->hwLayers[0].displayFrame.left);
+        LOGD("<kuoe0> displayFrame.top: %d", mList->hwLayers[0].displayFrame.top);
+        LOGD("<kuoe0> displayFrame.right: %d", mList->hwLayers[0].displayFrame.right);
+        LOGD("<kuoe0> displayFrame.bottom: %d", mList->hwLayers[0].displayFrame.bottom);
+
         Prepare(dispSurface->lastHandle, dispSurface->GetPrevDispAcquireFd(), screen);
+
     }
 
     // GPU or partial HWC Composition
@@ -802,6 +814,8 @@ HwcComposer2D::Prepare(buffer_handle_t dispHandle, int fence, nsScreenGonk* scre
 bool
 HwcComposer2D::Commit(nsScreenGonk* aScreen)
 {
+    LOGD("<kuoe0> HwcComposer2D::Commit | DisplayType: %d", aScreen->GetDisplayType());
+    LOGD("<kuoe0> HwcComposer2D::Commit | numHwLayers: %d", mList->numHwLayers);
     for (uint32_t j=0; j < (mList->numHwLayers - 1); j++) {
         mList->hwLayers[j].acquireFenceFd = -1;
         if (mHwcLayerMap.IsEmpty() ||

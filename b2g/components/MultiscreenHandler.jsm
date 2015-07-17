@@ -47,6 +47,7 @@ let MultiscreenHandler = {
   },
 
   _sendChromeEvent: function _sendChromeEvent(aData) {
+    debug("Send Chrome event.");
     SystemAppProxy._sendCustomEvent("mozChromeEvent", aData);
   },
 
@@ -97,6 +98,7 @@ let MultiscreenHandler = {
   },
 
   handleEvent: function handleEvent(aDetail) {
+    debug("Got " + aDetail.type + " event.");
     switch(aDetail.type) {
       case 'get-display-list':
         try {

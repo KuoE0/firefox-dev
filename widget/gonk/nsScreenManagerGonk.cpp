@@ -41,6 +41,7 @@
 #endif
 
 #define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "nsScreenGonk" , ## args)
+#define LOGD(args...) __android_log_print(ANDROID_LOG_DEBUG, "nsScreenGonk", ## args)
 #define LOGW(args...) __android_log_print(ANDROID_LOG_WARN, "nsScreenGonk", ## args)
 #define LOGE(args...) __android_log_print(ANDROID_LOG_ERROR, "nsScreenGonk", ## args)
 
@@ -718,6 +719,7 @@ public:
     {
         nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
         if (os) {
+          LOGD("<kuoe0> 'display-changed' event");
           os->NotifyObservers(mDisplayInfo, "display-changed", nullptr);
         }
 
@@ -740,6 +742,7 @@ nsScreenManagerGonk::AddScreen(GonkDisplay::DisplayType aDisplayType,
                                android::IGraphicBufferProducer* aSink)
 {
     MOZ_ASSERT(NS_IsMainThread());
+    LOGD("<kuoe0> nsScreenManagerGonk::AddScreen");
 
     NS_ENSURE_TRUE(aDisplayType < GonkDisplay::DisplayType::NUM_DISPLAY_TYPES,
                    NS_ERROR_FAILURE);
@@ -768,6 +771,7 @@ nsresult
 nsScreenManagerGonk::RemoveScreen(GonkDisplay::DisplayType aDisplayType)
 {
     MOZ_ASSERT(NS_IsMainThread());
+    LOGD("<kuoe0> nsScreenManagerGonk::RemoveScreen");
 
     NS_ENSURE_TRUE(aDisplayType < GonkDisplay::DisplayType::NUM_DISPLAY_TYPES,
                    NS_ERROR_FAILURE);

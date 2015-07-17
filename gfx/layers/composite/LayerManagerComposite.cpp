@@ -908,10 +908,14 @@ LayerManagerComposite::RenderToPresentationSurface()
     return;
   }
 
+  printf_stderr("<kuoe0> got screen mirroring widget...");
+
   nsScreenGonk* mirrorScreen = mirrorScreenWidget->GetScreen();
   if (!mirrorScreen->GetTopWindows().IsEmpty()) {
     return;
   }
+
+  printf_stderr("<kuoe0> on top level window...");
 
   EGLSurface surface = mirrorScreen->GetEGLSurface();
   if (surface == LOCAL_EGL_NO_SURFACE) {
