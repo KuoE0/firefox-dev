@@ -152,6 +152,7 @@ HDMIDisplayProvider::Uninit()
 nsresult
 HDMIDisplayProvider::AddScreen()
 {
+  printf_stderr("<kuoe0> HDMIDisplayProvider::AddScreen");
 
   nsresult rv;
   nsCOMPtr<nsIPresentationDeviceListener> listener;
@@ -172,6 +173,8 @@ HDMIDisplayProvider::AddScreen()
 nsresult
 HDMIDisplayProvider::RemoveScreen()
 {
+  printf_stderr("<kuoe0> HDMIDisplayProvider::RemoveScreen");
+
   nsresult rv;
   nsCOMPtr<nsIPresentationDeviceListener> listener;
   rv = this->GetListener(getter_AddRefs(listener));

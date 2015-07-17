@@ -37,6 +37,7 @@ PresentationDeviceManager::~PresentationDeviceManager()
 void
 PresentationDeviceManager::Init()
 {
+  printf_stderr("PresentationDeviceManager - Init");
   nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
   if (obs) {
     obs->AddObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, false);
@@ -64,6 +65,7 @@ PresentationDeviceManager::LoadDeviceProviders()
   nsCategoryCache<nsIPresentationDeviceProvider> providerCache(PRESENTATION_DEVICE_PROVIDER_CATEGORY);
   providerCache.GetEntries(mProviders);
 
+  printf_stderr("PresentationDeviceManager - # of Provider: %d", (int)mProviders.Length());
   for (uint32_t i = 0; i < mProviders.Length(); ++i) {
     mProviders[i]->SetListener(this);
   }
@@ -180,6 +182,19 @@ PresentationDeviceManager::AddDevice(nsIPresentationDevice* aDevice)
 
   mDevices.AppendElement(aDevice);
 
+  nsCString id, name, type;
+  const char *iid, *nname, *ttype;
+  printf_stderr("<kuoe0> after AddDevice");
+  for (int i = 0; i < mDevices.Count(); ++i) {
+    printf_stderr("<kuod0> -- device #%d --:\n", i);
+    mDevices[i]->GetId(id), mDevices[i]->GetName(name), mDevices[i]->GetType(type);
+    id.GetData(&iid), name.GetData(&nname), type.GetData(&ttype);
+    printf_stderr("<kuoe0> id:   %s\n", iid);
+    printf_stderr("<kuoe0> name: %s\n", nname);
+    printf_stderr("<kuoe0> type: %s\n", ttype);
+  }
+
+
   NotifyDeviceChange(aDevice, MOZ_UTF16("add"));
 
   return NS_OK;
@@ -197,6 +212,18 @@ PresentationDeviceManager::RemoveDevice(nsIPresentationDevice* aDevice)
   }
 
   mDevices.RemoveElementAt(index);
+
+  nsCString id, name, type;
+  const char *iid, *nname, *ttype;
+  printf_stderr("<kuoe0> after AddDevice");
+  for (int i = 0; i < mDevices.Count(); ++i) {
+    printf_stderr("<kuod0> -- device #%d --:\n", i);
+    mDevices[i]->GetId(id), mDevices[i]->GetName(name), mDevices[i]->GetType(type);
+    id.GetData(&iid), name.GetData(&nname), type.GetData(&ttype);
+    printf_stderr("<kuoe0> id:   %s\n", iid);
+    printf_stderr("<kuoe0> name: %s\n", nname);
+    printf_stderr("<kuoe0> type: %s\n", ttype);
+  }
 
   NotifyDeviceChange(aDevice, MOZ_UTF16("remove"));
 

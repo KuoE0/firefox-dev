@@ -20,6 +20,9 @@
 #include "libdisplay/GonkDisplay.h"
 #include "mozilla/Assertions.h"
 
+#include <ui/GraphicBuffer.h>
+#include "cutils/properties.h"
+
 namespace mozilla {
 
 HwcHAL::HwcHAL()
@@ -65,6 +68,7 @@ HwcHAL::Set(HwcList *aList,
 
     HwcList *displays[HWC_NUM_DISPLAY_TYPES] = { nullptr };
     displays[aDisp] = aList;
+
     return mHwc->set(mHwc, HWC_NUM_DISPLAY_TYPES, displays);
 }
 
@@ -89,6 +93,7 @@ HwcHAL::Prepare(HwcList *aList,
 
     HwcList *displays[HWC_NUM_DISPLAY_TYPES] = { nullptr };
     displays[aDisp] = aList;
+
 #if ANDROID_VERSION >= 18
     aList->outbufAcquireFenceFd = -1;
     aList->outbuf = nullptr;
@@ -111,6 +116,7 @@ HwcHAL::Prepare(HwcList *aList,
 #if ANDROID_VERSION >= 18
     aList->hwLayers[idx].planeAlpha = 0xFF;
 #endif
+
     return mHwc->prepare(mHwc, HWC_NUM_DISPLAY_TYPES, displays);
 }
 

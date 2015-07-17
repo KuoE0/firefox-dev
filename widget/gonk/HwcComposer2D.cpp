@@ -53,7 +53,7 @@
  * By default the debug message of hwcomposer (LOG_DEBUG level) are undefined,
  * but can be enabled by uncommenting HWC_DEBUG below.
  */
-//#define HWC_DEBUG
+#define HWC_DEBUG
 
 #ifdef HWC_DEBUG
 #define LOGD(args...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, ## args)
@@ -211,12 +211,14 @@ public:
         : mType(aType)
         , mConnected(aConnected)
     {
+        LOGD("<kuoe0> HotplugEvent::Constructor | DisplayType: %d", aType);
     }
 
     NS_IMETHOD Run()
     {
         RefPtr<nsScreenManagerGonk> screenManager =
             nsScreenManagerGonk::GetInstance();
+        LOGD("<kuoe0> HotplugEvent::Run | mConnected: %d", int(mConnected));
         if (mConnected) {
             screenManager->AddScreen(mType);
         } else {
@@ -233,6 +235,7 @@ private:
 void
 HwcComposer2D::Hotplug(int aDisplay, int aConnected)
 {
+    LOGD("<kuoe0> HwcComposer2D::Hotplug | aDisplay: %d", aDisplay);
     NS_DispatchToMainThread(new HotplugEvent(GonkDisplay::DISPLAY_EXTERNAL,
                                              aConnected));
 }
@@ -781,7 +784,9 @@ HwcComposer2D::Render(nsIWidget* aWidget)
         mList->hwLayers[0].acquireFenceFd = -1;
         mList->hwLayers[0].releaseFenceFd = -1;
         mList->hwLayers[0].displayFrame = {0, 0, mScreenRect.width, mScreenRect.height};
+
         Prepare(dispSurface->lastHandle, dispSurface->GetPrevDispAcquireFd(), screen);
+
     }
 
     // GPU or partial HWC Composition
