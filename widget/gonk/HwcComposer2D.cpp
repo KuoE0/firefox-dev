@@ -854,6 +854,7 @@ HwcComposer2D::Prepare(buffer_handle_t dispHandle, int fence)
     hwc_display_contents_1_t *displays[HWC_NUM_DISPLAY_TYPES] = { nullptr };
 
     uint32_t displaytype = mScreen->GetDisplayType();
+    LOGD("HwcComposer2D::Prepare | DisplayType: %d", displaytype);
     displays[displaytype] = mList;
     mList->outbufAcquireFenceFd = -1;
     mList->outbuf = nullptr;
@@ -892,6 +893,7 @@ HwcComposer2D::Commit()
     hwc_display_contents_1_t *displays[HWC_NUM_DISPLAY_TYPES] = { nullptr };
     uint32_t displaytype = mScreen->GetDisplayType();
     displays[displaytype] = mList;
+    LOGD("HwcComposer2D::Commit | DisplayType: %d", displaytype);
 
     for (uint32_t j=0; j < (mList->numHwLayers - 1); j++) {
         mList->hwLayers[j].acquireFenceFd = -1;
