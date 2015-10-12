@@ -22,15 +22,15 @@
 #define SERVICE_TYPE "_mozilla_papi._tcp."
 
 inline static PRLogModuleInfo*
-GetProviderLog()
+GetMDNSProviderLog()
 {
   static PRLogModuleInfo* log = PR_NewLogModule("MulticastDNSDeviceProvider");
   return log;
 }
 #undef LOG_I
-#define LOG_I(...) MOZ_LOG(GetProviderLog(), mozilla::LogLevel::Debug, (__VA_ARGS__))
+#define LOG_I(...) MOZ_LOG(GetMDNSProviderLog(), mozilla::LogLevel::Debug, (__VA_ARGS__))
 #undef LOG_E
-#define LOG_E(...) MOZ_LOG(GetProviderLog(), mozilla::LogLevel::Error, (__VA_ARGS__))
+#define LOG_E(...) MOZ_LOG(GetMDNSProviderLog(), mozilla::LogLevel::Error, (__VA_ARGS__))
 
 namespace mozilla {
 namespace dom {
