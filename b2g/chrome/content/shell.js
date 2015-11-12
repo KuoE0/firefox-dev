@@ -936,6 +936,10 @@ var CustomEventManager = {
                            .getService(Ci.nsIAppStartup);
         appStartup.quit(appStartup.eAttemptQuit);
         break;
+      case 'turn-on-multiscreen':
+      case 'turn-off-multiscreen':
+        MultiscreenHelper.handleEvent(detail);
+        break;
       case 'toggle-fullscreen-native-window':
         window.fullScreen = !window.fullScreen;
         Services.prefs.setBoolPref("b2g.nativeWindowGeometry.fullscreen",
@@ -1073,6 +1077,45 @@ var KeyboardHelper = {
         break;
     }
   }
+};
+
+var MultiscreenHelper = {
+  handleEvent: function multiscreen_handlerEvent(detail) {
+    switch (detail.type) {
+      case 'turn-on-multiscreen':
+        debug('turn on multiscreen');
+        let device = this._getDeviceById(detail.id);
+        if (!device) {
+          debug("Device is not found");
+          return;
+        }
+        // XXX: What are the url and presentationId?
+        var url = "", presentationId = "hdmi";
+        device.establishControlChannel(url, presentationId, null);
+        break;
+
+      case 'turn-off-multiscreen':
+        debug('turn off multiscreen');
+        Services.obs.notifyObservers(null, 'close-top-level-window', null);
+        break;
+    }
+  },
+
+  _getDeviceById: function(aDeviceId) {
+    let deviceManager = Cc["@mozilla.org/presentation-device/manager;1"]
+                          .getService(Ci.nsIPresentationDeviceManager);
+    let devices = deviceManager.getAvailableDevices().QueryInterface(Ci.nsIArray);
+
+    for (let i = 0; i < devices.length; i++) {
+      let device = devices.queryElementAt(i, Ci.nsIPresentationDevice);
+      // XXX: Do not use strict comparison, because some Id is an integer.
+      if (device.id == aDeviceId) {
+        return device;
+      }
+    }
+
+    return null;
+  },
 };
 
 var SystemAppMozBrowserHelper = {
