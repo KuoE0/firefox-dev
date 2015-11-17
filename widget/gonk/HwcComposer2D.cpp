@@ -53,7 +53,7 @@
  * By default the debug message of hwcomposer (LOG_DEBUG level) are undefined,
  * but can be enabled by uncommenting HWC_DEBUG below.
  */
-#define HWC_DEBUG
+/* #define HWC_DEBUG */
 
 #ifdef HWC_DEBUG
 #define LOGD(args...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, ## args)
