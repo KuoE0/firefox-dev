@@ -9,6 +9,7 @@
 
 #include "nsCOMPtr.h"
 #include "nsIObserver.h"
+#include "nsITimer.h"
 #include "nsRefPtrHashtable.h"
 #include "nsTObserverArray.h"
 #include "PresentationSessionInfo.h"
@@ -70,6 +71,9 @@ private:
   // window ID.
   nsClassHashtable<nsUint64HashKey, nsString> mRespondingSessionIds;
   nsDataHashtable<nsStringHashKey, uint64_t> mRespondingWindowIds;
+
+  // Pulling device availability for lazy scan device provider.
+  nsCOMPtr<nsITimer> mDeviceScanTimer;
 };
 
 } // namespace dom

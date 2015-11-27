@@ -102,7 +102,7 @@ TCPPresentationServer.prototype = {
       DEBUG && log("TCPPresentationServer - Id has not initialized; requestSession fails");
       return null;
     }
-    DEBUG && log("TCPPresentationServer - requestSession to " + aDeviceInfo.id
+    DEBUG && log("TCPPresentationServer - requestSession to " + JSON.stringify(aDeviceInfo)
                  + ": " + aUrl + ", " + aPresentationId);
 
     let sts = Cc["@mozilla.org/network/socket-transport-service;1"]

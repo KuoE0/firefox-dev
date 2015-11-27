@@ -712,7 +712,7 @@ GetAddrInfoOperator::Start()
     DNSServiceGetAddrInfo(&service,
                           kDNSServiceFlagsForceMulticast,
                           kDNSServiceInterfaceIndexAny,
-                          kDNSServiceProtocol_IPv4 | kDNSServiceProtocol_IPv6,
+                          kDNSServiceProtocol_IPv4,
                           host.get(),
                           (DNSServiceGetAddrInfoReply)&GetAddrInfoReplyRunnable::Reply,
                           this);

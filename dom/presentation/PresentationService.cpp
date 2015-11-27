@@ -183,6 +183,11 @@ PresentationService::Init()
     return false;
   }
 
+  mDeviceScanTimer = do_CreateInstance(NS_TIMER_CONTRACTID, &rv);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return false;
+  }
+
   rv = deviceManager->GetDeviceAvailable(&mIsAvailable);
   return !NS_WARN_IF(NS_FAILED(rv));
 }
@@ -208,6 +213,12 @@ PresentationService::Observe(nsISupports* aSubject,
     // It's expected since we add and entry to |kLayoutCategories| in
     // |nsLayoutModule.cpp| to launch this service earlier.
     return NS_OK;
+  } else if (!strcmp(aTopic, NS_TIMER_CALLBACK_TOPIC)) {
+    nsCOMPtr<nsIPresentationDeviceManager> deviceManager =
+      do_GetService(PRESENTATION_DEVICE_MANAGER_CONTRACTID);
+
+    MOZ_ASSERT(deviceManager);
+    return deviceManager->ForceDiscovery();
   }
 
   MOZ_ASSERT(false, "Unexpected topic for PresentationService");
@@ -508,6 +519,13 @@ PresentationService::RegisterAvailabilityListener(nsIPresentationAvailabilityLis
     return NS_OK;
   }
 
+  if (mAvailabilityListeners.IsEmpty()) {
+    // start pulling
+    NS_WARN_IF(NS_FAILED(mDeviceScanTimer->Init(this,
+                                                15000,
+                                                nsITimer::TYPE_REPEATING_SLACK)));
+  }
+
   mAvailabilityListeners.AppendElement(aListener);
   return NS_OK;
 }
@@ -518,6 +536,12 @@ PresentationService::UnregisterAvailabilityListener(nsIPresentationAvailabilityL
   MOZ_ASSERT(NS_IsMainThread());
 
   mAvailabilityListeners.RemoveElement(aListener);
+
+  if (mAvailabilityListeners.IsEmpty()) {
+    // stop pulling
+    mDeviceScanTimer->Cancel();
+  }
+
   return NS_OK;
 }
 
