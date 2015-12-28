@@ -34,3 +34,5 @@ interface nsIPresentationDevice : nsISupports
   // Disconnect this device.
   void disconnect();
 };
+
+
