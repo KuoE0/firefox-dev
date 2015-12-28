@@ -726,6 +726,7 @@ PresentationPresentingInfo::Shutdown(nsresult aReason)
     mTimer->Cancel();
   }
 
+  mDevice->Disconnect();
   mLoadingCallback = nullptr;
   mRequesterDescription = nullptr;
   mPromise = nullptr;
