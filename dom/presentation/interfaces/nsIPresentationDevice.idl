@@ -31,4 +31,6 @@ interface nsIPresentationDevice : nsISupports
    */
   nsIPresentationControlChannel establishControlChannel(in DOMString url,
                                                         in DOMString presentationId);
+  // Disconnect this device.
+  void disconnect();
 };
