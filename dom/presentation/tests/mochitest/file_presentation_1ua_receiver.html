@@ -1,0 +1,90 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test for B2G PresentationReceiver at receiver side</title>
+</head>
+<body>
+<div id="content"></div>
+<script type="application/javascript;version=1.7">
+
+"use strict";
+
+function is(a, b, msg) {
+  if (a === b) {
+    window.parent.postMessage('OK ' + msg, '*');
+  }
+  else {
+    window.parent.postMessage('KO ' + msg + ' | reason: ' + a + ' != ' + b, '*');
+  }
+}
+
+function ok(a, msg) {
+  window.parent.postMessage((a ? 'OK ' : 'KO ') + msg, '*');
+}
+
+function info(msg) {
+  window.parent.postMessage('INFO ' + msg, '*');
+}
+
+function finish() {
+  window.parent.postMessage('DONE', '*');
+}
+
+var connection;
+
+function testConnectionAvailable() {
+  return new Promise(function(aResolve, aReject) {
+    ok(navigator.presentation, "navigator.presentation should be available.");
+    // XXX Sometimes navigator.presentation.receiver is null.
+    // See bug 1234128 - navigator.presentation.receiver is null in 1-UA use case.
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=1234128
+    ok(navigator.presentation.receiver, "navigator.presentation.receiver should be available.");
+
+    navigator.presentation.receiver.getConnection().then(
+      function(aConnection) {
+        connection = aConnection;
+
+        ok(connection.id, "Connection ID should be set: " + connection.id);
+        is(connection.state, "closed", "Connection state at receiver side should be closed by default.");
+        aResolve();
+      },
+      function(aError) {
+        ok(false, "Error occurred when getting the connection: " + aError);
+        finish();
+        aReject();
+      }
+    );
+  });
+}
+
+function testConnectionReady() {
+  return new Promise(function(aResolve, aReject) {
+    connection.onstatechange = function() {
+      connection.onstatechange = null;
+      is(connection.state, "connected", "Connection state should become connected.");
+      aResolve();
+    };
+  });
+}
+
+function testTerminateConnection() {
+  return new Promise(function(aResolve, aReject) {
+    connection.onstatechange = function() {
+      connection.onstatechange = null;
+      is(connection.state, "terminated", "Connection should be terminated.");
+      aResolve();
+    };
+
+    connection.terminate();
+  });
+}
+
+testConnectionAvailable().
+then(testConnectionReady).
+then(testTerminateConnection).
+then(finish);
+
+</script>
+</body>
+</html>
