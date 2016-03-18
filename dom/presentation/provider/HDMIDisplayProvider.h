@@ -23,7 +23,8 @@ namespace mozilla {
 namespace dom {
 namespace presentation {
 
-// Consistent definition with the definition in  widget/gonk/libdisplay/GonkDisplay.h.
+// Consistent definition with the definition in
+// widget/gonk/libdisplay/GonkDisplay.h.
 enum DisplayType {
     DISPLAY_PRIMARY,
     DISPLAY_EXTERNAL,
@@ -42,44 +43,43 @@ private:
     NS_DECL_ISUPPORTS
     NS_DECL_NSIPRESENTATIONDEVICE
 
-    // The action menu in Gaia can return only integer after some item seleted.
-    // Due to the limitation, we use an integer means "external display" as the
-    // ID in HDMIDisplayDevice.
-
+    // mScreenId is as same as the definition of display type.
     explicit HDMIDisplayDevice(HDMIDisplayProvider* aProvider)
       : mScreenId(DisplayType::DISPLAY_EXTERNAL)
       , mName("HDMI")
       , mType("external")
       , mId("hdmi")
       , mProvider(aProvider)
-      , isTopLevelWindowOpened(false)
     {}
 
     nsresult OpenTopLevelWindow();
     nsresult CloseTopLevelWindow();
 
-    const nsCString Id() const { return mId; }
+    const nsCString& Id() const { return mId; }
 
   private:
-    ~HDMIDisplayDevice() = default;
+    ~HDMIDisplayDevice() {
+      mProvider = nullptr;
+    }
 
+    // Due to the limitation of nsWinodw, mScreenId must be an integer.
+    // And mScreenId is also align to the display type defined in
+    // widget/gonk/libdisplay/GonkDisplay.h.
+    // HDMI display is DisplayType::DISPLAY_EXTERNAL.
     uint32_t mScreenId;
     nsCString mName;
     nsCString mType;
     nsCString mId;
 
     nsCOMPtr<mozIDOMWindowProxy> mWindow;
+    // weak pointer
     HDMIDisplayProvider* mProvider;
-    bool isTopLevelWindowOpened;
   };
 
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIOBSERVER
   NS_DECL_NSIPRESENTATIONDEVICEPROVIDER
-
-  nsresult Init();
-  nsresult Uninit();
 
   nsresult RequestSession(HDMIDisplayDevice* aDevice,
                           const nsAString& aUrl,
@@ -88,11 +88,17 @@ public:
 private:
   virtual ~HDMIDisplayProvider();
 
+  nsresult Init();
+  nsresult Uninit();
+
   nsresult AddScreen();
   nsresult RemoveScreen();
 
   // There should be only one HDMI display.
-  RefPtr<HDMIDisplayDevice> mDevice;
+  nsCOMPtr<nsIPresentationDevice> mDevice;
+  // weak pointer
+  // PresentationDeviceManager (mDeviceListener) already uses strong
+  // pointer to this provider. Use nsWeakPtr to avoid reference cycle.
   nsWeakPtr mDeviceListener;
 
   bool mInitialized = false;

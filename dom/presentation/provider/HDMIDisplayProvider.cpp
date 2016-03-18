@@ -11,12 +11,14 @@
 #include "mozilla/unused.h"
 #include "nsIObserverService.h"
 #include "nsIServiceManager.h"
+#include "nsIURI.h"
 #include "nsIWindowWatcher.h"
 #include "nsPIDOMWindow.h"
 #include "nsQueryObject.h"
+#include "nsSimpleURI.h"
 #include "nsThreadUtils.h"
 
-static LazyLogModule gSHistoryLog("HDMIDisplayProvider");
+static mozilla::LazyLogModule gSHistoryLog("HDMIDisplayProvider");
 
 #define LOG(format) MOZ_LOG(gSHistoryLog, mozilla::LogLevel::Debug, format)
 
@@ -57,68 +59,96 @@ HDMIDisplayProvider::HDMIDisplayDevice
                                              const nsAString& aPresentationId,
                                              nsIPresentationControlChannel** aControlChannel)
 {
-  nsresult rv = OpenTopLevelWindow();
-  NS_ENSURE_SUCCESS(rv, rv);
   MOZ_ASSERT(mProvider);
+  nsresult rv = OpenTopLevelWindow();
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
   return mProvider->RequestSession(this, aUrl, aPresentationId, aControlChannel);
 }
 
 NS_IMETHODIMP
 HDMIDisplayProvider::HDMIDisplayDevice::Disconnect()
 {
-  CloseTopLevelWindow();
+  nsresult rv = CloseTopLevelWindow();
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+      return rv;
+  }
   return NS_OK;;
 }
 
 nsresult
 HDMIDisplayProvider::HDMIDisplayDevice::OpenTopLevelWindow()
 {
-  if (isTopLevelWindowOpened) {
-    return NS_OK;
-  }
+  MOZ_ASSERT(!mWindow);
 
   nsresult rv;
-  char* prefValue = nullptr;
+  nsAutoCString prefValue;
   nsCOMPtr<nsIPrefBranch> pref = do_GetService(NS_PREFSERVICE_CONTRACTID);
 
-  rv = pref->GetCharPref("toolkit.defaultChromeFeatures", &prefValue);
-  NS_ENSURE_SUCCESS(rv, rv);
+  rv = pref->GetCharPref("toolkit.defaultChromeFeatures",
+                         getter_Copies(prefValue));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
 
-  // Due to the limitation of nsWinodw, screen ID should be an integer.
-  nsCString flags(prefValue);
-  flags.Append(",mozDisplayId=");
+  nsAutoCString flags(prefValue);
+  flags.AppendLiteral(",mozDisplayId=");
   flags.AppendInt(mScreenId);
 
-  rv = pref->GetCharPref("b2g.multiscreen.chrome_remote_url", &prefValue);
-  NS_ENSURE_SUCCESS(rv, rv);
+  rv = pref->GetCharPref("b2g.multiscreen.chrome_remote_url",
+                         getter_Copies(prefValue));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
 
-  nsCString remoteShellURL(prefValue);
-  remoteShellURL.Append('#');
-  remoteShellURL.Append(mId);
+  nsCOMPtr<nsIURI> remoteShellURL = new nsSimpleURI();
+  rv = remoteShellURL->SetSpec(prefValue);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
+  rv = remoteShellURL->SetRef(prefValue);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
 
-  nsCString windowName(mName);
-  windowName.Append("TopWindow");
+  nsAutoCString remoteShellURLString;
+  rv = remoteShellURL->GetSpec(remoteShellURLString);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
+
+  nsAutoCString windowName(mName);
+  windowName.AppendLiteral("TopWindow");
 
   nsCOMPtr<nsIWindowWatcher> ww = do_GetService(NS_WINDOWWATCHER_CONTRACTID);
-  rv = ww->OpenWindow(nullptr, remoteShellURL.Data(), windowName.Data(),
-                      flags.Data(), nullptr, getter_AddRefs(mWindow));
-  MOZ_ASSERT(mWindow);
+  rv = ww->OpenWindow(nullptr,
+                      remoteShellURLString.get(),
+                      windowName.get(),
+                      flags.get(),
+                      nullptr,
+                      getter_AddRefs(mWindow));
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
+  }
 
-  isTopLevelWindowOpened = true;
   return NS_OK;
 }
 
 nsresult
 HDMIDisplayProvider::HDMIDisplayDevice::CloseTopLevelWindow()
 {
-  if (!mWindow) {
-    return NS_OK;
+  MOZ_ASSERT(mWindow);
+
+  nsCOMPtr<nsPIDOMWindowOuter> piWindow = nsPIDOMWindowOuter::From(mWindow);
+  nsresult rv = piWindow->Close();
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+    return rv;
   }
 
-  auto* piWindow = nsPIDOMWindowOuter::From(mWindow);
-  piWindow->Close();
   piWindow = nullptr;
-  isTopLevelWindowOpened = false;
+  mWindow = nullptr;
+
   return NS_OK;
 }
 
@@ -134,13 +164,15 @@ HDMIDisplayProvider::~HDMIDisplayProvider()
 nsresult
 HDMIDisplayProvider::Init()
 {
-  nsresult rv;
+  // Provider must be initialized only once.
+  if (mInitialized) {
+    return NS_OK;
+  }
 
   nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
   obs->AddObserver(this, DISPLAY_CHANGED_EVENT, false);
   // initial HDMIDisplayDevice
   mDevice = new HDMIDisplayDevice(this);
-
   mInitialized = true;
   return NS_OK;
 }
@@ -148,6 +180,10 @@ HDMIDisplayProvider::Init()
 nsresult
 HDMIDisplayProvider::Uninit()
 {
+  // Provider must be deleted only once.
+  if (!mInitialized) {
+    return NS_OK;
+  }
   mInitialized = false;
   return NS_OK;
 }
@@ -155,6 +191,7 @@ HDMIDisplayProvider::Uninit()
 nsresult
 HDMIDisplayProvider::AddScreen()
 {
+  MOZ_ASSERT(mDeviceListener);
 
   nsresult rv;
   nsCOMPtr<nsIPresentationDeviceListener> listener;
@@ -163,8 +200,7 @@ HDMIDisplayProvider::AddScreen()
     return rv;
   }
 
-  nsCOMPtr<nsIPresentationDevice> device(do_QueryObject(mDevice));
-  rv = listener->AddDevice(device);
+  rv = listener->AddDevice(mDevice);
   if (NS_WARN_IF(NS_FAILED(rv))) {
     return rv;
   }
@@ -175,6 +211,8 @@ HDMIDisplayProvider::AddScreen()
 nsresult
 HDMIDisplayProvider::RemoveScreen()
 {
+  MOZ_ASSERT(mDeviceListener);
+
   nsresult rv;
   nsCOMPtr<nsIPresentationDeviceListener> listener;
   rv = GetListener(getter_AddRefs(listener));
@@ -182,8 +220,7 @@ HDMIDisplayProvider::RemoveScreen()
     return rv;
   }
 
-  nsCOMPtr<nsIPresentationDevice> device(do_QueryObject(mDevice));
-  rv = listener->RemoveDevice(device);
+  rv = listener->RemoveDevice(mDevice);
   if (NS_WARN_IF(NS_FAILED(rv))) {
     return rv;
   }
@@ -200,7 +237,13 @@ HDMIDisplayProvider::GetListener(nsIPresentationDeviceListener** aListener)
     return NS_ERROR_INVALID_POINTER;
   }
 
-  nsCOMPtr<nsIPresentationDeviceListener> listener = do_QueryReferent(mDeviceListener);
+  nsresult rv;
+  nsCOMPtr<nsIPresentationDeviceListener> listener =
+    do_QueryReferent(mDeviceListener, &rv);
+  if (NS_WARN_IF(NS_FAILED(rv))) {
+      return rv;
+  }
+
   listener.forget(aListener);
 
   return NS_OK;
@@ -210,18 +253,10 @@ NS_IMETHODIMP
 HDMIDisplayProvider::SetListener(nsIPresentationDeviceListener* aListener)
 {
   mDeviceListener = do_GetWeakReference(aListener);
-
-  nsresult rv;
-  if (mDeviceListener) {
-    if (NS_WARN_IF(NS_FAILED(rv = Init()))) {
+  nsresult rv = mDeviceListener ? Init() : Uninit();
+  if(NS_WARN_IF(NS_FAILED(rv))) {
       return rv;
-    }
-  } else {
-    if (NS_WARN_IF(NS_FAILED(rv = Uninit()))) {
-      return rv;
-    }
   }
-
   return NS_OK;
 }
 
@@ -239,21 +274,18 @@ HDMIDisplayProvider::Observe(nsISupports* aSubject,
 {
   if (!strcmp(aTopic, DISPLAY_CHANGED_EVENT)) {
     nsCOMPtr<nsIDisplayInfo> displayInfo = do_QueryInterface(aSubject);
-    if (!displayInfo) {
-      return NS_ERROR_NO_INTERFACE;
-    }
+    MOZ_ASSERT(displayInfo);
 
     int32_t type;
     bool isConnected;
     displayInfo->GetConnected(&isConnected);
+    // XXX
+    // The ID is as same as the type of display.
+    // See Bug 1138287 and nsScreenManagerGonk::AddScreen() for more detail.
     displayInfo->GetId(&type);
 
     if (type == DisplayType::DISPLAY_EXTERNAL) {
-      if (isConnected) {
-        AddScreen();
-      } else {
-        RemoveScreen();
-      }
+      isConnected ? AddScreen() : RemoveScreen();
     }
   }
 
