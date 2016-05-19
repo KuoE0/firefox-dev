@@ -631,6 +631,12 @@ var CastingApps = {
       return castableVideo;
   },
 
+  _isPresentablePage: function _isPresentablePage(aBrowser) {
+    let body = aBrowser.contentDocument.querySelector("body");
+    let isPresentablePage = body.getAttribute("mozPresentation") == "";
+    return isPresentablePage;
+  },
+
   _updatePageActionForTab: function _updatePageActionForTab(aTab, aEvent) {
     // We only care about events on the selected tab
     if (aTab != BrowserApp.selectedTab) {
@@ -651,6 +657,16 @@ var CastingApps = {
     if (this.pageAction.id) {
       PageActions.remove(this.pageAction.id);
       delete this.pageAction.id;
+    }
+
+    if (this._isPresentablePage(BrowserApp.selectedBrowser)) {
+      this.pageAction.id = PageActions.add({
+        title: Strings.browser.GetStringFromName("contextmenu.sendToDevice"),
+        icon: "drawable://casting",
+        clickCallback: this.pageAction.click,
+        important: true
+      });
+      return;
     }
 
     if (!aVideo) {
