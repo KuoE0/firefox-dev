@@ -20,6 +20,42 @@ var rokuDevice = {
   extensions: ["mp4"]
 };
 
+var presentationDevice = {
+  id: "presentation:router",
+  target: "presentation:router",
+  factory: function(aService) {
+    Cu.import("resource://gre/modules/MediaPlayerApp.jsm");
+    return new MediaPlayerApp(aService);
+  },
+  init: function() {
+    Services.obs.addObserver(this, "PresentationDevice:Added", false);
+    Services.obs.addObserver(this, "PresentationDevice:Changed", false);
+    Services.obs.addObserver(this, "PresentationDevice:Removed", false);
+  },
+  observe: function(subject, topic, data) {
+    if (topic === "PresentationDevice:Added") {
+      let service = this.toService(JSON.parse(data));
+      SimpleServiceDiscovery.addService(service);
+    } else if (topic === "PresentationDevice:Changed") {
+      let service = this.toService(JSON.parse(data));
+      SimpleServiceDiscovery.updateService(service);
+    } else if (topic === "PresentationDevice:Removed") {
+      SimpleServiceDiscovery.removeService(data);
+    }
+  },
+  toService: function(display) {
+    // Convert the native data into something matching what is created in _processService()
+    return {
+      location: display.location,
+      target: "presentation:router",
+      friendlyName: display.friendlyName,
+      uuid: display.uuid,
+      manufacturer: display.manufacturer,
+      modelName: display.modelName,
+    };
+  }
+};
+
 var mediaPlayerDevice = {
   id: "media:router",
   target: "media:router",
@@ -136,6 +172,9 @@ var CastingApps = {
     // MediaPlayerDevice will notify us any time the native device list changes.
     mediaPlayerDevice.init();
     SimpleServiceDiscovery.registerDevice(mediaPlayerDevice);
+
+    presentationDevice.init();
+    SimpleServiceDiscovery.registerDevice(presentationDevice);
 
     // Presentation Device will notify us any time the available device list changes.
     fxOSTVDevice.init();
@@ -587,7 +626,7 @@ var CastingApps = {
   },
 
   pageAction: {
-    click: function() {
+    castVideo: function() {
       // Since this is a pageaction, we use the selected browser
       let browser = BrowserApp.selectedBrowser;
       if (!browser) {
@@ -603,7 +642,11 @@ var CastingApps = {
           return;
         }
       }
+    },
+    presentPage: function() {
+      CastingApps.presentExternal();
     }
+
   },
 
   _findCastableVideo: function _findCastableVideo(aBrowser) {
@@ -663,7 +706,7 @@ var CastingApps = {
       this.pageAction.id = PageActions.add({
         title: Strings.browser.GetStringFromName("contextmenu.sendToDevice"),
         icon: "drawable://casting",
-        clickCallback: this.pageAction.click,
+        clickCallback: this.pageAction.presentPage,
         important: true
       });
       return;
@@ -734,6 +777,20 @@ var CastingApps = {
     UITelemetry.addEvent("action.1", "contextmenu", null, "web_cast");
     UITelemetry.addEvent("cast.1", "contextmenu", null);
     this.openExternal(aElement, aX, aY);
+  },
+
+  presentExternal: function() {
+
+    function filterFunc(aService) {
+      return aService.target == "presentation:router";
+    }
+
+    this.prompt(aService => {
+      if (!aService) {
+        return;
+      }
+
+    }, filterFunc);
   },
 
   openExternal: function(aElement, aX, aY) {

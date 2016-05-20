@@ -937,6 +937,17 @@ public class BrowserApp extends GeckoApp
         return null;
     }
 
+    private Class<?> getPresentationDeviceManager() {
+        try {
+            return Class.forName("org.mozilla.gecko.PresentationDeviceManager");
+        } catch (Exception ex) {
+            // Ignore failures
+            Log.e(LOGTAG, "No native casting support", ex);
+        }
+
+        return null;
+    }
+
     @Override
     public void onBackPressed() {
         if (mTextSelection.dismiss()) {
@@ -1914,6 +1925,29 @@ public class BrowserApp extends GeckoApp
                             final Fragment frag = getSupportFragmentManager().findFragmentByTag(tag);
                             if (frag == null) {
                                 final Method getInstance = mediaManagerClass.getMethod("newInstance", (Class[]) null);
+                                final Fragment mpm = (Fragment) getInstance.invoke(null);
+                                getSupportFragmentManager().beginTransaction().disallowAddToBackStack().add(mpm, tag).commit();
+                            }
+                        } catch (Exception ex) {
+                            Log.e(LOGTAG, "Error initializing media manager", ex);
+                        }
+                    }
+                }
+
+                if (true) {
+                    // Check if the fragment is already added. This should never be true here, but this is
+                    // a nice safety check.
+                    // If casting is disabled, these classes aren't built. We use reflection to initialize them.
+                    final Class<?> presentationDeviceManagerClass = getPresentationDeviceManager();
+
+                    if (presentationDeviceManagerClass != null) {
+                        try {
+                            final String tag = "";
+                            presentationDeviceManagerClass.getDeclaredField("PRESENTATION_DEVICE_TAG").get(tag);
+                            Log.i(LOGTAG, "Found tag " + tag);
+                            final Fragment frag = getSupportFragmentManager().findFragmentByTag(tag);
+                            if (frag == null) {
+                                final Method getInstance = presentationDeviceManagerClass.getMethod("newInstance", (Class[]) null);
                                 final Fragment mpm = (Fragment) getInstance.invoke(null);
                                 getSupportFragmentManager().beginTransaction().disallowAddToBackStack().add(mpm, tag).commit();
                             }
