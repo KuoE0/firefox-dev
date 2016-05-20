@@ -633,5 +633,6 @@
   <string name="helper_triple_readerview_open_title">&helper_triple_readerview_open_title;</string>
   <string name="helper_triple_readerview_open_message">&helper_triple_readerview_open_message;</string>
   <string name="helper_triple_readerview_open_button">&helper_triple_readerview_open_button;</string>
+  <string name="chromecast_app_id">DBEED3FA</string>
 
 </resources>
