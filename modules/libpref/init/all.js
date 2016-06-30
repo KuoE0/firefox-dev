@@ -4492,7 +4492,7 @@ pref("layers.acceleration.force-enabled", true);
 pref("layers.acceleration.force-enabled", false);
 #endif
 
-pref("layers.acceleration.draw-fps", false);
+pref("layers.acceleration.draw-fps", true);
 
 // Enable DEAA antialiasing for transformed layers in the compositor
 #if !defined(MOZ_WIDGET_GONK) && !defined(MOZ_WIDGET_ANDROID)
