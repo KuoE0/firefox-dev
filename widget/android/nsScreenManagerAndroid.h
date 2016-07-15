@@ -10,12 +10,20 @@
 
 #include "nsBaseScreen.h"
 #include "nsIScreenManager.h"
-#include "WidgetUtils.h"
+#include "nsRect.h"
+#include "mozilla/WidgetUtils.h"
+
+enum class DisplayType : uint32_t
+{
+    DISPLAY_PRIMARY  = 0,
+    DISPLAY_EXTERNAL = 1,
+    DISPLAY_VIRTUAL  = 2
+};
 
 class nsScreenAndroid final : public nsBaseScreen
 {
 public:
-    nsScreenAndroid(void *nativeScreen);
+    nsScreenAndroid(DisplayType aType, nsIntRect aRect);
     ~nsScreenAndroid();
 
     NS_IMETHOD GetId(uint32_t* aId) override;
@@ -24,8 +32,18 @@ public:
     NS_IMETHOD GetPixelDepth(int32_t* aPixelDepth) override;
     NS_IMETHOD GetColorDepth(int32_t* aColorDepth) override;
 
+    static uint32_t GetIdFromType(DisplayType aType) { return (uint32_t) aType; }
+
+    uint32_t GetId() const { return mId; };
+    DisplayType GetDisplayType() const { return mDisplayType; }
+
 protected:
     virtual void ApplyMinimumBrightness(uint32_t aBrightness) override;
+
+private:
+    uint32_t mId;
+    nsIntRect mRect;
+    DisplayType mDisplayType;
 };
 
 class nsScreenManagerAndroid final : public nsIScreenManager
@@ -39,8 +57,11 @@ public:
     NS_DECL_ISUPPORTS
     NS_DECL_NSISCREENMANAGER
 
+    void AddScreen(DisplayType aType, nsIntRect aRect);
+    void RemoveScreen(DisplayType aType);
+
 protected:
-    nsCOMPtr<nsIScreen> mOneScreen;
+    nsTArray<RefPtr<nsScreenAndroid>> mScreens;
 };
 
 #endif /* nsScreenManagerAndroid_h___ */

@@ -38,6 +38,11 @@
 #include "nsThreadUtils.h"              // for NS_IsMainThread
 #include "mozilla/gfx/Logging.h"
 
+#ifdef MOZ_WIDGET_ANDROID
+#include "nsScreenManagerAndroid.h"
+#include "nsWindow.h"
+#endif
+
 using namespace mozilla;
 using namespace mozilla::gfx;
 using mozilla::services::GetObserverService;
@@ -611,6 +616,14 @@ nsDeviceContext::FindScreen(nsIScreen** outScreen)
         mScreenManager->ScreenForNativeWidget(mWidget->GetNativeData(NS_NATIVE_WINDOW),
                                               outScreen);
     }
+#ifdef MOZ_WIDGET_ANDROID
+    RefPtr<nsWindow> window = (nsWindow*) mWidget.get();
+    if (window) {
+        DisplayType displayType = window->GetDisplayType();
+        int32_t screenId = nsScreenAndroid::GetIdFromType(displayType);
+        mScreenManager->ScreenForId(screenId, outScreen);
+    }
+#endif
     else {
         mScreenManager->GetPrimaryScreen(outScreen);
     }

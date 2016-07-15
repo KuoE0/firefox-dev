@@ -10,6 +10,7 @@
 #include "gfxPoint.h"
 #include "nsIIdleServiceInternal.h"
 #include "nsTArray.h"
+#include "nsScreenManagerAndroid.h"
 #include "AndroidJavaWrappers.h"
 #include "GeneratedJNIWrappers.h"
 #include "mozilla/EventForwards.h"
@@ -45,8 +46,13 @@ public:
     NS_DECL_ISUPPORTS_INHERITED
 
     static void InitNatives();
+    DisplayType GetDisplayType() const;
+
+    void SetDensity(double aDensity) { mDensity = aDensity; }
 
 private:
+    double mDensity;
+
     // An Event subclass that guards against stale events.
     template<typename Lambda,
              bool IsStatic = Lambda::isStatic,

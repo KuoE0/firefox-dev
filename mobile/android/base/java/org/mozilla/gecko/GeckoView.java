@@ -40,13 +40,35 @@ import android.view.inputmethod.InputConnection;
 public class GeckoView extends LayerView
     implements ContextGetter, GeckoEventListener, NativeEventListener {
 
+    public enum DisplayType {
+        DISPLAY_PRIMARY(0), DISPLAY_EXTERNAL(1), DISPLAY_VIRTUAL(2);
+        private final int value;
+
+        private DisplayType(int aValue) {
+            this.value = aValue;
+        }
+
+        public int getValue() {
+            return this.value;
+        }
+    }
+
     private static final String DEFAULT_SHARED_PREFERENCES_FILE = "GeckoView";
     private static final String LOGTAG = "GeckoView";
+    private DisplayType mDisplayType = DisplayType.DISPLAY_PRIMARY;
 
     private ChromeDelegate mChromeDelegate;
     private ContentDelegate mContentDelegate;
 
     private InputConnectionListener mInputConnectionListener;
+
+    public DisplayType getDisplayType() {
+        return mDisplayType;
+    }
+
+    public void setDisplayType(DisplayType displayType) {
+        mDisplayType = displayType;
+    }
 
     @Override
     public void handleMessage(final String event, final JSONObject message) {
@@ -113,7 +135,8 @@ public class GeckoView extends LayerView
 
         static native void open(Window instance, GeckoView view, GLController glController,
                                 String chromeURI,
-                                int width, int height);
+                                int width, int height,
+                                float density, int displayType);
 
         @Override protected native void disposeNative();
         native void close();
@@ -230,12 +253,14 @@ public class GeckoView extends LayerView
             if (GeckoThread.isStateAtLeast(GeckoThread.State.PROFILE_READY)) {
                 Window.open(window, this, window.glController,
                             chromeURI,
-                            metrics.widthPixels, metrics.heightPixels);
+                            metrics.widthPixels, metrics.heightPixels,
+                            metrics.density, mDisplayType.getValue());
             } else {
                 GeckoThread.queueNativeCallUntil(GeckoThread.State.PROFILE_READY, Window.class,
                         "open", window, GeckoView.class, this, window.glController,
                         String.class, chromeURI,
-                        metrics.widthPixels, metrics.heightPixels);
+                        metrics.widthPixels, metrics.heightPixels,
+                        metrics.density, mDisplayType.getValue());
             }
         } else {
             if (GeckoThread.isStateAtLeast(GeckoThread.State.PROFILE_READY)) {

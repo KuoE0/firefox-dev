@@ -49,6 +49,7 @@ using mozilla::Unused;
 #include "nsIDOMSimpleGestureEvent.h"
 
 #include "nsGkAtoms.h"
+#include "nsRect.h"
 #include "nsWidgetsCID.h"
 #include "nsGfxCIID.h"
 
@@ -81,6 +82,8 @@ using mozilla::Unused;
 #include "GeckoProfiler.h" // For PROFILER_LABEL
 #include "nsIXULRuntime.h"
 #include "nsPrintfCString.h"
+
+#include "nsScreenManagerAndroid.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -180,6 +183,7 @@ class nsWindow::GeckoViewSupport final
     , public UsesGeckoThreadProxy
 {
     nsWindow& window;
+    DisplayType mDisplayType;
 
 public:
     typedef GeckoView::Window::Natives<GeckoViewSupport> Base;
@@ -209,9 +213,11 @@ public:
     }
 
     GeckoViewSupport(nsWindow* aWindow,
+                     DisplayType aDisplayType,
                      const GeckoView::Window::LocalRef& aInstance,
                      GeckoView::Param aView)
         : window(*aWindow)
+        , mDisplayType(aDisplayType)
         , mEditable(GeckoEditable::New(aView))
         , mIMERanges(new TextRangeArray())
         , mIMEMaskEventsCount(1) // Mask IME events since there's no focus yet
@@ -237,7 +243,8 @@ public:
                      GeckoView::Window::Param aWindow,
                      GeckoView::Param aView, jni::Object::Param aGLController,
                      jni::String::Param aChromeURI,
-                     int32_t aWidth, int32_t aHeight);
+                     int32_t aWidth, int32_t aHeight,
+                     float aDensity, int32_t aDisplayType);
 
     // Close and destroy the nsWindow.
     void Close();
@@ -245,6 +252,7 @@ public:
     // Reattach this nsWindow to a new GeckoView.
     void Reattach(GeckoView::Param aView);
 
+    DisplayType GetDisplayType() const { return mDisplayType; }
     /**
      * GeckoEditable methods
      */
@@ -1115,12 +1123,15 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
                                  GeckoView::Param aView,
                                  jni::Object::Param aGLController,
                                  jni::String::Param aChromeURI,
-                                 int32_t aWidth, int32_t aHeight)
+                                 int32_t aWidth, int32_t aHeight,
+                                 float aDensity, int32_t aDisplayType)
 {
     MOZ_ASSERT(NS_IsMainThread());
 
     PROFILER_LABEL("nsWindow", "GeckoViewSupport::Open",
                    js::ProfileEntry::Category::OTHER);
+
+    DisplayType displayType = static_cast<DisplayType>(aDisplayType);
 
     nsCOMPtr<nsIWindowWatcher> ww = do_GetService(NS_WINDOWWATCHER_CONTRACTID);
     MOZ_ASSERT(ww);
@@ -1129,7 +1140,10 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
     if (aChromeURI) {
         url = aChromeURI->ToCString();
     } else {
-        url = Preferences::GetCString("toolkit.defaultChromeURI");
+        url = displayType == DisplayType::DISPLAY_PRIMARY
+            ? Preferences::GetCString("toolkit.defaultChromeURI")
+            : Preferences::GetCString("toolkit.remoteChromeURI");
+
         if (!url) {
             url = NS_LITERAL_CSTRING("chrome://browser/content/browser.xul");
         }
@@ -1164,14 +1178,18 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
 
     // Attach a new GeckoView support object to the new window.
     window->mGeckoViewSupport  = mozilla::MakeUnique<GeckoViewSupport>(
-            window, GeckoView::Window::LocalRef(aCls.Env(), aWindow), aView);
+            window, displayType, GeckoView::Window::LocalRef(aCls.Env(), aWindow), aView);
 
     // Attach the GLController to the new window.
     window->mGLControllerSupport = mozilla::MakeUnique<GLControllerSupport>(
             window, GLController::LocalRef(
             aCls.Env(), GLController::Ref::From(aGLController)));
 
-    gGeckoViewWindow = window;
+    window->SetDensity((double)aDensity);
+
+    if (displayType == DisplayType::DISPLAY_PRIMARY) {
+        gGeckoViewWindow = window;
+    }
 
     if (window->mWidgetListener) {
         nsCOMPtr<nsIXULWindow> xulWindow(
@@ -1182,6 +1200,15 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
             xulWindow->SetIntrinsicallySized(false);
         }
     }
+
+    // Add new screen into screen manager.
+    nsCOMPtr<nsIScreenManager> screenMgr =
+        do_GetService("@mozilla.org/gfx/screenmanager;1");
+    MOZ_ASSERT(screenMgr, "Failed to get nsIScreenManager!");
+
+    RefPtr<nsScreenManagerAndroid> screenMgrAndroid = (nsScreenManagerAndroid*) screenMgr.get();
+    MOZ_ASSERT(screenMgrAndroid, "Failed to convert to nsScreenManagerAndroid!");
+    screenMgrAndroid->AddScreen(displayType, nsIntRect(0, 0, aWidth, aHeight));
 }
 
 void
@@ -1192,6 +1219,13 @@ nsWindow::GeckoViewSupport::Close()
     if (!widgetListener) {
         return;
     }
+
+    nsCOMPtr<nsIScreenManager> screenMgr =
+        do_GetService("@mozilla.org/gfx/screenmanager;1");
+    MOZ_ASSERT(screenMgr, "Failed to get nsIScreenManager");
+
+    RefPtr<nsScreenManagerAndroid> screenMgrAndroid = (nsScreenManagerAndroid*) screenMgr.get();
+    screenMgrAndroid->RemoveScreen(mDisplayType);
 
     nsCOMPtr<nsIXULWindow> xulWindow(widgetListener->GetXULWindow());
     // GeckoView-created top-level windows should be a XUL window.
@@ -1258,6 +1292,7 @@ nsWindow::DumpWindows(const nsTArray<nsWindow*>& wins, int indent)
 }
 
 nsWindow::nsWindow() :
+    mDensity(0.0),
     mNPZCSupport(nullptr),
     mIsVisible(false),
     mParent(nullptr),
@@ -1274,6 +1309,12 @@ nsWindow::~nsWindow()
     if (gGeckoViewWindow == this) {
         gGeckoViewWindow = nullptr;
     }
+}
+
+DisplayType
+nsWindow::GetDisplayType() const
+{
+    return mGeckoViewSupport->GetDisplayType();
 }
 
 bool
@@ -1433,19 +1474,17 @@ nsWindow::GetDPI()
 double
 nsWindow::GetDefaultScaleInternal()
 {
-    static double density = 0.0;
-
-    if (density != 0.0) {
-        return density;
+    if (mDensity != 0.0) {
+        return mDensity;
     }
 
-    density = GeckoAppShell::GetDensity();
+    mDensity = GeckoAppShell::GetDensity();
 
-    if (!density) {
-        density = 1.0;
+    if (!mDensity) {
+        mDensity = 1.0;
     }
 
-    return density;
+    return mDensity;
 }
 
 NS_IMETHODIMP
