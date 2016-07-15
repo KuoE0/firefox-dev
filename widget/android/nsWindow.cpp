@@ -50,6 +50,7 @@ using mozilla::Unused;
 #include "nsIDOMSimpleGestureEvent.h"
 
 #include "nsGkAtoms.h"
+#include "nsRect.h"
 #include "nsWidgetsCID.h"
 #include "nsGfxCIID.h"
 
@@ -82,6 +83,8 @@ using mozilla::Unused;
 #include "GeckoProfiler.h" // For PROFILER_LABEL
 #include "nsIXULRuntime.h"
 #include "nsPrintfCString.h"
+
+#include "nsScreenManagerAndroid.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -248,7 +251,8 @@ public:
                      GeckoView::Window::Param aWindow,
                      GeckoView::Param aView, jni::Object::Param aCompositor,
                      jni::String::Param aChromeURI,
-                     int32_t aWidth, int32_t aHeight);
+                     int32_t aWidth, int32_t aHeight,
+                     int32_t aDisplayType);
 
     // Close and destroy the nsWindow.
     void Close();
@@ -1121,7 +1125,8 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
                                  GeckoView::Param aView,
                                  jni::Object::Param aCompositor,
                                  jni::String::Param aChromeURI,
-                                 int32_t aWidth, int32_t aHeight)
+                                 int32_t aWidth, int32_t aHeight,
+                                 int32_t aDisplayType)
 {
     MOZ_ASSERT(NS_IsMainThread());
 
@@ -1135,7 +1140,10 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
     if (aChromeURI) {
         url = aChromeURI->ToCString();
     } else {
-        url = Preferences::GetCString("toolkit.defaultChromeURI");
+        url = aDisplayType == java::GeckoView::DISPLAY_PRIMARY()
+            ? Preferences::GetCString("toolkit.defaultChromeURI")
+            : Preferences::GetCString("toolkit.geckoviewURI");
+
         if (!url) {
             url = NS_LITERAL_CSTRING("chrome://browser/content/browser.xul");
         }
@@ -1180,7 +1188,12 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
             window, LayerView::Compositor::LocalRef(
             aCls.Env(), LayerView::Compositor::Ref::From(aCompositor)));
 
-    gGeckoViewWindow = window;
+    // Set display type for nsWindow
+    window->SetDisplayType(aDisplayType);
+
+    if (aDisplayType == java::GeckoView::DISPLAY_PRIMARY()) {
+        gGeckoViewWindow = window;
+    }
 
     if (window->mWidgetListener) {
         nsCOMPtr<nsIXULWindow> xulWindow(
@@ -1297,6 +1310,8 @@ nsWindow::DumpWindows(const nsTArray<nsWindow*>& wins, int indent)
 }
 
 nsWindow::nsWindow() :
+    mDensity(0.0),
+    mDisplayType(-1),
     mNPZCSupport(nullptr),
     mIsVisible(false),
     mParent(nullptr),
@@ -1472,19 +1487,30 @@ nsWindow::GetDPI()
 double
 nsWindow::GetDefaultScaleInternal()
 {
-    static double density = 0.0;
+    if (mDensity == 0.0) {
+        if (mDisplayType != -1) {
+            if (mDisplayType == GeckoView::DISPLAY_PRIMARY()) {
+                mDensity = GeckoAppShell::GetDensity();
+            } else {
+                nsCOMPtr<nsIScreenManager> screenMgr =
+                    do_GetService("@mozilla.org/gfx/screenmanager;1");
+                MOZ_ASSERT(screenMgr, "Failed to get nsIScreenManager");
 
-    if (density != 0.0) {
-        return density;
+                nsCOMPtr<nsIScreen> screen;
+                screenMgr->ScreenForId(nsScreenAndroid::GetIdFromType(mDisplayType),
+                                       getter_AddRefs(screen));
+                MOZ_ASSERT(screen);
+                RefPtr<nsScreenAndroid> screenAndroid = (nsScreenAndroid*) screen.get();
+                mDensity = screenAndroid->GetDensity();
+            }
+        }
+
+        if (mDensity == 0.0) {
+            return 1;
+        }
     }
 
-    density = GeckoAppShell::GetDensity();
-
-    if (!density) {
-        density = 1.0;
-    }
-
-    return density;
+    return mDensity;
 }
 
 NS_IMETHODIMP

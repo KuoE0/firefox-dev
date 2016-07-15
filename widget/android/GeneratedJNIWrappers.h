@@ -2761,6 +2761,57 @@ public:
 
     static const int32_t LOAD_SWITCH_TAB = 2;
 
+    struct DISPLAY_EXTERNAL_t {
+        typedef GeckoView Owner;
+        typedef int32_t ReturnType;
+        typedef int32_t SetterType;
+        typedef mozilla::jni::Args<> Args;
+        static constexpr char name[] = "DISPLAY_EXTERNAL";
+        static constexpr char signature[] =
+                "I";
+        static const bool isStatic = true;
+        static const mozilla::jni::ExceptionMode exceptionMode =
+                mozilla::jni::ExceptionMode::ABORT;
+    };
+
+    static auto DISPLAY_EXTERNAL() -> int32_t;
+
+    static auto DISPLAY_EXTERNAL(int32_t) -> void;
+
+    struct DISPLAY_PRIMARY_t {
+        typedef GeckoView Owner;
+        typedef int32_t ReturnType;
+        typedef int32_t SetterType;
+        typedef mozilla::jni::Args<> Args;
+        static constexpr char name[] = "DISPLAY_PRIMARY";
+        static constexpr char signature[] =
+                "I";
+        static const bool isStatic = true;
+        static const mozilla::jni::ExceptionMode exceptionMode =
+                mozilla::jni::ExceptionMode::ABORT;
+    };
+
+    static auto DISPLAY_PRIMARY() -> int32_t;
+
+    static auto DISPLAY_PRIMARY(int32_t) -> void;
+
+    struct DISPLAY_VIRTUAL_t {
+        typedef GeckoView Owner;
+        typedef int32_t ReturnType;
+        typedef int32_t SetterType;
+        typedef mozilla::jni::Args<> Args;
+        static constexpr char name[] = "DISPLAY_VIRTUAL";
+        static constexpr char signature[] =
+                "I";
+        static const bool isStatic = true;
+        static const mozilla::jni::ExceptionMode exceptionMode =
+                mozilla::jni::ExceptionMode::ABORT;
+    };
+
+    static auto DISPLAY_VIRTUAL() -> int32_t;
+
+    static auto DISPLAY_VIRTUAL(int32_t) -> void;
+
     static const bool isMultithreaded = false;
 
 };
@@ -2838,10 +2889,11 @@ public:
                 mozilla::jni::Object::Param,
                 mozilla::jni::String::Param,
                 int32_t,
+                int32_t,
                 int32_t> Args;
         static constexpr char name[] = "open";
         static constexpr char signature[] =
-                "(Lorg/mozilla/gecko/GeckoView$Window;Lorg/mozilla/gecko/GeckoView;Lorg/mozilla/gecko/gfx/LayerView$Compositor;Ljava/lang/String;II)V";
+                "(Lorg/mozilla/gecko/GeckoView$Window;Lorg/mozilla/gecko/GeckoView;Lorg/mozilla/gecko/gfx/LayerView$Compositor;Ljava/lang/String;III)V";
         static const bool isStatic = true;
         static const mozilla::jni::ExceptionMode exceptionMode =
                 mozilla::jni::ExceptionMode::ABORT;

@@ -1117,6 +1117,45 @@ auto GeckoThread::State::RUNNING() -> State::LocalRef
 const char GeckoView::name[] =
         "org/mozilla/gecko/GeckoView";
 
+constexpr char GeckoView::DISPLAY_EXTERNAL_t::name[];
+constexpr char GeckoView::DISPLAY_EXTERNAL_t::signature[];
+
+auto GeckoView::DISPLAY_EXTERNAL() -> int32_t
+{
+    return mozilla::jni::Field<DISPLAY_EXTERNAL_t>::Get(GeckoView::Context(), nullptr);
+}
+
+auto GeckoView::DISPLAY_EXTERNAL(int32_t a0) -> void
+{
+    return mozilla::jni::Field<DISPLAY_EXTERNAL_t>::Set(GeckoView::Context(), nullptr, a0);
+}
+
+constexpr char GeckoView::DISPLAY_PRIMARY_t::name[];
+constexpr char GeckoView::DISPLAY_PRIMARY_t::signature[];
+
+auto GeckoView::DISPLAY_PRIMARY() -> int32_t
+{
+    return mozilla::jni::Field<DISPLAY_PRIMARY_t>::Get(GeckoView::Context(), nullptr);
+}
+
+auto GeckoView::DISPLAY_PRIMARY(int32_t a0) -> void
+{
+    return mozilla::jni::Field<DISPLAY_PRIMARY_t>::Set(GeckoView::Context(), nullptr, a0);
+}
+
+constexpr char GeckoView::DISPLAY_VIRTUAL_t::name[];
+constexpr char GeckoView::DISPLAY_VIRTUAL_t::signature[];
+
+auto GeckoView::DISPLAY_VIRTUAL() -> int32_t
+{
+    return mozilla::jni::Field<DISPLAY_VIRTUAL_t>::Get(GeckoView::Context(), nullptr);
+}
+
+auto GeckoView::DISPLAY_VIRTUAL(int32_t a0) -> void
+{
+    return mozilla::jni::Field<DISPLAY_VIRTUAL_t>::Set(GeckoView::Context(), nullptr, a0);
+}
+
 const char GeckoView::Window::name[] =
         "org/mozilla/gecko/GeckoView$Window";
 

@@ -8,7 +8,7 @@
         windowtype="navigator:browser"
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-  <browser id="content" type="content-targetable" src="https://mozilla.com" flex="1"/>
+  <browser id="content" type="content-targetable" src="about:blank" flex="1"/>
 
   <script type="application/javascript" src="chrome://browser/content/geckoview.js"/>
 </window>

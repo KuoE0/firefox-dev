@@ -30,3 +30,17 @@ function startup() {
     // Notify Java that Gecko has loaded.
     Messaging.sendRequest({ type: "Gecko:Ready" });
 }
+
+function loadURI(aURI) {
+  var frame = document.getElementById("content");
+
+  if (!frame) {
+    return;
+  }
+
+  if (!aURI) {
+    aURI = "about:blank";
+  }
+
+  frame.setAttribute('src', aURI);
+}

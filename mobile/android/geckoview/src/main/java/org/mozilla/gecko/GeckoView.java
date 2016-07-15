@@ -1,4 +1,5 @@
 /* -*- Mode: Java; c-basic-offset: 4; tab-width: 20; indent-tabs-mode: nil; -*-
+ * vim: ts=4 sw=4 expandtab:
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -39,13 +40,26 @@ import android.view.inputmethod.InputConnection;
 public class GeckoView extends LayerView
     implements ContextGetter, GeckoEventListener, NativeEventListener {
 
+    @WrapForJNI public static int DISPLAY_PRIMARY  = 0;
+    @WrapForJNI public static int DISPLAY_EXTERNAL = 1;
+    @WrapForJNI public static int DISPLAY_VIRTUAL  = 2;
+
     private static final String DEFAULT_SHARED_PREFERENCES_FILE = "GeckoView";
     private static final String LOGTAG = "GeckoView";
+    private int mDisplayType = DISPLAY_PRIMARY;
 
     private ChromeDelegate mChromeDelegate;
     private ContentDelegate mContentDelegate;
 
     private InputConnectionListener mInputConnectionListener;
+
+    public int getDisplayType() {
+        return mDisplayType;
+    }
+
+    public void setDisplayType(int displayType) {
+        mDisplayType = displayType;
+    }
 
     @Override
     public void handleMessage(final String event, final JSONObject message) {
@@ -110,7 +124,8 @@ public class GeckoView extends LayerView
     private static final class Window extends JNIObject {
         static native void open(Window instance, GeckoView view, Compositor compositor,
                                 String chromeURI,
-                                int width, int height);
+                                int width, int height,
+                                int displayType);
 
         @Override protected native void disposeNative();
         native void close();
@@ -228,12 +243,14 @@ public class GeckoView extends LayerView
             if (GeckoThread.isStateAtLeast(GeckoThread.State.PROFILE_READY)) {
                 Window.open(window, this, getCompositor(),
                             chromeURI,
-                            metrics.widthPixels, metrics.heightPixels);
+                            metrics.widthPixels, metrics.heightPixels,
+                            mDisplayType);
             } else {
                 GeckoThread.queueNativeCallUntil(GeckoThread.State.PROFILE_READY, Window.class,
                         "open", window, GeckoView.class, this, getCompositor(),
                         String.class, chromeURI,
-                        metrics.widthPixels, metrics.heightPixels);
+                        metrics.widthPixels, metrics.heightPixels,
+                        mDisplayType);
             }
         } else {
             if (GeckoThread.isStateAtLeast(GeckoThread.State.PROFILE_READY)) {
