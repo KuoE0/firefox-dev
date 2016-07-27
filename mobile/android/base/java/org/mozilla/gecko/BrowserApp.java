@@ -1900,7 +1900,7 @@ public class BrowserApp extends GeckoApp
                     }
                 });
 
-                if (AppConstants.MOZ_MEDIA_PLAYER) {
+                if (false && AppConstants.MOZ_MEDIA_PLAYER) {
                     // Check if the fragment is already added. This should never be true here, but this is
                     // a nice safety check.
                     // If casting is disabled, these classes aren't built. We use reflection to initialize them.
