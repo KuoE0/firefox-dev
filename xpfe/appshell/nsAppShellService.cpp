@@ -194,6 +194,7 @@ nsAppShellService::CreateTopLevelWindow(nsIXULWindow *aParent,
 
 {
   nsresult rv;
+  printf_stderr("nsAppShellService::%s width=%d height=%d\n", __func__, aInitialWidth, aInitialHeight);
 
   StartupTimeline::RecordOnce(StartupTimeline::CREATE_TOP_LEVEL_WINDOW);
 
@@ -489,10 +490,10 @@ private:
 
 NS_IMPL_ISUPPORTS(WindowlessBrowser, nsIWindowlessBrowser, nsIWebNavigation, nsIInterfaceRequestor)
 
-
 NS_IMETHODIMP
 nsAppShellService::CreateWindowlessBrowser(bool aIsChrome, nsIWindowlessBrowser **aResult)
 {
+  printf_stderr("nsAppShellService::%s\n", __func__);
   /* First, we create an instance of nsWebBrowser. Instances of this class have
    * an associated doc shell, which is what we're interested in.
    */
@@ -629,11 +630,15 @@ nsAppShellService::JustCreateTopWindow(nsIXULWindow *aParent,
   *aResult = nullptr;
   NS_ENSURE_STATE(!mXPCOMWillShutDown);
 
+  printf_stderr("<kuoe0> nsAppShellService::%s\n", __func__);
+
   nsCOMPtr<nsIXULWindow> parent;
   if (aChromeMask & nsIWebBrowserChrome::CHROME_DEPENDENT)
     parent = aParent;
 
+  printf_stderr("<kuoe0> nsAppShellService::%s before create nsWebShellWindow\n", __func__);
   RefPtr<nsWebShellWindow> window = new nsWebShellWindow(aChromeMask);
+  printf_stderr("<kuoe0> nsAppShellService::%s after  create nsWebShellWindow\n", __func__);
 
 #ifdef XP_WIN
   // If the parent is currently fullscreen, tell the child to ignore persisted

@@ -29,6 +29,7 @@ function startup() {
 
     // Notify Java that Gecko has loaded.
     Messaging.sendRequest({ type: "Gecko:Ready" });
+    loadURI("https://kuoe0.github.io/Test/whatismyresolution.html");
 }
 
 function loadURI(aURI) {

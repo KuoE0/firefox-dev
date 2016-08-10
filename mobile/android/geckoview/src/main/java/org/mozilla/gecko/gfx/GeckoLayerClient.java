@@ -229,6 +229,7 @@ class GeckoLayerClient implements LayerView.Listener, PanZoomTarget
             (scrollChange == null || (scrollChange.x == 0 && scrollChange.y == 0))) {
             return false;
         }
+        Log.d(LOGTAG, "<kuoe0> GeckoLayerClient::setViewportSize witdh=" + width + " hegiht=" + height);
         mViewportMetrics = mViewportMetrics.setViewportSize(width, height);
         if (scrollChange != null) {
             mViewportMetrics = mPanZoomController.adjustScrollForSurfaceShift(mViewportMetrics, scrollChange);
@@ -260,6 +261,7 @@ class GeckoLayerClient implements LayerView.Listener, PanZoomTarget
     private void sendResizeEventIfNecessary(boolean force, PointF scrollChange) {
         DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
 
+        Log.d(LOGTAG, "<kuoe0> GeckoLayerClient::sendResizeEventIfNecessary metrics.width=" + metrics.widthPixels + " height=" + metrics.heightPixels);
         IntSize newScreenSize = new IntSize(metrics.widthPixels, metrics.heightPixels);
         IntSize newWindowSize = new IntSize(mViewportMetrics.viewportRectWidth,
                                             mViewportMetrics.viewportRectHeight);
@@ -275,11 +277,11 @@ class GeckoLayerClient implements LayerView.Listener, PanZoomTarget
         mWindowSize = newWindowSize;
 
         if (screenSizeChanged) {
-            Log.d(LOGTAG, "Screen-size changed to " + mScreenSize);
+            Log.d(LOGTAG, "<kuoe0> Screen-size changed to " + mScreenSize);
         }
 
         if (windowSizeChanged) {
-            Log.d(LOGTAG, "Window-size changed to " + mWindowSize);
+            Log.d(LOGTAG, "<kuoe0> Window-size changed to " + mWindowSize);
         }
 
         if (mView != null) {

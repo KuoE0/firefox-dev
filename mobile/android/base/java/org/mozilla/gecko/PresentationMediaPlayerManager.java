@@ -86,6 +86,7 @@ public class PresentationMediaPlayerManager extends MediaPlayerManager {
         @Override
         protected void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
+            Log.d(LOGTAG, "<kuoe0> GeckoPresentation::onCreate");
 
             mView = new SurfaceView(getContext());
             setContentView(mView, new ViewGroup.LayoutParams(
@@ -105,6 +106,7 @@ public class PresentationMediaPlayerManager extends MediaPlayerManager {
 
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
+            Log.d(LOGTAG, "<kuoe0> surfaceCreated");
             GeckoAppShell.addPresentationSurface(holder.getSurface());
             GeckoAppShell.invalidateAndScheduleComposite();
         }

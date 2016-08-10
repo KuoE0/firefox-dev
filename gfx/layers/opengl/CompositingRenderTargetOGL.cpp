@@ -52,6 +52,7 @@ CompositingRenderTargetOGL::BindRenderTarget()
       // The main framebuffer (0) of non-offscreen contexts
       // might be backed by a EGLSurface that needs to be renewed.
       if (mFBO == 0 && !mGL->IsOffscreen()) {
+        printf_stderr("<kuoe0> %s: Call RenewSurface() here", __func__);
         mGL->RenewSurface(mCompositor->GetWidget()->RealWidget());
         result = mGL->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
       }

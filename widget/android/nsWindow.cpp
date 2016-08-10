@@ -49,10 +49,10 @@ using mozilla::Unused;
 
 #include "nsIDOMSimpleGestureEvent.h"
 
+#include "nsGfxCIID.h"
 #include "nsGkAtoms.h"
 #include "nsRect.h"
 #include "nsWidgetsCID.h"
-#include "nsGfxCIID.h"
 
 #include "gfxContext.h"
 
@@ -200,6 +200,7 @@ public:
     template<typename Functor>
     static void OnNativeCall(Functor&& aCall)
     {
+        printf_stderr("<kuoe0> nsWindow::GeckoViewSupport::%s", __func__);
         if (aCall.IsTarget(&Open) && NS_IsMainThread()) {
             // Gecko state probably just switched to PROFILE_READY, and the
             // event loop is not running yet. Skip the event loop here so we
@@ -1006,6 +1007,7 @@ public:
 private:
     void OnResumedCompositor(int32_t aWidth, int32_t aHeight)
     {
+        printf_stderr("<kuoe0> %s", __func__);
         // When we receive this, the compositor has already been told to
         // resume. (It turns out that waiting till we reach here to tell
         // the compositor to resume takes too long, resulting in a black
@@ -1060,6 +1062,7 @@ public:
     void OnSizeChanged(int32_t aWindowWidth, int32_t aWindowHeight,
                        int32_t aScreenWidth, int32_t aScreenHeight)
     {
+        printf_stderr("<kuoe0> %s: aWindowWidth=%d aWindowHeight=%d aScreenWidth=%d aScreenHeight=%d", __func__, aWindowWidth, aWindowHeight, aScreenWidth, aScreenHeight);
         if (aWindowWidth != window.mBounds.width ||
             aWindowHeight != window.mBounds.height) {
 
@@ -1069,6 +1072,7 @@ public:
 
     void CreateCompositor(int32_t aWidth, int32_t aHeight)
     {
+        printf_stderr("<kuoe0> %s", __func__);
         window.CreateLayerManager(aWidth, aHeight);
         mCompositorPaused = false;
         OnResumedCompositor(aWidth, aHeight);
@@ -1076,6 +1080,7 @@ public:
 
     void SyncPauseCompositor()
     {
+        printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             bridge->SchedulePauseOnCompositorThread();
             mCompositorPaused = true;
@@ -1084,6 +1089,7 @@ public:
 
     void SyncResumeCompositor()
     {
+        printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             if (bridge->ScheduleResumeOnCompositorThread()) {
                 mCompositorPaused = false;
@@ -1093,6 +1099,7 @@ public:
 
     void SyncResumeResizeCompositor(int32_t aWidth, int32_t aHeight)
     {
+        printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             if (bridge->ScheduleResumeOnCompositorThread(aWidth, aHeight)) {
                 mCompositorPaused = false;
@@ -1102,6 +1109,7 @@ public:
 
     void SyncInvalidateAndScheduleComposite()
     {
+        printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             bridge->InvalidateOnCompositorThread();
             bridge->ScheduleRenderOnCompositorThread();
@@ -1129,9 +1137,20 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
                                  int32_t aDisplayType)
 {
     MOZ_ASSERT(NS_IsMainThread());
+    printf_stderr("<kuoe0> nsWIndow::GeckoViewSupport::%s", __func__);
 
     PROFILER_LABEL("nsWindow", "GeckoViewSupport::Open",
                    js::ProfileEntry::Category::OTHER);
+
+    if (aDisplayType == java::GeckoView::DISPLAY_PRIMARY()) {
+        printf_stderr("<kuoe0> DisplayType = %s\n", "primary");
+    } else if (aDisplayType == java::GeckoView::DISPLAY_EXTERNAL()) {
+        printf_stderr("<kuoe0> DisplayType = %s\n", "external");
+    } else if (aDisplayType == java::GeckoView::DISPLAY_VIRTUAL()) {
+        printf_stderr("<kuoe0> DisplayType = %s\n", "virtual");
+    } else {
+        printf_stderr("<kuoe0> DisplayType = %s\n", "unknown");
+    }
 
     nsCOMPtr<nsIWindowWatcher> ww = do_GetService(NS_WINDOWWATCHER_CONTRACTID);
     MOZ_RELEASE_ASSERT(ww);
@@ -1285,7 +1304,7 @@ nsWindow::LogWindow(nsWindow *win, int index, int indent)
 #if defined(DEBUG) || defined(FORCE_ALOG)
     char spaces[] = "                    ";
     spaces[indent < 20 ? indent : 20] = 0;
-    ALOG("%s [% 2d] 0x%08x [parent 0x%08x] [% 3d,% 3dx% 3d,% 3d] vis %d type %d",
+    printf_stderr("<kuoe0> %s [% 2d] 0x%08x [parent 0x%08x] [% 3d,% 3dx% 3d,% 3d] vis %d type %d",
          spaces, index, (intptr_t)win, (intptr_t)win->mParent,
          win->mBounds.x, win->mBounds.y,
          win->mBounds.width, win->mBounds.height,
@@ -1318,10 +1337,12 @@ nsWindow::nsWindow() :
     mAwaitingFullScreen(false),
     mIsFullScreen(false)
 {
+    printf_stderr("<kuoe0> %s: nsWindow=%p", __func__, this);
 }
 
 nsWindow::~nsWindow()
 {
+    printf_stderr("<kuoe0> nsWindow::%s", __func__);
     gTopLevelWindows.RemoveElement(this);
     ALOG("nsWindow %p destructor", (void*)this);
 
@@ -1374,6 +1395,7 @@ nsWindow::Create(nsIWidget* aParent,
     }
 
 #ifdef DEBUG_ANDROID_WIDGET
+    printf_stderr("nsWindow::%s Before DumpWindows\n", __func__);
     DumpWindows();
 #endif
 
@@ -1409,6 +1431,7 @@ nsWindow::Destroy(void)
     nsBaseWidget::OnDestroy();
 
 #ifdef DEBUG_ANDROID_WIDGET
+    printf_stderr("nsWindow::%s Before DumpWindows\n", __func__);
     DumpWindows();
 #endif
 
@@ -1433,6 +1456,7 @@ nsWindow::ConfigureChildren(const nsTArray<nsIWidget::Configuration>& config)
 void
 nsWindow::RedrawAll()
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     if (mAttachedWidgetListener) {
         mAttachedWidgetListener->RequestRepaint();
     } else if (mWidgetListener) {
@@ -1517,6 +1541,7 @@ NS_IMETHODIMP
 nsWindow::Show(bool aState)
 {
     ALOG("nsWindow[%p]::Show %d", (void*)this, aState);
+    printf_stderr("<kuoe0> (%p) %s", (void*)this, __func__);
 
     if (mWindowType == eWindowType_invisible) {
         ALOG("trying to show invisible window! ignoring..");
@@ -1558,6 +1583,7 @@ nsWindow::Show(bool aState)
     }
 
 #ifdef DEBUG_ANDROID_WIDGET
+    printf_stderr("nsWindow::%s Before DumpWindows\n", __func__);
     DumpWindows();
 #endif
 
@@ -1627,7 +1653,7 @@ nsWindow::Resize(double aX,
                  double aHeight,
                  bool aRepaint)
 {
-    ALOG("nsWindow[%p]::Resize [%f %f %f %f] (repaint %d)", (void*)this, aX, aY, aWidth, aHeight, aRepaint);
+    printf_stderr("<kuoe0> nsWindow[%p]::Resize [%f %f %f %f] (repaint %d)\n", (void*)this, aX, aY, aWidth, aHeight, aRepaint);
 
     bool needSizeDispatch = aWidth != mBounds.width || aHeight != mBounds.height;
 
@@ -1720,6 +1746,7 @@ nsWindow::FindTopLevel()
 NS_IMETHODIMP
 nsWindow::SetFocus(bool aRaise)
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     nsWindow *top = FindTopLevel();
     top->BringToFront();
 
@@ -1729,6 +1756,7 @@ nsWindow::SetFocus(bool aRaise)
 void
 nsWindow::BringToFront()
 {
+    printf_stderr("<kuoe0> %s: nsWindow=%p", __func__, this);
     // If the window to be raised is the same as the currently raised one,
     // do nothing. We need to check the focus manager as well, as the first
     // window that is created will be first in the window list but won't yet
@@ -1843,9 +1871,12 @@ nsWindow::GetLayerManager(PLayerTransactionChild*, LayersBackend, LayerManagerPe
 void
 nsWindow::CreateLayerManager(int aCompositorWidth, int aCompositorHeight)
 {
+    printf_stderr("<kuoe0> nsWindow::%s -- 1", __func__);
     if (mLayerManager) {
         return;
     }
+
+    printf_stderr("<kuoe0> nsWindow::%s -- 2", __func__);
 
     nsWindow *topLevelWindow = FindTopLevel();
     if (!topLevelWindow || topLevelWindow->mWindowType == eWindowType_invisible) {
@@ -1857,6 +1888,7 @@ nsWindow::CreateLayerManager(int aCompositorWidth, int aCompositorHeight)
     gfxPlatform::GetPlatform();
 
     if (ShouldUseOffMainThreadCompositing()) {
+        printf_stderr("<kuoe0> use OMTC");
         CreateCompositor(aCompositorWidth, aCompositorHeight);
         if (mLayerManager) {
             return;
@@ -1867,7 +1899,7 @@ nsWindow::CreateLayerManager(int aCompositorWidth, int aCompositorHeight)
     }
 
     if (!ComputeShouldAccelerate() || sFailedToCreateGLContext) {
-        printf_stderr(" -- creating basic, not accelerated\n");
+        printf_stderr("<kuoe0> -- creating basic, not accelerated\n");
         mLayerManager = CreateBasicLayerManager();
     }
 }
@@ -2009,6 +2041,7 @@ nsWindow::GetNativeData(uint32_t aDataType)
             if (!mLayerViewSupport) {
                 return nullptr;
             }
+            printf_stderr("<kuoe0> nsWindow::%s NS_JAVA_SURFACE this=%p", __func__, this);
             return mLayerViewSupport->GetSurface();
     }
 
@@ -3574,7 +3607,9 @@ void
 nsWindow::DrawWindowUnderlay(LayerManagerComposite* aManager,
                              LayoutDeviceIntRect aRect)
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     if (Destroyed()) {
+        printf_stderr("<kuoe0> %s: nsWindow(%p) return caused by Destroyed()", __func__, this);
         return;
     }
     MOZ_ASSERT(mLayerViewSupport);
@@ -3583,10 +3618,12 @@ nsWindow::DrawWindowUnderlay(LayerManagerComposite* aManager,
     LayerRenderer::Frame::LocalRef frame = client->CreateFrame();
     mLayerRendererFrame = frame;
     if (NS_WARN_IF(!mLayerRendererFrame)) {
+        printf_stderr("<kuoe0> %s: nsWindow(%p) return caused by no mLayerRendererFrame", __func__, this);
         return;
     }
 
     if (!WidgetPaintsBackground()) {
+        printf_stderr("<kuoe0> %s: nsWindow(%p) return caused by WidgetPaintsBackground is false", __func__, this);
         return;
     }
 
@@ -3608,10 +3645,16 @@ void
 nsWindow::DrawWindowOverlay(LayerManagerComposite* aManager,
                             LayoutDeviceIntRect aRect)
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     PROFILER_LABEL("nsWindow", "DrawWindowOverlay",
         js::ProfileEntry::Category::GRAPHICS);
 
-    if (Destroyed() || NS_WARN_IF(!mLayerRendererFrame)) {
+    if (Destroyed()) {
+        printf_stderr("<kuoe0> %s: nsWindow(%p) return caused by Destroyed()", __func__, this);
+        return;
+    }
+    if (NS_WARN_IF(!mLayerRendererFrame)) {
+        printf_stderr("<kuoe0> %s: nsWindow(%p) return caused by no mLayerRendererFrame", __func__, this);
         return;
     }
 
@@ -3638,6 +3681,7 @@ nsWindow::DrawWindowOverlay(LayerManagerComposite* aManager,
 void
 nsWindow::InvalidateAndScheduleComposite()
 {
+    printf_stderr("<kuoe0> %s", __func__);
     if (gGeckoViewWindow && gGeckoViewWindow->mLayerViewSupport) {
         gGeckoViewWindow->mLayerViewSupport->
                 SyncInvalidateAndScheduleComposite();
@@ -3647,6 +3691,7 @@ nsWindow::InvalidateAndScheduleComposite()
 bool
 nsWindow::IsCompositionPaused()
 {
+    printf_stderr("<kuoe0> %s", __func__);
     if (gGeckoViewWindow && gGeckoViewWindow->mLayerViewSupport) {
         return gGeckoViewWindow->mLayerViewSupport->CompositorPaused();
     }
@@ -3656,6 +3701,7 @@ nsWindow::IsCompositionPaused()
 void
 nsWindow::SchedulePauseComposition()
 {
+    printf_stderr("<kuoe0> %s", __func__);
     if (gGeckoViewWindow && gGeckoViewWindow->mLayerViewSupport) {
         return gGeckoViewWindow->mLayerViewSupport->SyncPauseCompositor();
     }
@@ -3664,6 +3710,7 @@ nsWindow::SchedulePauseComposition()
 void
 nsWindow::ScheduleResumeComposition()
 {
+    printf_stderr("<kuoe0> %s", __func__);
     if (gGeckoViewWindow && gGeckoViewWindow->mLayerViewSupport) {
         return gGeckoViewWindow->mLayerViewSupport->SyncResumeCompositor();
     }
@@ -3672,6 +3719,7 @@ nsWindow::ScheduleResumeComposition()
 bool
 nsWindow::WidgetPaintsBackground()
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     static bool sWidgetPaintsBackground = true;
     static bool sWidgetPaintsBackgroundPrefCached = false;
 
@@ -3688,9 +3736,11 @@ nsWindow::WidgetPaintsBackground()
 bool
 nsWindow::NeedsPaint()
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     if (!mLayerViewSupport || mLayerViewSupport->CompositorPaused() ||
             // FindTopLevel() != nsWindow::TopWindow() ||
             !GetLayerManager(nullptr)) {
+        printf_stderr("<kuoe0> %s: nsWindow(%p) return false here", __func__, this);
         return false;
     }
     return nsIWidget::NeedsPaint();
@@ -3699,12 +3749,14 @@ nsWindow::NeedsPaint()
 void
 nsWindow::ConfigureAPZControllerThread()
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     APZThreadUtils::SetControllerThread(nullptr);
 }
 
 already_AddRefed<GeckoContentController>
 nsWindow::CreateRootContentController()
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     RefPtr<GeckoContentController> controller = new AndroidContentController(this, mAPZEventState, mAPZC);
     return controller.forget();
 }
@@ -3712,6 +3764,7 @@ nsWindow::CreateRootContentController()
 uint32_t
 nsWindow::GetMaxTouchPoints() const
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
     return GeckoAppShell::GetMaxTouchPoints();
 }
 
@@ -3720,6 +3773,7 @@ nsWindow::UpdateZoomConstraints(const uint32_t& aPresShellId,
                                 const FrameMetrics::ViewID& aViewId,
                                 const mozilla::Maybe<ZoomConstraints>& aConstraints)
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
 #ifdef MOZ_ANDROID_APZ
     nsBaseWidget::UpdateZoomConstraints(aPresShellId, aViewId, aConstraints);
 #else
@@ -3749,5 +3803,6 @@ nsWindow::UpdateZoomConstraints(const uint32_t& aPresShellId,
 CompositorBridgeParent*
 nsWindow::GetCompositorBridgeParent() const
 {
+    printf_stderr("<kuoe0> %s: nsWindow(%p)", __func__, this);
   return mCompositorSession ? mCompositorSession->GetInProcessBridge() : nullptr;
 }

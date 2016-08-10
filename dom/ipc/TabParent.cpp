@@ -2500,6 +2500,7 @@ TabParent::RecvDispatchFocusToTopLevelWindow()
 {
   nsCOMPtr<nsIWidget> widget = GetTopLevelWidget();
   if (widget) {
+    printf_stderr("<kuoe0> %s: Call SetFocus here", __func__);
     widget->SetFocus(false);
   }
   return true;

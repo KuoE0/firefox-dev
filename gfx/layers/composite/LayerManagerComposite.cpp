@@ -1052,6 +1052,7 @@ LayerManagerComposite::RenderToPresentationSurface()
     return;
   }
 
+  printf_stderr("<kuoe0> LayerManagerComposite::%s", __func__);
   void* window = AndroidBridge::Bridge()->GetPresentationWindow();
 
   if (!window) {

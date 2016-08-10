@@ -48,7 +48,6 @@ nsScreen::~nsScreen()
 {
 }
 
-
 // QueryInterface implementation for nsScreen
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsScreen)
   NS_INTERFACE_MAP_ENTRY(nsIDOMScreen)
@@ -107,9 +106,11 @@ nsPIDOMWindowOuter*
 nsScreen::GetOuter() const
 {
   if (nsPIDOMWindowInner* inner = GetOwner()) {
+    printf_stderr("<kuoe0> nsScreen::%s OuterWindow Exist", __func__);
     return inner->GetOuterWindow();
   }
 
+  printf_stderr("<kuoe0> nsScreen::%s OuterWindow Not Exist", __func__);
   return nullptr;
 }
 
@@ -122,11 +123,14 @@ nsScreen::GetDeviceContext()
 nsresult
 nsScreen::GetRect(nsRect& aRect)
 {
+  printf_stderr("<kuoe0> nsScreen::%s ###", __func__);
   // Return window inner rect to prevent fingerprinting.
   if (ShouldResistFingerprinting()) {
+    printf_stderr("<kuoe0> nsScreen::%s Rect from GetWindowInnerRect", __func__);
     return GetWindowInnerRect(aRect);
   }
 
+  printf_stderr("<kuoe0> nsScreen::%s Rect from GetDeviceContext", __func__);
   nsDeviceContext *context = GetDeviceContext();
 
   if (!context) {
@@ -134,6 +138,7 @@ nsScreen::GetRect(nsRect& aRect)
   }
 
   context->GetRect(aRect);
+  printf_stderr("<kuoe0> nsScreen::%s context rect (1): width=%d height=%d", __func__, aRect.width, aRect.height);
   LayoutDevicePoint screenTopLeftDev =
     LayoutDevicePixel::FromAppUnits(aRect.TopLeft(),
                                     context->AppUnitsPerDevPixel());
@@ -145,6 +150,8 @@ nsScreen::GetRect(nsRect& aRect)
 
   aRect.height = nsPresContext::AppUnitsToIntCSSPixels(aRect.height);
   aRect.width = nsPresContext::AppUnitsToIntCSSPixels(aRect.width);
+
+  printf_stderr("<kuoe0> nsScreen::%s context rect (2): width=%d height=%d", __func__, aRect.width, aRect.height);
 
   return NS_OK;
 }

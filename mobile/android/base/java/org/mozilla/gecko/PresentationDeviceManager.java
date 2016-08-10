@@ -173,17 +173,17 @@ public class PresentationDeviceManager extends Fragment implements NativeEventLi
     @ReflectionTarget
     public static final String PRESENTATION_DEVICE_TAG = "MPManagerFragment";
 
-    private static final boolean SHOW_DEBUG = false;
+    private static final boolean SHOW_DEBUG = true;
     // Simplified debugging interfaces
     private static void debug(String msg, Exception e) {
         if (SHOW_DEBUG) {
-            Log.e(LOGTAG, msg, e);
+            Log.e(LOGTAG, "<kuoe0> " + msg, e);
         }
     }
 
     private static void debug(String msg) {
         if (SHOW_DEBUG) {
-            Log.d(LOGTAG, msg);
+            Log.d(LOGTAG, "<kuoe0> " + msg);
         }
     }
 
@@ -192,6 +192,7 @@ public class PresentationDeviceManager extends Fragment implements NativeEventLi
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        debug("onCreate");
         super.onCreate(savedInstanceState);
         EventDispatcher.getInstance().registerGeckoThreadListener(this,
                 "PresentationDevice:Start",
@@ -310,6 +311,7 @@ public class PresentationDeviceManager extends Fragment implements NativeEventLi
     @Override
     public void onResume() {
         super.onResume();
+        debug("onResume");
 
         // The mediaRouter shouldn't exist here, but this is a nice safety check.
         if (mediaRouter != null) {

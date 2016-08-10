@@ -133,6 +133,7 @@
           <![CDATA[
             if (!aURI)
               aURI = "about:blank";
+            dump("<kuoe0> browser.xml loadURIWithFlags: aURI: " + aURI + "\n");
 
             var aReferrerPolicy = Components.interfaces.nsIHttpChannel.REFERRER_POLICY_DEFAULT;
 

@@ -785,6 +785,7 @@ NS_IMETHODIMP nsContentTreeOwner::GetMainWidget(nsIWidget** aMainWidget)
 NS_IMETHODIMP nsContentTreeOwner::SetFocus()
 {
    NS_ENSURE_STATE(mXULWindow);
+   printf_stderr("<kuoe0> %s", __func__);
    return mXULWindow->SetFocus();
 }
 

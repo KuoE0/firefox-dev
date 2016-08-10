@@ -129,6 +129,7 @@ Java_org_mozilla_gecko_GeckoAppShell_addPresentationSurface(JNIEnv* jenv, jclass
     if (surface != NULL) {
         void* window = AndroidBridge::Bridge()->AcquireNativeWindow(jenv, surface);
         if (window) {
+            printf_stderr("<kuoe0> %s: window=%p", __func__, window);
             AndroidBridge::Bridge()->SetPresentationWindow(window);
         }
     }

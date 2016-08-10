@@ -542,6 +542,7 @@ NS_IMETHODIMP nsChromeTreeOwner::GetMainWidget(nsIWidget** aMainWidget)
 
 NS_IMETHODIMP nsChromeTreeOwner::SetFocus()
 {
+   printf_stderr("<kuoe0> %s", __func__);
    NS_ENSURE_STATE(mXULWindow);
    return mXULWindow->SetFocus();
 }

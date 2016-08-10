@@ -195,6 +195,7 @@ nsFocusManager::~nsFocusManager()
 nsresult
 nsFocusManager::Init()
 {
+  printf_stderr("<kuoe0> %s", __func__);
   nsFocusManager* fm = new nsFocusManager();
   NS_ADDREF(fm);
   sInstance = fm;
@@ -289,6 +290,7 @@ nsIContent*
 nsFocusManager::GetFocusedDescendant(nsPIDOMWindowOuter* aWindow, bool aDeep,
                                      nsPIDOMWindowOuter** aFocusedWindow)
 {
+  printf_stderr("<kuoe0> %s: aWindow(%p)", __func__, aWindow);
   NS_ENSURE_TRUE(aWindow, nullptr);
 
   *aFocusedWindow = nullptr;
@@ -313,6 +315,7 @@ nsFocusManager::GetFocusedDescendant(nsPIDOMWindowOuter* aWindow, bool aDeep,
 nsIContent*
 nsFocusManager::GetRedirectedFocus(nsIContent* aContent)
 {
+  printf_stderr("<kuoe0> %s: aContent(%p)", __func__, aContent);
   // For input number, redirect focus to our anonymous text control.
   if (aContent->IsHTMLElement(nsGkAtoms::input)) {
     bool typeIsNumber =
@@ -386,12 +389,14 @@ NS_IMETHODIMP
 nsFocusManager::GetActiveWindow(mozIDOMWindowProxy** aWindow)
 {
   NS_IF_ADDREF(*aWindow = mActiveWindow);
+  printf_stderr("<kuoe0> %s aWindow(%p)", __func__, *aWindow);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsFocusManager::SetActiveWindow(mozIDOMWindowProxy* aWindow)
 {
+  printf_stderr("<kuoe0> %s: aWindow(%p)", __func__, aWindow);
   NS_ENSURE_STATE(aWindow);
   
   // only top-level windows can be made active
@@ -406,11 +411,13 @@ NS_IMETHODIMP
 nsFocusManager::GetFocusedWindow(mozIDOMWindowProxy** aFocusedWindow)
 {
   NS_IF_ADDREF(*aFocusedWindow = mFocusedWindow);
+  printf_stderr("<kuoe0> %s: aFocusedWindow(%p)", __func__, *aFocusedWindow);
   return NS_OK;
 }
 
 NS_IMETHODIMP nsFocusManager::SetFocusedWindow(mozIDOMWindowProxy* aWindowToFocus)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   LOGFOCUS(("<<SetFocusedWindow begin>>"));
 
   nsCOMPtr<nsPIDOMWindowOuter> windowToFocus = nsPIDOMWindowOuter::From(aWindowToFocus);
@@ -448,6 +455,7 @@ NS_IMETHODIMP nsFocusManager::SetFocusedWindow(mozIDOMWindowProxy* aWindowToFocu
 NS_IMETHODIMP
 nsFocusManager::GetFocusedElement(nsIDOMElement** aFocusedElement)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (mFocusedContent)
     CallQueryInterface(mFocusedContent, aFocusedElement);
   else
@@ -458,6 +466,7 @@ nsFocusManager::GetFocusedElement(nsIDOMElement** aFocusedElement)
 NS_IMETHODIMP
 nsFocusManager::GetLastFocusMethod(mozIDOMWindowProxy* aWindow, uint32_t* aLastFocusMethod)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   // the focus method is stored on the inner window
   nsCOMPtr<nsPIDOMWindowOuter> window;
   if (aWindow) {
@@ -476,6 +485,7 @@ nsFocusManager::GetLastFocusMethod(mozIDOMWindowProxy* aWindow, uint32_t* aLastF
 NS_IMETHODIMP
 nsFocusManager::SetFocus(nsIDOMElement* aElement, uint32_t aFlags)
 {
+  printf_stderr("<kuoe0> %s: nsIDOMElement(%p)", __func__, aElement);
   LOGFOCUS(("<<SetFocus begin>>"));
 
   nsCOMPtr<nsIContent> newFocus = do_QueryInterface(aElement);
@@ -492,6 +502,7 @@ NS_IMETHODIMP
 nsFocusManager::ElementIsFocusable(nsIDOMElement* aElement, uint32_t aFlags,
                                    bool* aIsFocusable)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_TRUE(aElement, NS_ERROR_INVALID_ARG);
 
   nsCOMPtr<nsIContent> aContent = do_QueryInterface(aElement);
@@ -505,6 +516,7 @@ NS_IMETHODIMP
 nsFocusManager::MoveFocus(mozIDOMWindowProxy* aWindow, nsIDOMElement* aStartElement,
                           uint32_t aType, uint32_t aFlags, nsIDOMElement** aElement)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   *aElement = nullptr;
 
   LOGFOCUS(("<<MoveFocus begin Type: %d Flags: %x>>", aType, aFlags));
@@ -576,6 +588,7 @@ nsFocusManager::MoveFocus(mozIDOMWindowProxy* aWindow, nsIDOMElement* aStartElem
 NS_IMETHODIMP
 nsFocusManager::ClearFocus(mozIDOMWindowProxy* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   LOGFOCUS(("<<ClearFocus begin>>"));
 
   // if the window to clear is the focused window or an ancestor of the
@@ -608,6 +621,7 @@ nsFocusManager::GetFocusedElementForWindow(mozIDOMWindowProxy* aWindow,
                                            mozIDOMWindowProxy** aFocusedWindow,
                                            nsIDOMElement** aElement)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   *aElement = nullptr;
   if (aFocusedWindow)
     *aFocusedWindow = nullptr;
@@ -630,6 +644,7 @@ nsFocusManager::GetFocusedElementForWindow(mozIDOMWindowProxy* aWindow,
 NS_IMETHODIMP
 nsFocusManager::MoveCaretToFocus(mozIDOMWindowProxy* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   nsCOMPtr<nsIWebNavigation> webnav = do_GetInterface(aWindow);
   nsCOMPtr<nsIDocShellTreeItem> dsti = do_QueryInterface(webnav);
   if (dsti) {
@@ -659,6 +674,7 @@ nsFocusManager::MoveCaretToFocus(mozIDOMWindowProxy* aWindow)
 NS_IMETHODIMP
 nsFocusManager::WindowRaised(mozIDOMWindowProxy* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_TRUE(aWindow, NS_ERROR_INVALID_ARG);
   nsCOMPtr<nsPIDOMWindowOuter> window = nsPIDOMWindowOuter::From(aWindow);
 
@@ -702,6 +718,7 @@ nsFocusManager::WindowRaised(mozIDOMWindowProxy* aWindow)
 
   // set this as the active window
   mActiveWindow = window;
+  printf_stderr("<kuoe0> %s: mActiveWindow(%p)", __func__, mActiveWindow.get());
 
   // ensure that the window is enabled and visible
   nsCOMPtr<nsIDocShellTreeOwner> treeOwner;
@@ -745,6 +762,7 @@ nsFocusManager::WindowRaised(mozIDOMWindowProxy* aWindow)
 NS_IMETHODIMP
 nsFocusManager::WindowLowered(mozIDOMWindowProxy* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_TRUE(aWindow, NS_ERROR_INVALID_ARG);
   nsCOMPtr<nsPIDOMWindowOuter> window = nsPIDOMWindowOuter::From(aWindow);
 
@@ -808,6 +826,7 @@ nsFocusManager::WindowLowered(mozIDOMWindowProxy* aWindow)
 nsresult
 nsFocusManager::ContentRemoved(nsIDocument* aDocument, nsIContent* aContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_ARG(aDocument);
   NS_ENSURE_ARG(aContent);
 
@@ -874,6 +893,7 @@ nsFocusManager::ContentRemoved(nsIDocument* aDocument, nsIContent* aContent)
 NS_IMETHODIMP
 nsFocusManager::WindowShown(mozIDOMWindowProxy* aWindow, bool aNeedsFocus)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_TRUE(aWindow, NS_ERROR_INVALID_ARG);
   nsCOMPtr<nsPIDOMWindowOuter> window = nsPIDOMWindowOuter::From(aWindow);
 
@@ -925,6 +945,7 @@ nsFocusManager::WindowShown(mozIDOMWindowProxy* aWindow, bool aNeedsFocus)
 NS_IMETHODIMP
 nsFocusManager::WindowHidden(mozIDOMWindowProxy* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   // if there is no window or it is not the same or an ancestor of the
   // currently focused window, just return, as the current focus will not
   // be affected.
@@ -1041,6 +1062,7 @@ nsFocusManager::WindowHidden(mozIDOMWindowProxy* aWindow)
 NS_IMETHODIMP
 nsFocusManager::FireDelayedEvents(nsIDocument* aDocument)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_ARG(aDocument);
 
   // fire any delayed focus and blur events in the same order that they were added
@@ -1072,6 +1094,7 @@ nsFocusManager::FireDelayedEvents(nsIDocument* aDocument)
 NS_IMETHODIMP
 nsFocusManager::FocusPlugin(nsIContent* aContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_ARG(aContent);
   SetFocusInner(aContent, 0, true, false);
   return NS_OK;
@@ -1080,6 +1103,7 @@ nsFocusManager::FocusPlugin(nsIContent* aContent)
 NS_IMETHODIMP
 nsFocusManager::ParentActivated(mozIDOMWindowProxy* aWindow, bool aActive)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   nsCOMPtr<nsPIDOMWindowOuter> window = nsPIDOMWindowOuter::From(aWindow);
   NS_ENSURE_TRUE(window, NS_ERROR_INVALID_ARG);
 
@@ -1093,6 +1117,7 @@ nsFocusManager::NotifyFocusStateChange(nsIContent* aContent,
                                        bool aWindowShouldShowFocusRing,
                                        bool aGettingFocus)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!aContent->IsElement()) {
     return;
   }
@@ -1111,6 +1136,7 @@ nsFocusManager::NotifyFocusStateChange(nsIContent* aContent,
 void
 nsFocusManager::EnsureCurrentWidgetFocused()
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!mFocusedWindow || sTestMode)
     return;
 
@@ -1125,6 +1151,7 @@ nsFocusManager::EnsureCurrentWidgetFocused()
         nsCOMPtr<nsIWidget> widget;
         vm->GetRootWidget(getter_AddRefs(widget));
         if (widget)
+          printf_stderr("<kuoe0> %s: Call SetFocus here", __func__);
           widget->SetFocus(false);
       }
     }
@@ -1134,6 +1161,7 @@ nsFocusManager::EnsureCurrentWidgetFocused()
 bool
 ActivateOrDeactivateChild(TabParent* aParent, void* aArg)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   bool active = static_cast<bool>(aArg);
   Unused << aParent->SendParentActivated(active);
   return false;
@@ -1142,6 +1170,7 @@ ActivateOrDeactivateChild(TabParent* aParent, void* aArg)
 void
 nsFocusManager::ActivateOrDeactivate(nsPIDOMWindowOuter* aWindow, bool aActive)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!aWindow) {
     return;
   }
@@ -1171,6 +1200,7 @@ nsFocusManager::SetFocusInner(nsIContent* aNewContent, int32_t aFlags,
 {
   // if the element is not focusable, just return and leave the focus as is
   nsCOMPtr<nsIContent> contentToFocus = CheckIfFocusable(aNewContent, aFlags);
+  printf_stderr("<kuoe0> %s: contentToFocus(%p)", __func__, contentToFocus.get());
   if (!contentToFocus)
     return;
 
@@ -1252,6 +1282,7 @@ nsFocusManager::SetFocusInner(nsIContent* aNewContent, int32_t aFlags,
     newRootWindow = root ? root->GetWindow() : nullptr;
 
     isElementInActiveWindow = (mActiveWindow && newRootWindow == mActiveWindow);
+    printf_stderr("<kuoe0> %s: mActiveWindow(%p) newRootWindow(%p)", __func__, mActiveWindow.get(), newRootWindow.get());
   }
 
   // Exit fullscreen if we're focusing a windowed plugin on a non-MacOSX
@@ -1283,6 +1314,8 @@ nsFocusManager::SetFocusInner(nsIContent* aNewContent, int32_t aFlags,
   // the content is in a visible window, fire blur and focus events.
   bool sendFocusEvent =
     isElementInActiveWindow && allowFrameSwitch && IsWindowVisible(newWindow);
+  printf_stderr("<kuoe0> %s: sendFocusEvent(%s)", __func__, sendFocusEvent ? "true" : "false");
+  printf_stderr("<kuoe0> %s: isElementInActiveWindow(%s) allowFrameSwitch(%s) IsWindowVisible(%s)", __func__, isElementInActiveWindow ? "true" : "false", allowFrameSwitch ? "true" : "false", IsWindowVisible(newWindow) ? "true" : "false");
 
   // When the following conditions are true:
   //  * an element has focus
@@ -1377,6 +1410,7 @@ bool
 nsFocusManager::IsSameOrAncestor(nsPIDOMWindowOuter* aPossibleAncestor,
                                  nsPIDOMWindowOuter* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!aWindow || !aPossibleAncestor) {
     return false;
   }
@@ -1398,6 +1432,7 @@ already_AddRefed<nsPIDOMWindowOuter>
 nsFocusManager::GetCommonAncestor(nsPIDOMWindowOuter* aWindow1,
                                   nsPIDOMWindowOuter* aWindow2)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ENSURE_TRUE(aWindow1 && aWindow2, nullptr);
 
   nsCOMPtr<nsIDocShellTreeItem> dsti1 = aWindow1->GetDocShell();
@@ -1441,6 +1476,7 @@ void
 nsFocusManager::AdjustWindowFocus(nsPIDOMWindowOuter* aWindow,
                                   bool aCheckPermission)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   bool isVisible = IsWindowVisible(aWindow);
 
   nsCOMPtr<nsPIDOMWindowOuter> window(aWindow);
@@ -1482,6 +1518,7 @@ nsFocusManager::AdjustWindowFocus(nsPIDOMWindowOuter* aWindow,
 bool
 nsFocusManager::IsWindowVisible(nsPIDOMWindowOuter* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!aWindow || aWindow->IsFrozen())
     return false;
 
@@ -1504,6 +1541,7 @@ nsFocusManager::IsWindowVisible(nsPIDOMWindowOuter* aWindow)
 bool
 nsFocusManager::IsNonFocusableRoot(nsIContent* aContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_PRECONDITION(aContent, "aContent must not be NULL");
   NS_PRECONDITION(aContent->IsInComposedDoc(), "aContent must be in a document");
 
@@ -1543,24 +1581,30 @@ nsFocusManager::CheckIfFocusable(nsIContent* aContent, uint32_t aFlags)
   doc->FlushPendingNotifications(Flush_Layout);
 
   nsIPresShell *shell = doc->GetShell();
-  if (!shell)
+  if (!shell) {
+    printf_stderr("<kuoe0> %s: return here 4", __func__);
     return nullptr;
+  }
 
   // the root content can always be focused,
   // except in userfocusignored context.
-  if (aContent == doc->GetRootElement())
+  if (aContent == doc->GetRootElement()) {
+    printf_stderr("<kuoe0> %s: return here 5", __func__);
     return nsContentUtils::IsUserFocusIgnored(aContent) ? nullptr : aContent;
+  }
 
   // cannot focus content in print preview mode. Only the root can be focused.
   nsPresContext* presContext = shell->GetPresContext();
   if (presContext && presContext->Type() == nsPresContext::eContext_PrintPreview) {
     LOGCONTENT("Cannot focus %s while in print preview", aContent)
+    printf_stderr("<kuoe0> %s: return here 6", __func__);
     return nullptr;
   }
 
   nsIFrame* frame = aContent->GetPrimaryFrame();
   if (!frame) {
     LOGCONTENT("Cannot focus %s as it has no frame", aContent)
+    printf_stderr("<kuoe0> %s: return here 7", __func__);
     return nullptr;
   }
 
@@ -1568,6 +1612,7 @@ nsFocusManager::CheckIfFocusable(nsIContent* aContent, uint32_t aFlags)
     // HTML areas do not have their own frame, and the img frame we get from
     // GetPrimaryFrame() is not relevant as to whether it is focusable or
     // not, so we have to do all the relevant checks manually for them.
+    printf_stderr("<kuoe0> %s: return here 8", __func__);
     return frame->IsVisibleConsideringAncestors() &&
            aContent->IsFocusable() ? aContent : nullptr;
   }
@@ -1581,9 +1626,11 @@ nsFocusManager::CheckIfFocusable(nsIContent* aContent, uint32_t aFlags)
     const nsStyleUserInterface* ui = frame->StyleUserInterface();
     int32_t tabIndex = (ui->mUserFocus == StyleUserFocus::Ignore ||
                         ui->mUserFocus == StyleUserFocus::None_) ? -1 : 0;
+    printf_stderr("<kuoe0> %s: return here 9", __func__);
     return aContent->IsFocusable(&tabIndex, aFlags & FLAG_BYMOUSE) ? aContent : nullptr;
   }
   
+  printf_stderr("<kuoe0> %s: return here 10", __func__);
   return frame->IsFocusable(nullptr, aFlags & FLAG_BYMOUSE) ? aContent : nullptr;
 }
 
@@ -1594,6 +1641,7 @@ nsFocusManager::Blur(nsPIDOMWindowOuter* aWindowToClear,
                      bool aAdjustWidgets,
                      nsIContent* aContentToFocus)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   LOGFOCUS(("<<Blur begin>>"));
 
   // hold a reference to the focused content, which may be null
@@ -1679,6 +1727,7 @@ nsFocusManager::Blur(nsPIDOMWindowOuter* aWindowToClear,
             vm->GetRootWidget(getter_AddRefs(widget));
             if (widget) {
               // set focus to the top level window but don't raise it.
+              printf_stderr("<kuoe0> %s: Call SetFocus here", __func__);
               widget->SetFocus(false);
             }
           }
@@ -1778,6 +1827,7 @@ nsFocusManager::Focus(nsPIDOMWindowOuter* aWindow,
                       nsIContent* aContentLostFocus)
 {
   LOGFOCUS(("<<Focus begin>>"));
+  printf_stderr("<kuoe0> %s", __func__);
 
   if (!aWindow)
     return;
@@ -2036,6 +2086,7 @@ nsFocusManager::SendFocusOrBlurEvent(EventMessage aEventMessage,
                                      bool aIsRefocus,
                                      EventTarget* aRelatedTarget)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ASSERTION(aEventMessage == eFocus || aEventMessage == eBlur,
                "Wrong event type for SendFocusOrBlurEvent");
 
@@ -2100,6 +2151,7 @@ nsFocusManager::ScrollIntoView(nsIPresShell* aPresShell,
                                nsIContent* aContent,
                                uint32_t aFlags)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   // if the noscroll flag isn't set, scroll the newly focused element into view
   if (!(aFlags & FLAG_NOSCROLL))
     aPresShell->ScrollContentIntoView(aContent,
@@ -2116,6 +2168,8 @@ nsFocusManager::ScrollIntoView(nsIPresShell* aPresShell,
 void
 nsFocusManager::RaiseWindow(nsPIDOMWindowOuter* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
+
   // don't raise windows that are already raised or are in the process of
   // being lowered
   if (!aWindow || aWindow == mActiveWindow || aWindow == mWindowBeingLowered)
@@ -2154,6 +2208,7 @@ nsFocusManager::RaiseWindow(nsPIDOMWindowOuter* aWindow)
     nsCOMPtr<nsIWidget> widget;
     vm->GetRootWidget(getter_AddRefs(widget));
     if (widget)
+      printf_stderr("<kuoe0> %s: Call SetFocus here --4", __func__);
       widget->SetFocus(true);
   }
 #else
@@ -2163,6 +2218,7 @@ nsFocusManager::RaiseWindow(nsPIDOMWindowOuter* aWindow)
     nsCOMPtr<nsIWidget> widget;
     treeOwnerAsWin->GetMainWidget(getter_AddRefs(widget));
     if (widget)
+      printf_stderr("<kuoe0> %s: Call SetFocus here --5 ", __func__);
       widget->SetFocus(true);
   }
 #endif
@@ -2171,6 +2227,7 @@ nsFocusManager::RaiseWindow(nsPIDOMWindowOuter* aWindow)
 void
 nsFocusManager::UpdateCaretForCaretBrowsingMode()
 {
+  printf_stderr("<kuoe0> %s", __func__);
   UpdateCaret(false, true, mFocusedContent);
 }
 
@@ -2246,6 +2303,7 @@ nsFocusManager::UpdateCaret(bool aMoveCaretToFocus,
 void
 nsFocusManager::MoveCaretToFocus(nsIPresShell* aPresShell, nsIContent* aContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   // domDoc is a document interface we can create a range with
   nsCOMPtr<nsIDOMDocument> domDoc = do_QueryInterface(aPresShell->GetDocument());
   if (domDoc) {
@@ -2287,6 +2345,7 @@ nsFocusManager::SetCaretVisible(nsIPresShell* aPresShell,
                                 bool aVisible,
                                 nsIContent* aContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   // When browsing with caret, make sure caret is visible after new focus
   // Return early if there is no caret. This can happen for the testcase
   // for bug 308025 where a window is closed in a blur handler.
@@ -2344,6 +2403,7 @@ nsFocusManager::GetSelectionLocation(nsIDocument* aDocument,
                                      nsIContent **aStartContent,
                                      nsIContent **aEndContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   *aStartContent = *aEndContent = nullptr;
   nsresult rv = NS_ERROR_FAILURE;
 
@@ -2481,6 +2541,7 @@ nsFocusManager::DetermineElementToMoveFocus(nsPIDOMWindowOuter* aWindow,
                                             int32_t aType, bool aNoParentTraversal,
                                             nsIContent** aNextContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   *aNextContent = nullptr;
 
   // True if we are navigating by document (F6/Shift+F6) or false if we are
@@ -2894,6 +2955,7 @@ nsFocusManager::GetNextTabbableContent(nsIPresShell* aPresShell,
                                        bool aForDocumentNavigation,
                                        nsIContent** aResultContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   *aResultContent = nullptr;
 
   nsCOMPtr<nsIContent> startContent = aStartContent;
@@ -3180,6 +3242,7 @@ nsFocusManager::GetNextTabbableMapArea(bool aForward,
                                        nsIContent* aImageContent,
                                        nsIContent* aStartContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   nsAutoString useMap;
   aImageContent->GetAttr(kNameSpaceID_None, nsGkAtoms::usemap, useMap);
 
@@ -3219,6 +3282,7 @@ nsFocusManager::GetNextTabIndex(nsIContent* aParent,
                                 int32_t aCurrentTabIndex,
                                 bool aForward)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   int32_t tabIndex, childTabIndex;
 
   if (aForward) {
@@ -3270,6 +3334,7 @@ nsFocusManager::GetNextTabIndex(nsIContent* aParent,
 nsresult
 nsFocusManager::FocusFirst(nsIContent* aRootContent, nsIContent** aNextContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!aRootContent) {
     return NS_OK;
   }
@@ -3318,6 +3383,7 @@ nsFocusManager::GetRootForFocus(nsPIDOMWindowOuter* aWindow,
                                 bool aForDocumentNavigation,
                                 bool aCheckVisibility)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!aForDocumentNavigation) {
     nsCOMPtr<nsIDocShell> docShell = aWindow->GetDocShell();
     if (docShell->ItemType() == nsIDocShellTreeItem::typeChrome) {
@@ -3360,6 +3426,7 @@ nsFocusManager::GetRootForFocus(nsPIDOMWindowOuter* aWindow,
 nsIContent*
 nsFocusManager::GetRootForChildDocument(nsIContent* aContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   // Check for elements that represent child documents, that is, browsers,
   // editors or frames from a frameset. We don't include iframes since we
   // consider them to be an integral part of the same window or page.
@@ -3390,6 +3457,7 @@ nsFocusManager::GetFocusInSelection(nsPIDOMWindowOuter* aWindow,
                                     nsIContent* aEndSelection,
                                     nsIContent** aFocusedContent)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   *aFocusedContent = nullptr;
 
   nsCOMPtr<nsIContent> testContent = aStartSelection;
@@ -3516,6 +3584,7 @@ PointerUnlocker::sActiveUnlocker = nullptr;
 void
 nsFocusManager::SetFocusedWindowInternal(nsPIDOMWindowOuter* aWindow)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!PointerUnlocker::sActiveUnlocker &&
       nsContentUtils::IsInPointerLockContext(mFocusedWindow) &&
       !nsContentUtils::IsInPointerLockContext(aWindow)) {
@@ -3528,6 +3597,7 @@ nsFocusManager::SetFocusedWindowInternal(nsPIDOMWindowOuter* aWindow)
 void
 nsFocusManager::MarkUncollectableForCCGeneration(uint32_t aGeneration)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (!sInstance) {
     return;
   }
@@ -3565,6 +3635,7 @@ nsFocusManager::MarkUncollectableForCCGeneration(uint32_t aGeneration)
 nsresult
 NS_NewFocusManager(nsIFocusManager** aResult)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   NS_IF_ADDREF(*aResult = nsFocusManager::GetFocusManager());
   return NS_OK;
 }

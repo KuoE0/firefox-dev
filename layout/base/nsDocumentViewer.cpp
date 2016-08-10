@@ -179,7 +179,6 @@ protected:
 
 };
 
-
 /** editor Implementation of the FocusListener interface
  */
 class nsDocViewerFocusListener : public nsIDOMEventListener
@@ -202,7 +201,6 @@ protected:
 private:
     nsDocumentViewer*  mDocViewer;
 };
-
 
 //-------------------------------------------------------------
 class nsDocumentViewer final : public nsIContentViewer,
@@ -246,7 +244,6 @@ public:
 
   // nsIDocumentViewerPrint Printing Methods
   NS_DECL_NSIDOCUMENTVIEWERPRINT
-
 
   static void DispatchBeforePrint(nsIDocument* aTop)
   {
@@ -437,7 +434,6 @@ public:
 private:
   nsCOMPtr<nsIDocument> mDocument;
 };
-
 
 //------------------------------------------------------------------
 // nsDocumentViewer
@@ -1064,7 +1060,6 @@ nsDocumentViewer::PermitUnload(bool *aPermitUnload)
   bool shouldPrompt = true;
   return PermitUnloadInternal(&shouldPrompt, aPermitUnload);
 }
-
 
 nsresult
 nsDocumentViewer::PermitUnloadInternal(bool *aShouldPrompt,
@@ -1968,6 +1963,7 @@ nsDocumentViewer::Move(int32_t aX, int32_t aY)
 NS_IMETHODIMP
 nsDocumentViewer::Show(void)
 {
+  printf_stderr("### nsDocumentViewer::%s ###", __func__);
   NS_ENSURE_TRUE(mDocument, NS_ERROR_NOT_AVAILABLE);
 
   // We don't need the previous viewer anymore since we're not
@@ -2031,6 +2027,7 @@ nsDocumentViewer::Show(void)
 
     // Create presentation context
     NS_ASSERTION(!mPresContext, "Shouldn't have a prescontext if we have no shell!");
+    printf_stderr("### nsDocumentViewer::%s: Create nsPresContext ###", __func__);
     mPresContext = CreatePresContext(mDocument,
         nsPresContext::eContext_Galley, containerView);
     NS_ENSURE_TRUE(mPresContext, NS_ERROR_OUT_OF_MEMORY);
@@ -2494,6 +2491,7 @@ nsDocumentViewer::FindContainerView()
 nsresult
 nsDocumentViewer::CreateDeviceContext(nsView* aContainerView)
 {
+  printf_stderr("### nsDocumentViewer::%s ###", __func__);
   NS_PRECONDITION(!mPresShell && !mWindow,
                   "This will screw up our existing presentation");
   NS_PRECONDITION(mDocument, "Gotta have a document here");
@@ -2638,7 +2636,6 @@ NS_IMETHODIMP nsDocumentViewer::CopyImage(int32_t aCopyFlags)
   return nsCopySupport::ImageCopy(node, loadContext, aCopyFlags);
 }
 
-
 NS_IMETHODIMP nsDocumentViewer::GetCopyable(bool *aCopyable)
 {
   NS_ENSURE_ARG_POINTER(aCopyable);
@@ -2728,7 +2725,6 @@ nsDocumentViewer::Print(bool              aSilent,
   if (printSettings) printSettings->SetPrintSilent(aSilent);
   if (printSettings) printSettings->SetShowPrintProgress(false);
 #endif
-
 
   return Print(printSettings, nullptr);
 #else
@@ -3054,7 +3050,6 @@ SetChildAuthorStyleDisabled(nsIContentViewer* aChild, void* aClosure)
   aChild->SetAuthorStyleDisabled(styleDisabled);
 }
 
-
 NS_IMETHODIMP
 nsDocumentViewer::SetAuthorStyleDisabled(bool aStyleDisabled)
 {
@@ -3320,7 +3315,6 @@ nsDocumentViewer::GetContentSize(int32_t* aWidth, int32_t* aHeight)
 
    return NS_OK;
 }
-
 
 NS_IMPL_ISUPPORTS(nsDocViewerSelectionListener, nsISelectionListener)
 
@@ -3901,7 +3895,6 @@ nsDocumentViewer::GetCurrentPrintSettings(nsIPrintSettings * *aCurrentPrintSetti
   return mPrintEngine->GetCurrentPrintSettings(aCurrentPrintSettings);
 }
 
-
 NS_IMETHODIMP 
 nsDocumentViewer::GetCurrentChildDOMWindow(mozIDOMWindowProxy** aCurrentChildDOMWindow)
 {
@@ -4434,4 +4427,3 @@ nsDocumentShownDispatcher::Run()
   }
   return NS_OK;
 }
-

@@ -197,6 +197,8 @@ public final class EventDispatcher {
             return;
         }
 
+        Log.d(LOGTAG, "Message type = " + type);
+
         final List<NativeEventListener> listeners;
         synchronized (mGeckoThreadNativeListeners) {
             listeners = mGeckoThreadNativeListeners.get(type);

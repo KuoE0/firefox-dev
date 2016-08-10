@@ -49,17 +49,17 @@ public class MediaPlayerManager extends Fragment implements NativeEventListener 
     @ReflectionTarget
     public static final String MEDIA_PLAYER_TAG = "MPManagerFragment";
 
-    private static final boolean SHOW_DEBUG = false;
+    private static final boolean SHOW_DEBUG = true;
     // Simplified debugging interfaces
     private static void debug(String msg, Exception e) {
         if (SHOW_DEBUG) {
-            Log.e(LOGTAG, msg, e);
+            Log.e(LOGTAG, "<kuoe0> " + msg, e);
         }
     }
 
     private static void debug(String msg) {
         if (SHOW_DEBUG) {
-            Log.d(LOGTAG, msg);
+            Log.d(LOGTAG, "<kuoe0> " + msg);
         }
     }
 
@@ -69,6 +69,7 @@ public class MediaPlayerManager extends Fragment implements NativeEventListener 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        debug("onCreate");
         EventDispatcher.getInstance().registerGeckoThreadListener(this,
                 "MediaPlayer:Load",
                 "MediaPlayer:Start",
@@ -215,6 +216,7 @@ public class MediaPlayerManager extends Fragment implements NativeEventListener 
     @Override
     public void onResume() {
         super.onResume();
+        debug("onResume");
 
         // The mediaRouter shouldn't exist here, but this is a nice safety check.
         if (mediaRouter != null) {

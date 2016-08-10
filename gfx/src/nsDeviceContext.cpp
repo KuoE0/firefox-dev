@@ -44,6 +44,8 @@
 #include "nsWindow.h"
 #endif
 
+#define DEBUG(_class, _msg, _args...) printf_stderr("<kuoe0> " _class "::%s " _msg, __func__, ##_args)
+
 using namespace mozilla;
 using namespace mozilla::gfx;
 using mozilla::services::GetObserverService;
@@ -253,6 +255,7 @@ nsDeviceContext::SetDPI(double* aScale)
     // Use the printing DC to determine DPI values, if we have one.
     if (mDeviceContextSpec) {
         dpi = mDeviceContextSpec->GetDPI();
+        DEBUG("nsDeviceContext", "DPI=%f from mDeviceContextSpec", dpi);
         mPrintingScale = mDeviceContextSpec->GetPrintingScale();
         mAppUnitsPerDevPixelAtUnitFullZoom =
             NS_lround((AppUnitsPerCSSPixel() * 96) / dpi);
@@ -265,20 +268,25 @@ nsDeviceContext::SetDPI(double* aScale)
 
         if (prefDPI > 0) {
             dpi = prefDPI;
+            DEBUG("nsDeviceContext", "DPI=%f from Preferences", dpi);
         } else if (mWidget) {
             dpi = mWidget->GetDPI();
+            DEBUG("nsDeviceContext", "DPI=%f from nsWindow", dpi);
 
             if (prefDPI < 0) {
                 dpi = std::max(96.0f, dpi);
+                DEBUG("nsDeviceContext", "DPI=%f from default value", dpi);
             }
         } else {
             dpi = 96.0f;
+            DEBUG("nsDeviceContext", "DPI=%f from default value", dpi);
         }
 
         double devPixelsPerCSSPixel;
         if (aScale && *aScale > 0.0) {
             // if caller provided a scale, we just use it
             devPixelsPerCSSPixel = *aScale;
+            DEBUG("nsDeviceContext", "devPixelsPerCSSPixel=%f from caller", devPixelsPerCSSPixel);
         } else {
             // otherwise get from the widget, and return it in aScale for
             // the caller to pass to child contexts if needed
@@ -289,6 +297,7 @@ nsDeviceContext::SetDPI(double* aScale)
             if (aScale) {
                 *aScale = devPixelsPerCSSPixel;
             }
+            DEBUG("nsDeviceContext", "devPixelsPerCSSPixel=%f from nsWindow", devPixelsPerCSSPixel);
         }
 
         mAppUnitsPerDevPixelAtUnitFullZoom =
@@ -475,7 +484,6 @@ nsDeviceContext::BeginDocument(const nsAString& aTitle,
     return rv;
 }
 
-
 nsresult
 nsDeviceContext::EndDocument(void)
 {
@@ -493,7 +501,6 @@ nsDeviceContext::EndDocument(void)
     return rv;
 }
 
-
 nsresult
 nsDeviceContext::AbortDocument(void)
 {
@@ -504,7 +511,6 @@ nsDeviceContext::AbortDocument(void)
 
     return rv;
 }
-
 
 nsresult
 nsDeviceContext::BeginPage(void)

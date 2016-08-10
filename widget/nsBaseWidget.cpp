@@ -94,6 +94,8 @@ static nsRefPtrHashtable<nsVoidPtrHashKey, nsIWidget>* sPluginWidgetList;
 
 nsIRollupListener* nsBaseWidget::gRollupListener = nullptr;
 
+#define PRINT_DEBUG(_class, _msg, _args...) printf_stderr("<kuoe0> " _class "::%s " _msg, __func__, ##_args)
+
 using namespace mozilla::dom;
 using namespace mozilla::layers;
 using namespace mozilla::ipc;
@@ -585,9 +587,11 @@ float nsBaseWidget::GetDPI()
 CSSToLayoutDeviceScale nsIWidget::GetDefaultScale()
 {
   double devPixelsPerCSSPixel = DefaultScaleOverride();
+  PRINT_DEBUG("nsIWidget", "devPixelsPerCSSPixel=%lf from DefaultScaleOverride()", devPixelsPerCSSPixel);
 
   if (devPixelsPerCSSPixel <= 0.0) {
     devPixelsPerCSSPixel = GetDefaultScaleInternal();
+    PRINT_DEBUG("nsIWidget", "devPixelsPerCSSPixel=%lf from GetDefaultScaleInternal()", devPixelsPerCSSPixel);
   }
 
   return CSSToLayoutDeviceScale(devPixelsPerCSSPixel);
@@ -605,6 +609,7 @@ double nsIWidget::DefaultScaleOverride()
   if (!prefString.IsEmpty()) {
     devPixelsPerCSSPixel = PR_strtod(prefString, nullptr);
   }
+  PRINT_DEBUG("nsIWidget", "devPixelsPerCSSPixel=%lf from Preferences", devPixelsPerCSSPixel);
 
   return devPixelsPerCSSPixel;
 }

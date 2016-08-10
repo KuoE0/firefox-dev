@@ -4008,6 +4008,7 @@
         <parameter name="aPostData"/>
         <body>
           <![CDATA[
+            dump("<kuoe0> tabbrowser.xml loadURIWithFlags (2) aURI: " + aURI + "\n");
             // Note - the callee understands both:
             // (a) loadURIWithFlags(aURI, aFlags, ...)
             // (b) loadURIWithFlags(aURI, { flags: aFlags, ... })
@@ -6904,6 +6905,7 @@
         <body>
           <![CDATA[
             var params = arguments[1];
+            dump("<kuoe0> tabbrowser.xml loadURIWithFlags (1) - aURI: " + aURI + "\n");
             if (typeof(params) == "number") {
               params = {
                 flags: aFlags,

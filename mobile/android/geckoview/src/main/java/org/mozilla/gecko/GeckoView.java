@@ -58,6 +58,7 @@ public class GeckoView extends LayerView
     }
 
     public void setDisplayType(int displayType) {
+        Log.d(LOGTAG, "<kuoe0> set mDisplayType to " + displayType);
         mDisplayType = displayType;
     }
 
@@ -187,10 +188,12 @@ public class GeckoView extends LayerView
 
     public GeckoView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        Log.d(LOGTAG, "<kuoe0> GeckoView::GeckoView");
         init(context);
     }
 
     private void init(Context context) {
+        Log.d(LOGTAG, "<kuoe0> GeckoView::init");
         if (GeckoAppShell.getApplicationContext() == null) {
             GeckoAppShell.setApplicationContext(context.getApplicationContext());
         }
@@ -234,6 +237,8 @@ public class GeckoView extends LayerView
     public void onAttachedToWindow()
     {
         final DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+
+        Log.d(LOGTAG, "<kuoe0> GeckoView::onAttachedToWindow W: " + metrics.widthPixels + " H: " + metrics.heightPixels);
 
         if (window == null) {
             // Open a new nsWindow if we didn't have one from before.

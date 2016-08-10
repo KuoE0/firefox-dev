@@ -1680,6 +1680,7 @@ AndroidBridge::RunDelayedUiThreadTasks()
 void*
 AndroidBridge::GetPresentationWindow()
 {
+    printf_stderr("<kuoe0> AndroidBridge::%s: mPresentationWindow=%p", __func__, mPresentationWindow);
     return mPresentationWindow;
 }
 
@@ -1692,6 +1693,7 @@ AndroidBridge::SetPresentationWindow(void* aPresentationWindow)
              nsWindow::SchedulePauseComposition();
          }
 
+         printf_stderr("<kuoe0> AndroidBridge::%s: mPresentationSurface=%p", __func__, aPresentationWindow);
          mPresentationWindow = aPresentationWindow;
          if (mPresentationSurface) {
              // destroy the egl surface!
@@ -1706,6 +1708,7 @@ AndroidBridge::SetPresentationWindow(void* aPresentationWindow)
          }
      }
      else {
+         printf_stderr("<kuoe0> AndroidBridge::%s: mPresentationSurface=%p", __func__, aPresentationWindow);
          mPresentationWindow = aPresentationWindow;
      }
 }
@@ -1713,12 +1716,14 @@ AndroidBridge::SetPresentationWindow(void* aPresentationWindow)
 EGLSurface
 AndroidBridge::GetPresentationSurface()
 {
+    printf_stderr("<kuoe0> AndroidBridge::%s: mPresentationSurface=%p", __func__, mPresentationSurface);
     return mPresentationSurface;
 }
 
 void
 AndroidBridge::SetPresentationSurface(EGLSurface aPresentationSurface)
 {
+    printf_stderr("<kuoe0> AndroidBridge::%s: mPresentationSurface=%p", __func__, aPresentationSurface);
     mPresentationSurface = aPresentationSurface;
 }
 

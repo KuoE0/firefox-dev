@@ -118,6 +118,8 @@ nsresult nsWebShellWindow::Initialize(nsIXULWindow* aParent,
   nsresult rv;
   nsCOMPtr<nsIWidget> parentWidget;
 
+  printf_stderr("<kuoe0> nsWebShellWindo::%s: width = %d height = %d\n", __func__, aInitialWidth, aInitialHeight);
+
   mIsHiddenWindow = aIsHiddenWindow;
 
   int32_t initialX = 0, initialY = 0;
@@ -442,8 +444,10 @@ nsWebShellWindow::WindowActivated()
   // focusing the window could cause it to close, so keep a reference to it
   nsCOMPtr<nsPIDOMWindowOuter> window = mDocShell ? mDocShell->GetWindow() : nullptr;
   nsCOMPtr<nsIFocusManager> fm = do_GetService(FOCUSMANAGER_CONTRACTID);
-  if (fm && window)
+  if (fm && window) {
+    printf_stderr("<kuoe0> %s: call nsFocusManager::WindowRaised", __func__);
     fm->WindowRaised(window);
+  }
 
   if (mChromeLoaded) {
     PersistentAttributesDirty(PAD_POSITION | PAD_SIZE | PAD_MISC);

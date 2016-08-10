@@ -349,7 +349,7 @@ var BrowserApp = {
 
   startup: function startup() {
     window.QueryInterface(Ci.nsIDOMChromeWindow).browserDOMWindow = new nsBrowserAccess();
-    dump("zerdatime " + Date.now() + " - browser chrome startup finished.");
+    dump("<kuoe0> zerdatime " + Date.now() + " - browser chrome startup finished.");
 
     this.deck = document.getElementById("browsers");
 
@@ -1154,6 +1154,7 @@ var BrowserApp = {
   },
 
   loadURI: function loadURI(aURI, aBrowser, aParams) {
+    dump("<kuoe0> browser.xul::loadURI with " + aURI + "\n");
     aBrowser = aBrowser || this.selectedBrowser;
     if (!aBrowser)
       return;
@@ -1607,6 +1608,8 @@ var BrowserApp = {
   observe: function(aSubject, aTopic, aData) {
     let browser = this.selectedBrowser;
 
+    dump("<kuoe0> Got observer: " + aTopic);
+
     switch (aTopic) {
 
       case "Session:Back":
@@ -1728,6 +1731,7 @@ var BrowserApp = {
         }
 
         if (data.newTab) {
+          dump("<kuoe0> call this.addTab with " + url);
           this.addTab(url, params);
         } else {
           if (data.tabId) {
@@ -1736,6 +1740,7 @@ var BrowserApp = {
             if (specificBrowser)
               browser = specificBrowser;
           }
+          dump("<kuoe0> call this.loadURI with " + url);
           this.loadURI(url, browser, params);
         }
         break;
