@@ -892,6 +892,7 @@ class nsWindow::LayerViewSupport final
     GeckoLayerClient::GlobalRef mLayerClient;
     Atomic<bool, ReleaseAcquire> mCompositorPaused;
     mozilla::jni::GlobalRef<mozilla::jni::Object> mSurface;
+    int32_t mDisplayType;
 
     // In order to use Event::HasSameTypeAs in PostTo(), we cannot make
     // LayerViewEvent a template because each template instantiation is
@@ -972,10 +973,12 @@ public:
     }
 
     LayerViewSupport(nsWindow* aWindow,
-                     const LayerView::Compositor::LocalRef& aInstance)
+                     const LayerView::Compositor::LocalRef& aInstance,
+                     int32_t aDisplayType = java::GeckoView::DISPLAY_PRIMARY())
         : window(*aWindow)
         , mCompositor(aInstance)
         , mCompositorPaused(true)
+        , mDisplayType(aDisplayType)
     {
         Base::AttachNative(aInstance, this);
     }
@@ -1062,6 +1065,7 @@ public:
     void OnSizeChanged(int32_t aWindowWidth, int32_t aWindowHeight,
                        int32_t aScreenWidth, int32_t aScreenHeight)
     {
+        if (mDisplayType != java::GeckoView::DISPLAY_PRIMARY()) return;
         printf_stderr("<kuoe0> %s: aWindowWidth=%d aWindowHeight=%d aScreenWidth=%d aScreenHeight=%d", __func__, aWindowWidth, aWindowHeight, aScreenWidth, aScreenHeight);
         if (aWindowWidth != window.mBounds.width ||
             aWindowHeight != window.mBounds.height) {
@@ -1072,6 +1076,7 @@ public:
 
     void CreateCompositor(int32_t aWidth, int32_t aHeight)
     {
+        if (mDisplayType != java::GeckoView::DISPLAY_PRIMARY()) return;
         printf_stderr("<kuoe0> %s", __func__);
         window.CreateLayerManager(aWidth, aHeight);
         mCompositorPaused = false;
@@ -1080,6 +1085,7 @@ public:
 
     void SyncPauseCompositor()
     {
+        if (mDisplayType != java::GeckoView::DISPLAY_PRIMARY()) return;
         printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             bridge->SchedulePauseOnCompositorThread();
@@ -1089,6 +1095,7 @@ public:
 
     void SyncResumeCompositor()
     {
+        if (mDisplayType != java::GeckoView::DISPLAY_PRIMARY()) return;
         printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             if (bridge->ScheduleResumeOnCompositorThread()) {
@@ -1099,6 +1106,7 @@ public:
 
     void SyncResumeResizeCompositor(int32_t aWidth, int32_t aHeight)
     {
+        if (mDisplayType != java::GeckoView::DISPLAY_PRIMARY()) return;
         printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             if (bridge->ScheduleResumeOnCompositorThread(aWidth, aHeight)) {
@@ -1109,6 +1117,7 @@ public:
 
     void SyncInvalidateAndScheduleComposite()
     {
+        return;
         printf_stderr("<kuoe0> %s", __func__);
         if (RefPtr<CompositorBridgeParent> bridge = window.GetCompositorBridgeParent()) {
             bridge->InvalidateOnCompositorThread();
@@ -1202,10 +1211,13 @@ nsWindow::GeckoViewSupport::Open(const jni::Class::LocalRef& aCls,
 
     window->mGeckoViewSupport->mDOMWindow = pdomWindow;
 
-    // Attach the Compositor to the new window.
-    window->mLayerViewSupport = mozilla::MakeUnique<LayerViewSupport>(
-            window, LayerView::Compositor::LocalRef(
-            aCls.Env(), LayerView::Compositor::Ref::From(aCompositor)));
+    if (aDisplayType == java::GeckoView::DISPLAY_PRIMARY()) {
+        // Attach the Compositor to the new window.
+        window->mLayerViewSupport = mozilla::MakeUnique<LayerViewSupport>(
+                window, LayerView::Compositor::LocalRef(
+                    aCls.Env(), LayerView::Compositor::Ref::From(aCompositor)),
+                aDisplayType);
+    }
 
     // Set display type for nsWindow
     window->SetDisplayType(aDisplayType);

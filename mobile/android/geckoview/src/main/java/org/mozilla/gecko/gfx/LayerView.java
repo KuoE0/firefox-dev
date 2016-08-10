@@ -43,6 +43,7 @@ import android.view.ViewGroup;
 import android.view.InputDevice;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.util.Log;
 
 /**
  * A view rendered by the layer compositor.
@@ -135,6 +136,7 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
     public static final int PAINT_START = 0;
     public static final int PAINT_BEFORE_FIRST = 1;
     public static final int PAINT_AFTER_FIRST = 2;
+    static boolean sCompositorCreated = false;
 
     public boolean shouldUseTextureView() {
         // Disable TextureView support for now as it causes panning/zooming
@@ -173,7 +175,11 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
         }
         Tabs.registerOnTabsChangedListener(this);
 
-        mCompositor = new Compositor();
+        if (!sCompositorCreated) {
+            mCompositor = new Compositor();
+            Log.d(LOGTAG, "mCompositor created");
+            sCompositorCreated = true;
+        }
     }
 
     public LayerView(Context context) {
@@ -513,8 +519,10 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
                 (NativePanZoomController) mPanZoomController : null;
 
         if (GeckoThread.isStateAtLeast(GeckoThread.State.PROFILE_READY)) {
+            if (mCompositor == null) return;
             mCompositor.attachToJava(mLayerClient, npzc);
         } else {
+            if (mCompositor == null) return;
             GeckoThread.queueNativeCallUntil(GeckoThread.State.PROFILE_READY,
                     mCompositor, "attachToJava",
                     GeckoLayerClient.class, mLayerClient,
@@ -554,6 +562,7 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
         // happen without needing to block anywhere. Do it with a synchronous Gecko event so that the
         // Android doesn't have a chance to destroy our surface in between.
         if (mServerSurfaceValid && getLayerClient().isGeckoReady()) {
+            if (mCompositor == null) return;
             mCompositor.createCompositor(mWidth, mHeight);
             compositorCreated();
         }
@@ -573,6 +582,7 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
         // It is important to not notify Gecko until after the compositor has
         // been resumed, otherwise Gecko may send updates that get dropped.
         if (mServerSurfaceValid && mCompositorCreated) {
+            if (mCompositor == null) return;
             mCompositor.syncResumeResizeCompositor(width, height);
             requestRender();
         }
@@ -580,6 +590,7 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
 
     /* package */ void invalidateAndScheduleComposite() {
         if (mCompositorCreated) {
+            if (mCompositor == null) return;
             mCompositor.syncInvalidateAndScheduleComposite();
         }
     }
@@ -630,6 +641,7 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
     }
 
     void notifySizeChanged(int windowWidth, int windowHeight, int screenWidth, int screenHeight) {
+        if (mCompositor == null) return;
         mCompositor.onSizeChanged(windowWidth, windowHeight, screenWidth, screenHeight);
     }
 
@@ -645,6 +657,7 @@ public class LayerView extends ScrollView implements Tabs.OnTabsChangedListener 
         // definitely paused -- it'll synchronize with the Gecko event loop, which
         // in turn will synchronize with the compositor thread.
         if (mCompositorCreated) {
+            if (mCompositor == null) return;
             mCompositor.syncPauseCompositor();
         }
 
