@@ -49,6 +49,8 @@ private:
     ~nsScreenManagerAndroid();
 
 public:
+    class ScreenManagerHelperSupport;
+
     nsScreenManagerAndroid();
 
     NS_DECL_ISUPPORTS

@@ -2755,12 +2755,6 @@ public:
 
     class Window;
 
-    static const int32_t LOAD_DEFAULT = 0;
-
-    static const int32_t LOAD_NEW_TAB = 1;
-
-    static const int32_t LOAD_SWITCH_TAB = 2;
-
     struct DISPLAY_EXTERNAL_t {
         typedef GeckoView Owner;
         typedef int32_t ReturnType;
@@ -2811,6 +2805,12 @@ public:
     static auto DISPLAY_VIRTUAL() -> int32_t;
 
     static auto DISPLAY_VIRTUAL(int32_t) -> void;
+
+    static const int32_t LOAD_DEFAULT = 0;
+
+    static const int32_t LOAD_NEW_TAB = 1;
+
+    static const int32_t LOAD_SWITCH_TAB = 2;
 
     static const bool isMultithreaded = false;
 
@@ -3042,6 +3042,64 @@ public:
     static const int32_t PREF_STRING = 3;
 
     static const bool isMultithreaded = false;
+
+    template<class Impl> class Natives;
+};
+
+class ScreenManagerHelper : public mozilla::jni::ObjectBase<ScreenManagerHelper, jobject>
+{
+public:
+    static const char name[];
+
+    explicit ScreenManagerHelper(const Context& ctx) : ObjectBase<ScreenManagerHelper, jobject>(ctx) {}
+
+    struct New_t {
+        typedef ScreenManagerHelper Owner;
+        typedef ScreenManagerHelper::LocalRef ReturnType;
+        typedef ScreenManagerHelper::Param SetterType;
+        typedef mozilla::jni::Args<> Args;
+        static constexpr char name[] = "<init>";
+        static constexpr char signature[] =
+                "()V";
+        static const bool isStatic = false;
+        static const mozilla::jni::ExceptionMode exceptionMode =
+                mozilla::jni::ExceptionMode::ABORT;
+    };
+
+    static auto New() -> ScreenManagerHelper::LocalRef;
+
+    struct AddDisplay_t {
+        typedef ScreenManagerHelper Owner;
+        typedef void ReturnType;
+        typedef void SetterType;
+        typedef mozilla::jni::Args<
+                int32_t,
+                int32_t,
+                int32_t,
+                float> Args;
+        static constexpr char name[] = "addDisplay";
+        static constexpr char signature[] =
+                "(IIIF)V";
+        static const bool isStatic = true;
+        static const mozilla::jni::ExceptionMode exceptionMode =
+                mozilla::jni::ExceptionMode::ABORT;
+    };
+
+    struct RemoveDisplay_t {
+        typedef ScreenManagerHelper Owner;
+        typedef void ReturnType;
+        typedef void SetterType;
+        typedef mozilla::jni::Args<
+                int32_t> Args;
+        static constexpr char name[] = "removeDisplay";
+        static constexpr char signature[] =
+                "(I)V";
+        static const bool isStatic = true;
+        static const mozilla::jni::ExceptionMode exceptionMode =
+                mozilla::jni::ExceptionMode::ABORT;
+    };
+
+    static const bool isMultithreaded = true;
 
     template<class Impl> class Natives;
 };

@@ -17,14 +17,20 @@ import org.mozilla.gecko.annotation.ReflectionTarget;
 import org.mozilla.gecko.util.EventCallback;
 import org.mozilla.gecko.util.NativeEventListener;
 import org.mozilla.gecko.util.NativeJSObject;
+import org.mozilla.gecko.RemotePresentationService;
 
 import com.google.android.gms.cast.CastDevice;
 import com.google.android.gms.cast.CastMediaControlIntent;
+import com.google.android.gms.cast.CastPresentation;
+import com.google.android.gms.cast.CastRemoteDisplayLocalService;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.Status;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.media.MediaControlIntent;
@@ -32,14 +38,18 @@ import android.support.v7.media.MediaRouteSelector;
 import android.support.v7.media.MediaRouter.RouteInfo;
 import android.support.v7.media.MediaRouter;
 import android.util.Log;
+import android.view.Display;
+import android.view.WindowManager;
 
 import java.util.HashMap;
 import java.util.Map;
 
 class ChromecastRemoteDevice {
     private static final String LOGTAG = "ChromecastRemoteDevice";
+    private final String INTENT_EXTRA_CAST_DEVICE = "CastDevice";
     private final Context mContext;
     private final RouteInfo mRoute;
+    private CastDevice mCastDevice;
 
     public ChromecastRemoteDevice(Context context, RouteInfo route) {
         int status =  GooglePlayServicesUtil.isGooglePlayServicesAvailable(context);
@@ -49,21 +59,21 @@ class ChromecastRemoteDevice {
 
         this.mContext = context;
         this.mRoute = route;
+        this.mCastDevice = CastDevice.getFromBundle(mRoute.getExtras());
     }
 
     public JSONObject toJSON() {
         final JSONObject obj = new JSONObject();
         try {
-            final CastDevice device = CastDevice.getFromBundle(mRoute.getExtras());
-            if (device == null) {
+            if (mCastDevice == null) {
                 return null;
             }
 
             obj.put("uuid", mRoute.getId());
-            obj.put("version", device.getDeviceVersion());
-            obj.put("friendlyName", device.getFriendlyName());
-            obj.put("location", device.getIpAddress().toString());
-            obj.put("modelName", device.getModelName());
+            obj.put("version", mCastDevice.getDeviceVersion());
+            obj.put("friendlyName", mCastDevice.getFriendlyName());
+            obj.put("location", mCastDevice.getIpAddress().toString());
+            obj.put("modelName", mCastDevice.getModelName());
             // For now we just assume all of these are Google devices
             obj.put("manufacturer", "Google Inc.");
         } catch (JSONException ex) {
@@ -72,6 +82,76 @@ class ChromecastRemoteDevice {
 
         return obj;
     }
+
+    public void start(final EventCallback callback) {
+        // Nothing to be done here
+        Log.d(LOGTAG, "<kuoe0> start()");
+        if (startPresentation()) {
+            sendSuccess(callback, null);
+        } else {
+            callback.sendError(null);
+        }
+    }
+
+    public void stop(final EventCallback callback) {
+        // Nothing to be done here
+        sendSuccess(callback, null);
+        Log.d(LOGTAG, "<kuoe0> stop()");
+    }
+
+    // EventCallback which is actually a GeckoEventCallback is sometimes being invoked more
+    // than once. That causes the IllegalStateException to be thrown. To prevent a crash,
+    // catch the exception and report it as an error to the log.
+    private static void sendSuccess(final EventCallback callback, final String msg) {
+        try {
+            callback.sendSuccess(msg);
+        } catch (final IllegalStateException e) {
+            Log.e(LOGTAG, "Attempting to invoke callback.sendSuccess more than once.", e);
+        }
+    }
+
+    private boolean startPresentation() {
+        Log.d(LOGTAG, "<kuoe0> startPresentation");
+        try {
+            Intent intent = new Intent(mContext, RemotePresentationService.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent notificationPendingIntent = PendingIntent.getActivity(mContext, 0, intent, 0);
+
+            CastRemoteDisplayLocalService.NotificationSettings settings =
+                new CastRemoteDisplayLocalService.NotificationSettings.Builder()
+                .setNotificationPendingIntent(notificationPendingIntent).build();
+
+            CastRemoteDisplayLocalService.startService(
+                    mContext,
+                    RemotePresentationService.class,
+                    mContext.getString(R.string.chromecast_app_id),
+                    mCastDevice,
+                    settings,
+                    new CastRemoteDisplayLocalService.Callbacks() {
+                        public void onServiceCreated(CastRemoteDisplayLocalService service) {
+                            Log.d(LOGTAG, "<kuoe0> onServiceCreated");
+                        }
+
+                        @Override
+                        public void onRemoteDisplaySessionStarted(CastRemoteDisplayLocalService service) {
+                            Log.d(LOGTAG, "<kuoe0> onServiceStarted");
+                        }
+
+                        @Override
+                        public void onRemoteDisplaySessionError(Status errorReason) {
+                            int code = errorReason.getStatusCode();
+                            Log.d(LOGTAG, "<kuoe0> onServiceError: " + errorReason.getStatusCode());
+
+                            mCastDevice = null;
+                        }
+            });
+            return true;
+        } catch (final IllegalArgumentException e) {
+            Log.e(LOGTAG, "IllegalArgumentException", e);
+            return false;
+        }
+    }
+
 }
 
 /**
@@ -113,18 +193,39 @@ public class PresentationDeviceManager extends Fragment implements NativeEventLi
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EventDispatcher.getInstance().registerGeckoThreadListener(this,
+                "PresentationDevice:Start",
+                "PresentationDevice:Stop");
     }
 
     @Override
     @JNITarget
     public void onDestroy() {
         super.onDestroy();
+        EventDispatcher.getInstance().unregisterGeckoThreadListener(this,
+                "PresentationDevice:Start",
+                "PresentationDevice:Stop");
     }
 
     // GeckoEventListener implementation
     @Override
     public void handleMessage(String event, final NativeJSObject message, final EventCallback callback) {
         debug(event);
+        debug("Callback: " + !(callback == null));
+        final ChromecastRemoteDevice device = devices.get(message.getString("id"));
+        if (device == null) {
+            Log.e(LOGTAG, "Couldn't find a device for this id: " + message.getString("id") + " for message: " + event);
+            if (callback != null) {
+                callback.sendError(null);
+            }
+            return;
+        }
+
+        if ("PresentationDevice:Start".equals(event)) {
+            device.start(callback);
+        } else if ("PresentationDevice:Stop".equals(event)) {
+            device.stop(callback);
+        }
     }
 
     private final MediaRouter.Callback callback =

@@ -1213,6 +1213,23 @@ auto PrefsHelper::OnPrefChange(mozilla::jni::String::Param a0, int32_t a1, bool 
     return mozilla::jni::Method<OnPrefChange_t>::Call(PrefsHelper::Context(), nullptr, a0, a1, a2, a3, a4);
 }
 
+const char ScreenManagerHelper::name[] =
+        "org/mozilla/gecko/ScreenManagerHelper";
+
+constexpr char ScreenManagerHelper::New_t::name[];
+constexpr char ScreenManagerHelper::New_t::signature[];
+
+auto ScreenManagerHelper::New() -> ScreenManagerHelper::LocalRef
+{
+    return mozilla::jni::Constructor<New_t>::Call(ScreenManagerHelper::Context(), nullptr);
+}
+
+constexpr char ScreenManagerHelper::AddDisplay_t::name[];
+constexpr char ScreenManagerHelper::AddDisplay_t::signature[];
+
+constexpr char ScreenManagerHelper::RemoveDisplay_t::name[];
+constexpr char ScreenManagerHelper::RemoveDisplay_t::signature[];
+
 const char Telemetry::name[] =
         "org/mozilla/gecko/Telemetry";
 

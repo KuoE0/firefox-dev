@@ -108,10 +108,43 @@ nsScreenAndroid::ApplyMinimumBrightness(uint32_t aBrightness)
     }
 }
 
+class nsScreenManagerAndroid::ScreenManagerHelperSupport final
+    : public ScreenManagerHelper::Natives<ScreenManagerHelperSupport>
+    , public UsesGeckoThreadProxy // Call AddDisplay / RemoveDisplay in Gecko thread
+{
+public:
+    typedef ScreenManagerHelper::Natives<ScreenManagerHelperSupport> Base;
+
+    static void AddDisplay(int32_t aDisplayType, int32_t aWidth,
+                           int32_t aHeight, float aDensity) {
+        nsCOMPtr<nsIScreenManager> screenMgr =
+            do_GetService("@mozilla.org/gfx/screenmanager;1");
+        MOZ_ASSERT(screenMgr, "Failed to get nsIScreenManager");
+
+        RefPtr<nsScreenManagerAndroid> screenMgrAndroid =
+            (nsScreenManagerAndroid*) screenMgr.get();
+        RefPtr<nsScreenAndroid> screen =
+            screenMgrAndroid->AddScreen(aDisplayType,
+                                        nsIntRect(0, 0, aWidth, aHeight));
+        MOZ_ASSERT(screen);
+        screen->SetDensity(aDensity);
+    }
+
+    static void RemoveDisplay(int32_t aDisplayType) {
+        nsCOMPtr<nsIScreenManager> screenMgr =
+            do_GetService("@mozilla.org/gfx/screenmanager;1");
+        MOZ_ASSERT(screenMgr, "Failed to get nsIScreenManager");
+        RefPtr<nsScreenManagerAndroid> screenMgrAndroid =
+            (nsScreenManagerAndroid*) screenMgr.get();
+        screenMgrAndroid->RemoveScreen(aDisplayType);
+    }
+};
+
 NS_IMPL_ISUPPORTS(nsScreenManagerAndroid, nsIScreenManager)
 
 nsScreenManagerAndroid::nsScreenManagerAndroid()
 {
+    ScreenManagerHelperSupport::Base::Init();
     nsCOMPtr<nsIScreen> screen = AddScreen(java::GeckoView::DISPLAY_PRIMARY());
     MOZ_ASSERT(screen);
 }

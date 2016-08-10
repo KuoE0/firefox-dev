@@ -24,8 +24,8 @@ var presentationDevice = {
   id: "presentation:router",
   target: "presentation:router",
   factory: function(aService) {
-    Cu.import("resource://gre/modules/MediaPlayerApp.jsm");
-    return new MediaPlayerApp(aService);
+    Cu.import("resource://gre/modules/AndroidPresentationApp.jsm");
+    return new AndroidPresentationApp(aService);
   },
   init: function() {
     Services.obs.addObserver(this, "PresentationDevice:Added", false);
@@ -790,6 +790,21 @@ var CastingApps = {
         return;
       }
 
+      let app = SimpleServiceDiscovery.findAppForService(aService);
+      if (!app) {
+        return;
+      }
+
+      app.stop(() => {
+        app.start(aStarted => {
+
+          if (!aStarted) {
+            debug("CastingApps: Unable to start app");
+            return;
+          }
+
+        });
+      });
     }, filterFunc);
   },
 
