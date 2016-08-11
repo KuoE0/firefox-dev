@@ -3,7 +3,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#ifdef MOZ_WIDGET_GONK
 #include "DisplayDeviceProvider.h"
+#endif //MOZ_WIDGET_GONK
+
 #include "MulticastDNSDeviceProvider.h"
 #include "mozilla/ModuleUtils.h"
 
@@ -24,7 +27,9 @@
     { 0x9e, 0xb3, 0x56, 0x56, 0x31, 0x63, 0x0a, 0xf6 } }
 #endif //MOZ_WIDGET_ANDROID
 
+#ifdef MOZ_WIDGET_GONK
 #define DISPLAY_DEVICE_PROVIDER_CONTRACT_ID "@mozilla.org/presentation-device/displaydevice-provider;1"
+#endif //MOZ_WIDGET_GONK
 #define MULTICAST_DNS_PROVIDER_CONTRACT_ID "@mozilla.org/presentation-device/multicastdns-provider;1"
 
 #ifdef MOZ_WIDGET_ANDROID
@@ -32,7 +37,9 @@
 #endif //MOZ_WIDGET_ANDROID
 
 using mozilla::dom::presentation::MulticastDNSDeviceProvider;
+#ifdef MOZ_WIDGET_GONK
 using mozilla::dom::presentation::DisplayDeviceProvider;
+#endif //MOZ_WIDGET_GONK
 
 #ifdef MOZ_WIDGET_ANDROID
 using mozilla::dom::presentation::legacy::LegacyMDNSDeviceProvider;
@@ -41,8 +48,10 @@ using mozilla::dom::presentation::legacy::LegacyMDNSDeviceProvider;
 NS_GENERIC_FACTORY_CONSTRUCTOR(MulticastDNSDeviceProvider)
 NS_DEFINE_NAMED_CID(MULTICAST_DNS_PROVIDER_CID);
 
+#ifdef MOZ_WIDGET_GONK
 NS_GENERIC_FACTORY_CONSTRUCTOR(DisplayDeviceProvider)
 NS_DEFINE_NAMED_CID(DISPLAY_DEVICE_PROVIDER_CID);
+#endif // MOZ_WIDGET_GONK
 
 #ifdef MOZ_WIDGET_ANDROID
 NS_GENERIC_FACTORY_CONSTRUCTOR(LegacyMDNSDeviceProvider)
@@ -51,7 +60,9 @@ NS_DEFINE_NAMED_CID(LEGACY_MDNS_PROVIDER_CID);
 
 static const mozilla::Module::CIDEntry kPresentationDeviceProviderCIDs[] = {
   { &kMULTICAST_DNS_PROVIDER_CID, false, nullptr, MulticastDNSDeviceProviderConstructor },
+#ifdef MOZ_WIDGET_GONK
   { &kDISPLAY_DEVICE_PROVIDER_CID, false, nullptr, DisplayDeviceProviderConstructor },
+#endif // MOZ_WIDGET_GONK
 #ifdef MOZ_WIDGET_ANDROID
   { &kLEGACY_MDNS_PROVIDER_CID, false, nullptr, LegacyMDNSDeviceProviderConstructor },
 #endif //MOZ_WIDGET_ANDROID
@@ -60,7 +71,9 @@ static const mozilla::Module::CIDEntry kPresentationDeviceProviderCIDs[] = {
 
 static const mozilla::Module::ContractIDEntry kPresentationDeviceProviderContracts[] = {
   { MULTICAST_DNS_PROVIDER_CONTRACT_ID, &kMULTICAST_DNS_PROVIDER_CID },
+#ifdef MOZ_WIDGET_GONK
   { DISPLAY_DEVICE_PROVIDER_CONTRACT_ID, &kDISPLAY_DEVICE_PROVIDER_CID },
+#endif // MOZ_WIDGET_GONK
 #ifdef MOZ_WIDGET_ANDROID
   { LEGACY_MDNS_PROVIDER_CONTRACT_ID, &kLEGACY_MDNS_PROVIDER_CID },
 #endif //MOZ_WIDGET_ANDROID
