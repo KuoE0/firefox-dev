@@ -54,6 +54,7 @@ public:
   {
     nsRect rect;
     if (IsDeviceSizePageSize()) {
+      printf_stderr("### nsScreen::%s IsDeviceSizePageSize = True ###", __func__);
       if (nsCOMPtr<nsPIDOMWindowInner> owner = GetOwner()) {
         int32_t innerWidth = 0;
         aRv = owner->GetInnerWidth(&innerWidth);
@@ -62,6 +63,7 @@ public:
     }
 
     aRv = GetRect(rect);
+    printf_stderr("### nsScreen::%s rect.width = %d ###", __func__, rect.width);
     return rect.width;
   }
 

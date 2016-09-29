@@ -312,6 +312,7 @@ nsresult
 PresentationSessionInfo::Close(nsresult aReason,
                                uint32_t aState)
 {
+  printf_stderr("%s", __func__);
   // Do nothing if session is already terminated.
   if (nsIPresentationSessionListener::STATE_TERMINATED == mState) {
     return NS_OK;
@@ -348,6 +349,7 @@ PresentationSessionInfo::Close(nsresult aReason,
 nsresult
 PresentationSessionInfo::OnTerminate(nsIPresentationControlChannel* aControlChannel)
 {
+  printf_stderr("%s", __func__);
   mIsOnTerminating = true; // Mark for terminating transport channel
   SetStateWithReason(nsIPresentationSessionListener::STATE_TERMINATED, NS_OK);
   SetControlChannel(aControlChannel);
@@ -417,6 +419,7 @@ PresentationSessionInfo::IsAccessible(base::ProcessId aProcessId)
 void
 PresentationSessionInfo::ContinueTermination()
 {
+  printf_stderr("%s mIsOnTerminating=%s", __func__, mIsOnTerminating ? "true" : "false");
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(mControlChannel);
 
@@ -572,6 +575,7 @@ PresentationSessionInfo::SendIceCandidate(const nsAString& candidate)
 NS_IMETHODIMP
 PresentationSessionInfo::Close(nsresult reason)
 {
+  printf_stderr("%s", __func__);
   return mControlChannel->Disconnect(reason);
 }
 
@@ -731,6 +735,7 @@ PresentationControllingInfo::OnGetAddress(const nsACString& aAddress)
     return rv;
   }
 
+  printf_stderr("<kuoe0> %s: Create channel description and call send offer", __func__);
   RefPtr<TCPPresentationChannelDescription> description =
     new TCPPresentationChannelDescription(aAddress, static_cast<uint16_t>(port));
   return mControlChannel->SendOffer(description);
@@ -802,6 +807,7 @@ PresentationControllingInfo::NotifyConnected()
 
   switch (mState) {
     case nsIPresentationSessionListener::STATE_CONNECTING: {
+      printf_stderr("%s: STATE_CONNECTING", __func__);
       if (mIsReconnecting) {
         return ContinueReconnect();
       }
@@ -814,6 +820,7 @@ PresentationControllingInfo::NotifyConnected()
       break;
     }
     case nsIPresentationSessionListener::STATE_TERMINATED: {
+      printf_stderr("%s: STATE_TERMINATED", __func__);
       ContinueTermination();
       break;
     }
@@ -951,6 +958,7 @@ NS_IMETHODIMP
 PresentationControllingInfo::OnSocketAccepted(nsIServerSocket* aServerSocket,
                                             nsISocketTransport* aTransport)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   int32_t port;
   nsresult rv = aTransport->GetPort(&port);
   if (!NS_WARN_IF(NS_FAILED(rv))) {
@@ -1226,6 +1234,7 @@ PresentationPresentingInfo::Shutdown(nsresult aReason)
 {
   PresentationSessionInfo::Shutdown(aReason);
 
+  printf_stderr("%s", __func__);
   if (mTimer) {
     mTimer->Cancel();
   }
@@ -1473,6 +1482,7 @@ PresentationPresentingInfo::DoReconnect()
 NS_IMETHODIMP
 PresentationPresentingInfo::OnOffer(nsIPresentationChannelDescription* aDescription)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   if (NS_WARN_IF(mHasFlushPendingEvents)) {
     return ReplyError(NS_ERROR_DOM_OPERATION_ERR);
   }
@@ -1485,6 +1495,7 @@ PresentationPresentingInfo::OnOffer(nsIPresentationChannelDescription* aDescript
 
   // Initialize |mTransport| and send the answer to the sender if the receiver
   // page is ready for presentation use.
+  printf_stderr("<kuoe0> %s: mIsResponderReady=%s", __func__, mIsResponderReady ? "true" : "false");
   if (mIsResponderReady) {
     nsresult rv = InitTransportAndSendAnswer();
     if (NS_WARN_IF(NS_FAILED(rv))) {

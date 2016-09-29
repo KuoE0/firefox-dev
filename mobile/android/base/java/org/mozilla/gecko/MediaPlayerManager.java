@@ -58,17 +58,17 @@ public class MediaPlayerManager extends Fragment implements NativeEventListener 
     @ReflectionTarget
     public static final String MEDIA_PLAYER_TAG = "MPManagerFragment";
 
-    private static final boolean SHOW_DEBUG = false;
+    private static final boolean SHOW_DEBUG = true;
     // Simplified debugging interfaces
     private static void debug(String msg, Exception e) {
         if (SHOW_DEBUG) {
-            Log.e(LOGTAG, msg, e);
+            Log.e(LOGTAG, "<kuoe0> " + msg, e);
         }
     }
 
     private static void debug(String msg) {
         if (SHOW_DEBUG) {
-            Log.d(LOGTAG, msg);
+            Log.d(LOGTAG, "<kuoe0> " + msg);
         }
     }
 
@@ -269,6 +269,7 @@ public class MediaPlayerManager extends Fragment implements NativeEventListener 
     private GeckoMediaPlayer getMediaPlayerForRoute(MediaRouter.RouteInfo route) {
         try {
             if (route.supportsControlCategory(MediaControlIntent.CATEGORY_REMOTE_PLAYBACK)) {
+                debug("<presentation> Create new ChromeCastPlayer for " + route.getId());
                 return new ChromeCastPlayer(getActivity(), route);
             }
         } catch (Exception ex) {
@@ -281,6 +282,7 @@ public class MediaPlayerManager extends Fragment implements NativeEventListener 
     private GeckoPresentationDisplay getPresentationDisplayForRoute(MediaRouter.RouteInfo route) {
         try {
             if (route.supportsControlCategory(CastMediaControlIntent.categoryForCast(ChromeCastDisplay.REMOTE_DISPLAY_APP_ID))) {
+                debug("<presentation> Create new ChromeCastDisplay for " + route.getId());
                 return new ChromeCastDisplay(getActivity(), route);
             }
         } catch (Exception ex) {
@@ -299,6 +301,7 @@ public class MediaPlayerManager extends Fragment implements NativeEventListener 
     @Override
     public void onResume() {
         super.onResume();
+        debug("onResume");
 
         // The mediaRouter shouldn't exist here, but this is a nice safety check.
         if (mediaRouter != null) {

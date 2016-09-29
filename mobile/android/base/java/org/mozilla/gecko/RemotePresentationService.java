@@ -58,6 +58,7 @@ public class RemotePresentationService extends CastRemoteDisplayLocalService {
     private int screenId;
 
     public void setDeviceId(String deviceId) {
+        Log.d(LOGTAG, "Set deviceId = " + deviceId);
         this.deviceId = deviceId;
     }
 

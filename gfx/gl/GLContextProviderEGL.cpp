@@ -164,12 +164,14 @@ static EGLSurface
 CreateSurfaceForWindow(nsIWidget* widget, const EGLConfig& config) {
     EGLSurface newSurface = nullptr;
 
+    printf_stderr("<kuoe0> %s: widget(%p)", __func__, widget);
     MOZ_ASSERT(widget);
 #ifdef MOZ_WIDGET_ANDROID
     void* javaSurface = GET_JAVA_SURFACE(widget);
     if (!javaSurface) {
         MOZ_CRASH("GFX: Failed to get Java surface.\n");
     }
+    printf_stderr("<kuoe0> %s: javaSurface(%p)", __func__, javaSurface);
     JNIEnv* const env = jni::GetEnvForThread();
     ANativeWindow* const nativeWindow = ANativeWindow_fromSurface(
             env, reinterpret_cast<jobject>(javaSurface));
@@ -203,6 +205,7 @@ GLContextEGL::GLContextEGL(CreateContextFlags flags, const SurfaceCaps& caps,
     // any EGL contexts will always be GLESv2
     SetProfileVersion(ContextProfile::OpenGLES, 200);
 
+    printf_stderr("<kuoe0> %s: EGL(%p) mContext(%p) mSurface(%p)", __func__, this, mContext, mSurface);
 #ifdef DEBUG
     printf_stderr("Initializing context %p surface %p on display %p\n", mContext, mSurface, EGL_DISPLAY());
 #endif
@@ -210,6 +213,7 @@ GLContextEGL::GLContextEGL(CreateContextFlags flags, const SurfaceCaps& caps,
 
 GLContextEGL::~GLContextEGL()
 {
+    printf_stderr("<kuoe0> %s: GLContextEGL(%p)", __func__, this);
     MarkDestroyed();
 
     // Wrapped context should not destroy eglContext/Surface
@@ -378,6 +382,7 @@ GLContextEGL::RenewSurface(nsIWidget* aWidget) {
     if (!mOwnsContext) {
         return false;
     }
+    printf_stderr("<kuoe0> %s: widget(%p)", __func__, aWidget);
     // unconditionally release the surface and create a new one. Don't try to optimize this away.
     // If we get here, then by definition we know that we want to get a new surface.
     ReleaseSurface();
@@ -390,6 +395,7 @@ GLContextEGL::RenewSurface(nsIWidget* aWidget) {
 
 void
 GLContextEGL::ReleaseSurface() {
+    printf_stderr("<kuoe0> %s: mSurface(%p)", __func__, mSurface);
     if (mOwnsContext) {
         mozilla::gl::DestroySurface(mSurface);
     }
@@ -441,6 +447,7 @@ GLContextEGL::CreateSurfaceForWindow(nsIWidget* aWidget)
         return nullptr;
     }
 
+    printf_stderr("<kuoe0> %s: widget(%p)", __func__, aWidget);
     EGLSurface surface = mozilla::gl::CreateSurfaceForWindow(aWidget, config);
     if (!surface) {
         MOZ_CRASH("GFX: Failed to create EGLSurface for window!\n");
@@ -452,6 +459,7 @@ GLContextEGL::CreateSurfaceForWindow(nsIWidget* aWidget)
 /* static */ void
 GLContextEGL::DestroySurface(EGLSurface aSurface)
 {
+    printf_stderr("<kuoe0> %s: surface(%p)", __func__, aSurface);
     if (aSurface != EGL_NO_SURFACE) {
         sEGLLibrary.fDestroySurface(EGL_DISPLAY(), aSurface);
     }
@@ -716,6 +724,7 @@ GLContextProviderEGL::CreateForCompositorWidget(CompositorWidget* aCompositorWid
 already_AddRefed<GLContext>
 GLContextProviderEGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated)
 {
+    printf_stderr("<kuoe0> %s", __func__);
     nsCString discardFailureId;
     if (!sEGLLibrary.EnsureInitialized(false, &discardFailureId)) {
         MOZ_CRASH("GFX: Failed to load EGL library 3!\n");
@@ -731,6 +740,7 @@ GLContextProviderEGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
     }
 
     EGLSurface surface = mozilla::gl::CreateSurfaceForWindow(aWidget, config);
+    printf_stderr("<kuoe0> %s: aWidget(%p) surface(%p)", __func__, aWidget, surface);
     if (!surface) {
         MOZ_CRASH("GFX: Failed to create EGLSurface!\n");
         return nullptr;
@@ -740,6 +750,7 @@ GLContextProviderEGL::CreateForWindow(nsIWidget* aWidget, bool aForceAccelerated
     RefPtr<GLContextEGL> gl = GLContextEGL::CreateGLContext(CreateContextFlags::NONE,
                                                             caps, nullptr, false, config,
                                                             surface, &discardFailureId);
+    printf_stderr("<kuoe0> %s: aWidget(%p) GLContextEGL(%p)", __func__, aWidget, gl.get());
     if (!gl) {
         MOZ_CRASH("GFX: Failed to create EGLContext!\n");
         mozilla::gl::DestroySurface(surface);

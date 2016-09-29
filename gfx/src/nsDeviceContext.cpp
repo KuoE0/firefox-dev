@@ -269,7 +269,6 @@ nsDeviceContext::SetDPI(double* aScale)
             dpi = prefDPI;
         } else if (mWidget) {
             dpi = mWidget->GetDPI();
-
             if (prefDPI < 0) {
                 dpi = std::max(96.0f, dpi);
             }
@@ -503,7 +502,6 @@ nsDeviceContext::BeginDocument(const nsAString& aTitle,
     return rv;
 }
 
-
 nsresult
 nsDeviceContext::EndDocument(void)
 {
@@ -521,7 +519,6 @@ nsDeviceContext::EndDocument(void)
     return rv;
 }
 
-
 nsresult
 nsDeviceContext::AbortDocument(void)
 {
@@ -532,7 +529,6 @@ nsDeviceContext::AbortDocument(void)
 
     return rv;
 }
-
 
 nsresult
 nsDeviceContext::BeginPage(void)

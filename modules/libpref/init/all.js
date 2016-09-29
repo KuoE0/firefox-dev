@@ -5249,6 +5249,8 @@ pref("dom.beforeAfterKeyboardEvent.enabled", false);
 pref("dom.presentation.enabled", false);
 pref("dom.presentation.controller.enabled", false);
 pref("dom.presentation.receiver.enabled", false);
+// Enable logging for Presentation API
+pref("logging.Presentation", "debug");
 
 // Presentation Device
 pref("dom.presentation.tcp_server.debug", false);

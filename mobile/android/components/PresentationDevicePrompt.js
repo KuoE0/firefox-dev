@@ -20,7 +20,7 @@ const kPRESENTATIONDEVICEPROMPT_CONTRACTID = "@mozilla.org/presentation-device/p
 const kPRESENTATIONDEVICEPROMPT_CID        = Components.ID("{388bd149-c919-4a43-b646-d7ec57877689}");
 
 function debug(aMsg) {
-  // dump("-*- PresentationDevicePrompt: " + aMsg + "\n");
+  dump("-*- PresentationDevicePrompt: " + aMsg + "\n");
 }
 
 // nsIPresentationDevicePrompt

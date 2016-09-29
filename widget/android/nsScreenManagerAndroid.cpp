@@ -70,6 +70,7 @@ nsScreenAndroid::GetRect(int32_t *outLeft, int32_t *outTop, int32_t *outWidth, i
         *outWidth  = mRect.width;
         *outHeight = mRect.height;
 
+        printf_stderr("<kuoe0> nsScreenAndroid::%s width=%d height=%d", __func__, mRect.width, mRect.height);
         return NS_OK;
     }
 
@@ -237,6 +238,7 @@ nsScreenManagerAndroid::GetNumberOfScreens(uint32_t *aNumberOfScreens)
 NS_IMETHODIMP
 nsScreenManagerAndroid::GetSystemDefaultScale(float *aDefaultScale)
 {
+    printf_stderr("<kuoe0> at nsScreenManagerAndroid::%s", __func__);
     *aDefaultScale = 1.0f;
     return NS_OK;
 }

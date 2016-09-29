@@ -68,6 +68,7 @@ PresentationDeviceManager::LoadDeviceProviders()
 
   for (uint32_t i = 0; i < mProviders.Length(); ++i) {
     mProviders[i]->SetListener(this);
+    printf_stderr("<kuoe0> %s: Provider No.%u", __func__, i);
   }
 }
 
@@ -213,6 +214,10 @@ PresentationDeviceManager::AddDevice(nsIPresentationDevice* aDevice)
     return NS_ERROR_FAILURE;
   }
 
+  nsAutoCString id;
+  aDevice->GetId(id);
+  printf_stderr("%s: Add the device id=%s", __func__, id.get());
+
   mDevices.AppendElement(aDevice);
 
   NotifyDeviceChange(aDevice, u"add");
@@ -225,6 +230,10 @@ PresentationDeviceManager::RemoveDevice(nsIPresentationDevice* aDevice)
 {
   NS_ENSURE_ARG(aDevice);
   MOZ_ASSERT(NS_IsMainThread());
+
+  nsAutoCString id;
+  aDevice->GetId(id);
+  printf_stderr("%s: Remove the device id=%s", __func__, id.get());
 
   int32_t index = mDevices.IndexOf(aDevice);
   if (NS_WARN_IF(index < 0)) {

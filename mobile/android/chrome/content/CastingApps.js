@@ -7,6 +7,10 @@
 XPCOMUtils.defineLazyModuleGetter(this, "PageActions",
                                   "resource://gre/modules/PageActions.jsm");
 
+function debug(str) {
+  dump("-*- CastingApp -*-: <kuoe0> " +  str + '\n');
+}
+
 // Define service devices. We should consider moving these to their respective
 // JSM files, but we left them here to allow for better lazy JSM loading.
 var rokuDevice = {
@@ -30,11 +34,13 @@ var mediaPlayerDevice = {
   types: ["video/mp4", "video/webm", "application/x-mpegurl"],
   extensions: ["mp4", "webm", "m3u", "m3u8"],
   init: function() {
+    debug("mediaPlayerDevice:init");
     Services.obs.addObserver(this, "MediaPlayer:Added", false);
     Services.obs.addObserver(this, "MediaPlayer:Changed", false);
     Services.obs.addObserver(this, "MediaPlayer:Removed", false);
   },
   observe: function(subject, topic, data) {
+    debug("mediaPlayerDevice:observe " + topic);
     if (topic === "MediaPlayer:Added") {
       let service = this.toService(JSON.parse(data));
       SimpleServiceDiscovery.addService(service);
@@ -596,6 +602,8 @@ var CastingApps = {
         return;
       }
 
+      debug("pageAction:castVideo");
+
       // Look for a castable <video> that is playing, and start casting it
       let videos = browser.contentDocument.querySelectorAll("video");
       for (let video of videos) {
@@ -634,6 +642,7 @@ var CastingApps = {
   },
 
   _updatePageActionForTab: function _updatePageActionForTab(aTab, aEvent) {
+    debug("CastingApps:_updatePageActionForTab");
     // We only care about events on the selected tab
     if (aTab != BrowserApp.selectedTab) {
       return;
@@ -644,10 +653,12 @@ var CastingApps = {
   },
 
   _updatePageActionForVideo: function _updatePageActionForVideo(aVideo) {
+    debug("CastingApps:_updatePageActionForVideo");
     this._updatePageAction(aVideo);
   },
 
   _updatePageAction: function _updatePageAction(aVideo) {
+    debug("CastingApps:_updatePageAction");
     // Remove any exising pageaction first, in case state changes or we don't have
     // a castable video
     if (this.pageAction.id) {
@@ -675,20 +686,21 @@ var CastingApps = {
       this.pageAction.id = PageActions.add({
         title: Strings.browser.GetStringFromName("contextmenu.sendToDevice"),
         icon: "drawable://casting_active",
-        clickCallback: this.pageAction.click,
+        clickCallback: this.pageAction.castVideo,
         important: true
       });
     } else if (aVideo.mozAllowCasting) {
       this.pageAction.id = PageActions.add({
         title: Strings.browser.GetStringFromName("contextmenu.sendToDevice"),
         icon: "drawable://casting",
-        clickCallback: this.pageAction.click,
+        clickCallback: this.pageAction.castVideo,
         important: true
       });
     }
   },
 
   prompt: function(aCallback, aFilterFunc) {
+    debug("prompt");
     let items = [];
     let filteredServices = [];
     SimpleServiceDiscovery.services.forEach(function(aService) {

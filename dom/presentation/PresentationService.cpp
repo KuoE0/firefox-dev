@@ -214,6 +214,7 @@ PresentationDeviceRequest::Select(nsIPresentationDevice* aDevice)
     return mCallback->NotifyError(NS_ERROR_DOM_OPERATION_ERR);
   }
 
+  printf_stderr("<kuoe0> %s: Session info created!", __func__);
   return mCallback->NotifySuccess(selectedRequestUrl);
 }
 
@@ -248,8 +249,10 @@ PresentationDeviceRequest::CreateSessionInfo(
   // Initialize the session info with the control channel.
   rv = info->Init(ctrlChannel);
   if (NS_WARN_IF(NS_FAILED(rv))) {
+    printf_stderr("<kuoe0> %s: ControllingSessionInfo init failed!", __func__);
     return info->ReplyError(NS_ERROR_DOM_OPERATION_ERR);
   }
+  printf_stderr("<kuoe0> %s: ControllingSessionInfo inited!", __func__);
 
   info->SetTransportBuilderConstructor(mBuilderConstructor);
   return NS_OK;
@@ -476,6 +479,7 @@ PresentationService::UpdateAvailabilityUrlChange(
 nsresult
 PresentationService::HandleSessionRequest(nsIPresentationSessionRequest* aRequest)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   nsCOMPtr<nsIPresentationControlChannel> ctrlChannel;
   nsresult rv = aRequest->GetControlChannel(getter_AddRefs(ctrlChannel));
   if (NS_WARN_IF(NS_FAILED(rv) || !ctrlChannel)) {
@@ -534,10 +538,12 @@ PresentationService::HandleSessionRequest(nsIPresentationSessionRequest* aReques
 
   mSessionInfoAtReceiver.Put(sessionId, info);
 
+  printf_stderr("<kuoe0> %s: Before SendRequest", __func__);
   // Notify the receiver to launch.
   nsCOMPtr<nsIPresentationRequestUIGlue> glue =
     do_CreateInstance(PRESENTATION_REQUEST_UI_GLUE_CONTRACTID);
   if (NS_WARN_IF(!glue)) {
+    printf_stderr("<kuoe0> %s: UIGlue not found!", __func__);
     ctrlChannel->Disconnect(NS_ERROR_DOM_OPERATION_ERR);
     return info->ReplyError(NS_ERROR_DOM_OPERATION_ERR);
   }
@@ -858,6 +864,7 @@ PresentationService::TerminateSession(const nsAString& aSessionId,
 {
   PRES_DEBUG("%s:id[%s], role[%d]\n", __func__,
              NS_ConvertUTF16toUTF8(aSessionId).get(), aRole);
+  printf_stderr("%s", __func__);
 
   MOZ_ASSERT(NS_IsMainThread());
   MOZ_ASSERT(!aSessionId.IsEmpty());

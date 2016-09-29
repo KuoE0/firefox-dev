@@ -246,6 +246,8 @@ public class GeckoAppShell
     private static Rect sScreenSize;
 
     public static void setLayerView(LayerView lv) {
+
+        Log.d(LOGTAG, "<kuoe0> GeckoAppShell::setLayerView");
         if (sLayerView == lv) {
             return;
         }

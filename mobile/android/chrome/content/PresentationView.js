@@ -15,7 +15,7 @@ const TOPIC_PRESENTATION_RECEIVER_LAUNCH_RESPONSE = "presentation-receiver:launc
 Cu.import("resource://gre/modules/Services.jsm");
 
 function log(str) {
-  // dump("-*- PresentationView.js -*-: " + str + "\n");
+  dump("-*- PresentationView.js -*-: " + str + "\n");
 }
 
 let PresentationView = {

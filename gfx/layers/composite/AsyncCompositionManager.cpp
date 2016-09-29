@@ -990,6 +990,7 @@ AsyncCompositionManager::ApplyAsyncContentTransformToTree(Layer *aLayer,
               if (mIsFirstPaint) {
                 LayerIntPoint scrollOffsetLayerPixels = RoundedToInt(metrics.GetScrollOffset() * geckoZoom);
                 mContentRect = metrics.GetScrollableRect();
+                printf_stderr("<kuoe0> %s: Call SetFirstPaintViewport", __func__);
                 SetFirstPaintViewport(scrollOffsetLayerPixels,
                                       geckoZoom,
                                       mContentRect);

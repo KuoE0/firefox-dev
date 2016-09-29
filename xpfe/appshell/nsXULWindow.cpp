@@ -81,7 +81,6 @@ using dom::AutoNoJSAPI;
 #define MODE_ATTRIBUTE     NS_LITERAL_STRING("sizemode")
 #define ZLEVEL_ATTRIBUTE   NS_LITERAL_STRING("zlevel")
 
-
 //*****************************************************************************
 //***    nsXULWindow: Object Management
 //*****************************************************************************
@@ -927,6 +926,7 @@ NS_IMETHODIMP nsXULWindow::GetMainWidget(nsIWidget** aMainWidget)
 NS_IMETHODIMP nsXULWindow::SetFocus()
 {
   //XXX First Check In
+  printf_stderr("<kuoe0> %s", __func__);
   NS_ASSERTION(false, "Not Yet Implemented");
   return NS_OK;
 }
@@ -957,7 +957,6 @@ NS_IMETHODIMP nsXULWindow::SetTitle(const char16_t* aTitle)
 
   return NS_OK;
 }
-
 
 //*****************************************************************************
 // nsXULWindow: Helpers

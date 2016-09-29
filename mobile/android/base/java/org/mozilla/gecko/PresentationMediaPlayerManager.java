@@ -107,6 +107,7 @@ public class PresentationMediaPlayerManager extends MediaPlayerManager {
         @Override
         protected void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
+            Log.d(LOGTAG, "<kuoe0> GeckoPresentation::onCreate");
 
             mView = new SurfaceView(getContext());
             setContentView(mView, new ViewGroup.LayoutParams(

@@ -684,6 +684,9 @@ nsWindowWatcher::OpenWindowInternal(mozIDOMWindowProxy* aParent,
                                     nsIDocShellLoadInfo* aLoadInfo,
                                     mozIDOMWindowProxy** aResult)
 {
+  printf_stderr("<kuoe0> nsWindowWatcher:%s\n", __func__);
+  printf_stderr("<kuoe0> aName = %s\n", aName);
+  printf_stderr("<kuoe0> aFeatures = %s\n", aFeatures);
   nsresult rv = NS_OK;
   bool isNewToplevelWindow = false;
   bool windowIsNew = false;
@@ -928,6 +931,8 @@ nsWindowWatcher::OpenWindowInternal(mozIDOMWindowProxy* aParent,
   if (!newDocShellItem) {
     windowIsNew = true;
     isNewToplevelWindow = true;
+
+    printf_stderr("<kuoe0> isNewToplevelWindow: %s\n", isNewToplevelWindow ? "True" : "False");
 
     nsCOMPtr<nsIWebBrowserChrome> parentChrome(do_GetInterface(parentTreeOwner));
 

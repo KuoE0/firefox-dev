@@ -17,7 +17,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/Messaging.jsm");
 
 function log(str) {
-  // dump("-*- AndroidCastDeviceProvider -*-: " + str + "\n");
+  dump("-*- AndroidCastDeviceProvider -*-: <presentation> " + str + "\n");
 }
 
 // Helper function: transfer nsIPresentationChannelDescription to json
@@ -83,8 +83,10 @@ LocalControlChannel.prototype = {
     this._pendingDisconnect = null;
 
     if (!this._listener) {
+      log("notifyConnected (pending) role=" + this._role);
       this._pendingConnected = true;
     } else {
+      log("notifyConnected role=" + this._role);
       this._listener.notifyConnected();
     }
   },
@@ -123,9 +125,11 @@ LocalControlChannel.prototype = {
   },
 
   set listener(aListener) {
+    log("set listener role=" + this._role);
     this._listener = aListener;
 
     if (!this._listener) {
+      log("listen is null role=" + this._role);
       return;
     }
 
@@ -321,6 +325,7 @@ ChromecastRemoteDisplayDevice.prototype = {
   },
 
   disconnect: function CRDD_disconnect() {
+    log("ChromecastRemoteDisplayDevice:disconnect");
     // Disconnect from Chromecast.
     Messaging.sendRequestForResult({
       type: TOPIC_ANDROID_CAST_DEVICE_STOP,
@@ -430,6 +435,7 @@ AndroidCastDeviceProvider.prototype = {
         let deviceId   = deviceInfo.uuid;
 
         if (!this._deviceList.has(deviceId)) {
+          log("Add the device: " + deviceId);
           let device = new ChromecastRemoteDisplayDevice(this,
                                                          deviceInfo.uuid,
                                                          deviceInfo.friendlyName,
@@ -437,6 +443,7 @@ AndroidCastDeviceProvider.prototype = {
           this._deviceList.set(device.id, device);
           this._listener.addDevice(device);
         } else {
+          log("Update the device: " + deviceId);
           let device = this._deviceList.get(deviceId);
           device.update(deviceInfo.friendlyName);
           this._listener.updateDevice(device);
@@ -445,6 +452,7 @@ AndroidCastDeviceProvider.prototype = {
       }
       case TOPIC_ANDROID_CAST_DEVICE_REMOVED: {
         let deviceId = aData;
+        log("Remove the device: " + deviceId);
         let device   = this._deviceList.get(deviceId);
         this._listener.removeDevice(device);
         this._deviceList.delete(deviceId);

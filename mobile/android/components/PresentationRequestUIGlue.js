@@ -17,7 +17,7 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
 function log(str) {
-  // dump("-*- PresentationRequestUIGlue.js -*-: " + str + "\n");
+  dump("-*- PresentationRequestUIGlue.js -*-: " + str + "\n");
 }
 
 function PresentationRequestUIGlue() { }

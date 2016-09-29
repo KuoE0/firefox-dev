@@ -1056,6 +1056,7 @@ LayerManagerComposite::RenderToPresentationSurface()
 {
 #ifdef MOZ_WIDGET_ANDROID
   nsIWidget* const widget = mCompositor->GetWidget()->RealWidget();
+  printf_stderr("<kuoe0> LayerManagerComposite::%s", __func__);
   auto window = static_cast<ANativeWindow*>(
       widget->GetNativeData(NS_PRESENTATION_WINDOW));
 

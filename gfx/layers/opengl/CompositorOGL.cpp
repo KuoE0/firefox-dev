@@ -116,6 +116,7 @@ CompositorOGL::CreateContext()
   nsIWidget* widget = mWidget->RealWidget();
   void* widgetOpenGLContext = widget ? widget->GetNativeData(NS_NATIVE_OPENGL_CONTEXT) : nullptr;
   if (widgetOpenGLContext) {
+    printf_stderr("<kuoe0> %s: have widgetOpenGLContext", __func__);
     GLContext* alreadyRefed = reinterpret_cast<GLContext*>(widgetOpenGLContext);
     return already_AddRefed<GLContext>(alreadyRefed);
   }
@@ -129,6 +130,7 @@ CompositorOGL::CreateContext()
 
   // Allow to create offscreen GL context for main Layer Manager
   if (!context && gfxEnv::LayersPreferOffscreen()) {
+    printf_stderr("<kuoe0> %s: Offscreen GL context", __func__);
     SurfaceCaps caps = SurfaceCaps::ForRGB();
     caps.preserve = false;
     caps.bpp16 = gfxVars::OffscreenFormat() == SurfaceFormat::R5G6B5_UINT16;
@@ -146,6 +148,7 @@ CompositorOGL::CreateContext()
 
   if (!context) {
     NS_WARNING("Failed to create CompositorOGL context");
+    printf_stderr("<kuoe0> %s: Failed to create CompositorOGL context", __func__);
   }
 
   return context.forget();
@@ -1613,6 +1616,7 @@ CompositorOGL::EndFrame()
     mTexturePool->EndFrame();
   }
 
+  printf_stderr("<kuoe0> %s: Before SwapBuffers mGLContext(%p)", __func__, &mGLContext);
   mGLContext->SwapBuffers();
   mGLContext->fBindBuffer(LOCAL_GL_ARRAY_BUFFER, 0);
 
@@ -1704,6 +1708,7 @@ CompositorOGL::Resume()
   if (!gl() || gl()->IsDestroyed())
     return false;
 
+  printf_stderr("<kuoe0> %s: Call RenewSurface() here", __func__);
   // RenewSurface internally calls MakeCurrent.
   return gl()->RenewSurface(GetWidget()->RealWidget());
 #endif

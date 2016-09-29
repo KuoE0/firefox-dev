@@ -442,6 +442,7 @@ PresentationRequest::FindOrCreatePresentationAvailability(RefPtr<Promise>& aProm
 nsresult
 PresentationRequest::DispatchConnectionAvailableEvent(PresentationConnection* aConnection)
 {
+  printf_stderr("<kuoe0> %s", __func__);
   PresentationConnectionAvailableEventInit init;
   init.mConnection = aConnection;
 

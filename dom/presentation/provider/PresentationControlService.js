@@ -26,7 +26,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "ReceiverStateMachine", // jshint ignore
 const kProtocolVersion = 1; // need to review isCompatibleServer while fiddling the version number.
 const kLocalCertName = "presentation";
 
-const DEBUG = Services.prefs.getBoolPref("dom.presentation.tcp_server.debug");
+const DEBUG = true;
 function log(aMsg) {
   dump("-*- PresentationControlService.js: " + aMsg + "\n");
 }
@@ -86,6 +86,7 @@ PresentationControlService.prototype = {
                              .createInstance(Ci.nsIServerSocket);
 
       this._serverSocketInit(serverSocketPort, null);
+      dump("PresentationControlService started!");
     }
   },
 
@@ -582,6 +583,7 @@ TCPControlChannel.prototype = {
     }
 
     try {
+      DEBUG && log("<kuoe0> TCPControlChannel - _outgoingMsgs = " + JSON.stringify(this._outgoingMsgs));
       this._send(this._outgoingMsgs[0]);
     } catch (e) {
       if (e.result === Cr.NS_BASE_STREAM_WOULD_BLOCK) {
@@ -874,6 +876,7 @@ TCPControlChannel.prototype = {
   },
 
   notifyDeviceConnected: function(deviceId) {
+    DEBUG && log("<kuoe0> notifyDeviceConnected: deviceId=" + deviceId);
     switch (this._direction) {
       case "receiver":
         this._deviceInfo.id = deviceId;
@@ -888,6 +891,7 @@ TCPControlChannel.prototype = {
   },
 
   notifyLaunch: function(presentationId, url) {
+    DEBUG && log("TCPControlChannel - notifyLaunch");
     switch (this._direction) {
       case "receiver":
         this._presentationService.onSessionRequest(this._deviceInfo,
