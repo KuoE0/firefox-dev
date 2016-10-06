@@ -5784,6 +5784,14 @@ if (IsCSSPropertyPrefEnabled("layout.css.shape-outside.enabled")) {
   };
 }
 
+if (IsCSSPropertyPrefEnabled("layout.css.shape-margin.enabled")) {
+  gCSSProperties["shape-margin"] = {
+    domProp: "shapeMargin",
+    inherit: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: ["0"]
+  };
+}
 
 if (IsCSSPropertyPrefEnabled("layout.css.filters.enabled")) {
   gCSSProperties["filter"] = {
