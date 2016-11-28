@@ -2466,7 +2466,8 @@ const nsCSSPropertyID nsStyleImageLayers::kBackgroundLayerTable[] = {
   eCSSProperty_background,                // shorthand
   eCSSProperty_background_color,          // color
   eCSSProperty_background_image,          // image
-  eCSSProperty_background_repeat,         // repeat
+  eCSSProperty_background_repeat_x,       // repeatX
+  eCSSProperty_background_repeat_y,       // repeatY
   eCSSProperty_background_position_x,     // positionX
   eCSSProperty_background_position_y,     // positionY
   eCSSProperty_background_clip,           // clip

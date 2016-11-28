@@ -720,6 +720,7 @@ public:
   static const KTableEntry kImageLayerPositionKTable[];
   static const KTableEntry kImageLayerRepeatKTable[];
   static const KTableEntry kImageLayerRepeatPartKTable[];
+  static const KTableEntry kImageLayerRepeatXYKTable[];
   static const KTableEntry kImageLayerSizeKTable[];
   static const KTableEntry kImageLayerCompositeKTable[];
   static const KTableEntry kImageLayerModeKTable[];

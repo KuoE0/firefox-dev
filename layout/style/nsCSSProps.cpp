@@ -990,6 +990,12 @@ const KTableEntry nsCSSProps::kImageLayerRepeatPartKTable[] = {
   { eCSSKeyword_UNKNOWN, -1 }
 };
 
+const KTableEntry nsCSSProps::kImageLayerRepeatXYKTable[] = {
+  { eCSSKeyword_no_repeat,  NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT },
+  { eCSSKeyword_repeat,     NS_STYLE_IMAGELAYER_REPEAT_REPEAT },
+  { eCSSKeyword_UNKNOWN, -1 }
+};
+
 const KTableEntry nsCSSProps::kImageLayerSizeKTable[] = {
   { eCSSKeyword_contain, NS_STYLE_IMAGELAYER_SIZE_CONTAIN },
   { eCSSKeyword_cover,   NS_STYLE_IMAGELAYER_SIZE_COVER },
@@ -2680,6 +2686,12 @@ static const nsCSSPropertyID gBackgroundSubpropTable[] = {
   eCSSProperty_background_position_x,
   eCSSProperty_background_position_y,
   eCSSProperty_background_size,
+  eCSSProperty_UNKNOWN
+};
+
+static const nsCSSPropertyID gBackgroundRepeatSubpropTable[] = {
+  eCSSProperty_background_position_x,
+  eCSSProperty_background_position_y,
   eCSSProperty_UNKNOWN
 };
 
