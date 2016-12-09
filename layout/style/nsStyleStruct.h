@@ -821,6 +821,8 @@ struct nsStyleImageLayers {
                                   // be the initial value, which is
                                   // NS_STYLE_MASK_MODE_MATCH_SOURCE.
     Repeat        mRepeat;        // [reset] See nsStyleConsts.h
+    uint8_t       mRepeatX;
+    uint8_t       mRepeatY;
 
     // This constructor does not initialize mRepeat or mOrigin and Initialize()
     // must be called to do that.

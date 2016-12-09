@@ -2817,6 +2817,8 @@ void
 nsStyleImageLayers::Layer::Initialize(nsStyleImageLayers::LayerType aType)
 {
   mRepeat.SetInitialValues();
+  mRepeatX = NS_STYLE_IMAGELAYER_REPEAT_REPEAT;
+  mRepeatY = NS_STYLE_IMAGELAYER_REPEAT_REPEAT;
 
   mPosition.SetInitialPercentValues(0.0f);
 

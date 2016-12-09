@@ -7273,6 +7273,24 @@ nsRuleNode::ComputeBackgroundData(void* aStartStruct,
                         bg->mImage.mRepeatCount, maxItemCount, rebuild,
                         conditions);
 
+  // background-repeat-x: enum, inherit, initial [list]
+  SetImageLayerList(aContext, *aRuleData->ValueForBackgroundRepeatX(),
+                    bg->mImage.mLayers,
+                    parentBG->mImage.mLayers,
+                    &nsStyleImageLayers::Layer::mRepeatX,
+                    uint8_t(NS_STYLE_IMAGELAYER_REPEAT_REPEAT),
+                    parentBG->mImage.mRepeatCount,
+                    bg->mImage.mRepeatCount, maxItemCount, rebuild, conditions);
+
+  // background-repeat-y: enum, inherit, initial [list]
+  SetImageLayerList(aContext, *aRuleData->ValueForBackgroundRepeatY(),
+                    bg->mImage.mLayers,
+                    parentBG->mImage.mLayers,
+                    &nsStyleImageLayers::Layer::mRepeatY,
+                    uint8_t(NS_STYLE_IMAGELAYER_REPEAT_REPEAT),
+                    parentBG->mImage.mRepeatCount,
+                    bg->mImage.mRepeatCount, maxItemCount, rebuild, conditions);
+
   // background-attachment: enum, inherit, initial [list]
   SetImageLayerList(aContext, *aRuleData->ValueForBackgroundAttachment(),
                     bg->mImage.mLayers, parentBG->mImage.mLayers,

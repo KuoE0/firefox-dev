@@ -300,6 +300,8 @@ private:
   already_AddRefed<CSSValue> DoGetBackgroundPositionX();
   already_AddRefed<CSSValue> DoGetBackgroundPositionY();
   already_AddRefed<CSSValue> DoGetBackgroundRepeat();
+  already_AddRefed<CSSValue> DoGetBackgroundRepeatX();
+  already_AddRefed<CSSValue> DoGetBackgroundRepeatY();
   already_AddRefed<CSSValue> DoGetBackgroundClip();
   already_AddRefed<CSSValue> DoGetBackgroundBlendMode();
   already_AddRefed<CSSValue> DoGetBackgroundOrigin();
