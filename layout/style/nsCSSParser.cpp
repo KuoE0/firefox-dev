@@ -902,6 +902,7 @@ protected:
                             const nsCSSPropertyID aTable[]);
 
   bool ParseValueList(nsCSSPropertyID aPropID); // a single value prop-id
+  bool ParseImageLayerBackgroundRepeat();
   bool ParseImageLayerRepeat(nsCSSPropertyID aPropID);
   bool ParseImageLayerRepeatValues(nsCSSValuePair& aValue);
   bool ParseImageLayerPosition(const nsCSSPropertyID aTable[]);
@@ -11721,7 +11722,7 @@ CSSParserImpl::ParsePropertyByFunction(nsCSSPropertyID aPropID)
   case eCSSProperty_background:
     return ParseImageLayers(nsStyleImageLayers::kBackgroundLayerTable);
   case eCSSProperty_background_repeat:
-    return ParseImageLayerRepeat(eCSSProperty_background_repeat);
+    return ParseImageLayerBackgroundRepeat();
   case eCSSProperty_background_position:
     return ParseImageLayerPosition(nsStyleImageLayers::kBackgroundLayerTable);
   case eCSSProperty_background_position_x:
@@ -12584,6 +12585,46 @@ CSSParserImpl::ParseValueList(nsCSSPropertyID aPropID)
     }
   }
   AppendValue(aPropID, value);
+  return true;
+}
+
+bool
+CSSParserImpl::ParseImageLayerBackgroundRepeat()
+{
+  nsCSSValue value;
+  // 'initial', 'inherit' and 'unset' stand alone, no list permitted.
+  if (ParseSingleTokenVariant(value, VARIANT_INHERIT, nullptr)) {
+    AppendValue(eCSSProperty_background_repeat_x, value);
+    AppendValue(eCSSProperty_background_repeat_y, value);
+    return true;
+  }
+
+  nsCSSValuePair valuePair;
+  if (!ParseImageLayerRepeatValues(valuePair)) {
+    return false;
+  }
+
+  nsCSSValue valueX;
+  nsCSSValue valueY;
+  nsCSSValueList* itemX = valueX.SetListValue();
+  nsCSSValueList* itemY = valueY.SetListValue();
+  for (;;) {
+    itemX->mValue = valuePair.mXValue;
+    itemY->mValue = valuePair.mYValue;
+
+    if (!ExpectSymbol(',', true)) {
+      break;
+    }
+    if (!ParseImageLayerRepeatValues(valuePair)) {
+      return false;
+    }
+    itemX->mNext = new nsCSSValueList;
+    itemY->mNext = new nsCSSValueList;
+    itemX = itemX->mNext;
+    itemY = itemY->mNext;
+  }
+  AppendValue(eCSSProperty_background_repeat_x, value);
+  AppendValue(eCSSProperty_background_repeat_y, value);
   return true;
 }
 

@@ -2679,7 +2679,8 @@ static const nsCSSPropertyID gOutlineRadiusSubpropTable[] = {
 static const nsCSSPropertyID gBackgroundSubpropTable[] = {
   eCSSProperty_background_color,
   eCSSProperty_background_image,
-  eCSSProperty_background_repeat,
+  eCSSProperty_background_repeat_x,
+  eCSSProperty_background_repeat_y,
   eCSSProperty_background_attachment,
   eCSSProperty_background_clip,
   eCSSProperty_background_origin,
@@ -2690,8 +2691,8 @@ static const nsCSSPropertyID gBackgroundSubpropTable[] = {
 };
 
 static const nsCSSPropertyID gBackgroundRepeatSubpropTable[] = {
-  eCSSProperty_background_position_x,
-  eCSSProperty_background_position_y,
+  eCSSProperty_background_repeat_x,
+  eCSSProperty_background_repeat_y,
   eCSSProperty_UNKNOWN
 };
 

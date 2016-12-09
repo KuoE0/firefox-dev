@@ -2261,6 +2261,38 @@ nsComputedDOMStyle::DoGetImageLayerRepeat(const nsStyleImageLayers& aLayers)
 }
 
 already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetImageLayerRepeatX(const nsStyleImageLayers& aLayers)
+{
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = aLayers.mRepeatCount; i < i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& xRepeat = aLayers.mLayers[i].mRepeat.mXRepeat;
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
+                                      nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
+  }
+
+  return valueList.forget();
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetImageLayerRepeatY(const nsStyleImageLayers& aLayers)
+{
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = aLayers.mRepeatCount; i < i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& yRepeat = aLayers.mLayers[i].mRepeat.mYRepeat;
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
+                                      nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
+  }
+
+  return valueList.forget();
+}
+
+already_AddRefed<CSSValue>
 nsComputedDOMStyle::DoGetImageLayerSize(const nsStyleImageLayers& aLayers)
 {
   RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
@@ -2441,6 +2473,20 @@ nsComputedDOMStyle::DoGetBackgroundRepeat()
 {
   const nsStyleImageLayers& layers = StyleBackground()->mImage;
   return DoGetImageLayerRepeat(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetBackgroundRepeatX()
+{
+  const nsStyleImageLayers& layers = StyleBackground()->mImage;
+  return DoGetImageLayerRepeatX(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetBackgroundRepeatY()
+{
+  const nsStyleImageLayers& layers = StyleBackground()->mImage;
+  return DoGetImageLayerRepeatY(layers);
 }
 
 already_AddRefed<CSSValue>

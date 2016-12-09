@@ -7137,6 +7137,7 @@ SetImageLayerRepeatList(nsStyleContext* aStyleContext,
 
       nsCSSValuePairList* pairList = new nsCSSValuePairList();
       nsStyleImageLayers::Repeat repeat = aLayers[aItemCount - 1].mRepeat;
+
       if (aResultLocation == &nsStyleImageLayers::Repeat::mXRepeat) {
         pairList->mXValue.SetIntValue(item->mValue.GetIntValue(),
                                       eCSSUnit_Enumerated);
