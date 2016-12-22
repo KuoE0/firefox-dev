@@ -630,6 +630,25 @@ void
 nsCSSExpandedDataBlock::AddLonghandProperty(nsCSSPropertyID aProperty,
                                             const nsCSSValue& aValue)
 {
+  static bool css_table_printed = false;
+  if (!css_table_printed) {
+    css_table_printed = true;
+#define CSS_PROP(name_, id_, method_, flags_, pref_, parsevariant_, \
+                 kwtable_, stylestruct_, stylestructoffset_, animtype_) \
+  printf_stderr(#id_ " = %d\n", (int)eCSSProperty_##id_);
+#define CSS_PROP_LIST_INCLUDE_LOGICAL
+#include "nsCSSPropList.h"
+#undef CSS_PROP_LIST_INCLUDE_LOGICAL
+#undef CSS_PROP
+#define CSS_PROP_SHORTHAND(name_, id_, method_, flags_, pref_) \
+  printf_stderr(#id_ " = %d\n", (int)eCSSProperty_##id_);
+#include "nsCSSPropList.h"
+#undef CSS_PROP_SHORTHAND
+  }
+
+  if (nsCSSProps::IsShorthand(aProperty)) {
+    printf_stderr("aProperty = %d\n", (int)aProperty);
+  }
   MOZ_ASSERT(!nsCSSProps::IsShorthand(aProperty),
              "property out of range");
   nsCSSValue& storage = *static_cast<nsCSSValue*>(PropertyAt(aProperty));

@@ -660,6 +660,8 @@ struct nsStyleImageLayers {
     color,
     image,
     repeat,
+    repeatX,
+    repeatY,
     positionX,
     positionY,
     clip,

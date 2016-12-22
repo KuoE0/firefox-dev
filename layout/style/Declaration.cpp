@@ -321,6 +321,10 @@ Declaration::GetImageLayerValue(
     data->ValueFor(aTable[nsStyleImageLayers::image])->GetListValue();
   const nsCSSValuePairList *repeat =
     data->ValueFor(aTable[nsStyleImageLayers::repeat])->GetPairListValue();
+  const nsCSSValueList *repeatX =
+    data->ValueFor(aTable[nsStyleImageLayers::repeatX])->GetListValue();
+  const nsCSSValueList *repeatY =
+    data->ValueFor(aTable[nsStyleImageLayers::repeatY])->GetListValue();
   const nsCSSValueList *positionX =
     data->ValueFor(aTable[nsStyleImageLayers::positionX])->GetListValue();
   const nsCSSValueList *positionY =
@@ -369,6 +373,12 @@ Declaration::GetImageLayerValue(
                                      aSerialization);
     }
 
+    aValue.Append(char16_t(' '));
+    repeatX->mValue.AppendToString(aTable[nsStyleImageLayers::repeatX], aValue,
+                                   aSerialization);
+    aValue.Append(char16_t(' '));
+    repeatY->mValue.AppendToString(aTable[nsStyleImageLayers::repeatY], aValue,
+                                   aSerialization);
     if (attachment) {
       aValue.Append(char16_t(' '));
           attachment->mValue.AppendToString(aTable[nsStyleImageLayers::attachment],
@@ -442,6 +452,8 @@ Declaration::GetImageLayerValue(
 
     image = image->mNext;
     repeat = repeat->mNext;
+    repeatX = repeatX->mNext;
+    repeatY = repeatY->mNext;
     positionX = positionX->mNext;
     positionY = positionY->mNext;
     clip = clip->mNext;
