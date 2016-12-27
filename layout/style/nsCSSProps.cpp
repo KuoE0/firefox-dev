@@ -2629,13 +2629,20 @@ static const nsCSSPropertyID gOutlineRadiusSubpropTable[] = {
 static const nsCSSPropertyID gBackgroundSubpropTable[] = {
   eCSSProperty_background_color,
   eCSSProperty_background_image,
-  eCSSProperty_background_repeat,
+  eCSSProperty_background_repeat_x,
+  eCSSProperty_background_repeat_y,
   eCSSProperty_background_attachment,
   eCSSProperty_background_clip,
   eCSSProperty_background_origin,
   eCSSProperty_background_position_x,
   eCSSProperty_background_position_y,
   eCSSProperty_background_size,
+  eCSSProperty_UNKNOWN
+};
+
+static const nsCSSPropertyID gBackgroundRepeatSubpropTable[] = {
+  eCSSProperty_background_repeat_x,
+  eCSSProperty_background_repeat_y,
   eCSSProperty_UNKNOWN
 };
 
@@ -2995,7 +3002,8 @@ static const nsCSSPropertyID gScrollSnapTypeSubpropTable[] = {
 #ifdef MOZ_ENABLE_MASK_AS_SHORTHAND
 static const nsCSSPropertyID gMaskSubpropTable[] = {
   eCSSProperty_mask_image,
-  eCSSProperty_mask_repeat,
+  eCSSProperty_mask_repeat_x,
+  eCSSProperty_mask_repeat_y,
   eCSSProperty_mask_position_x,
   eCSSProperty_mask_position_y,
   eCSSProperty_mask_clip,
@@ -3005,6 +3013,13 @@ static const nsCSSPropertyID gMaskSubpropTable[] = {
   eCSSProperty_mask_mode,
   eCSSProperty_UNKNOWN
 };
+
+static const nsCSSPropertyID gMaskRepeatSubpropTable[] = {
+  eCSSProperty_mask_repeat_x,
+  eCSSProperty_mask_repeat_y,
+  eCSSProperty_UNKNOWN
+};
+
 static const nsCSSPropertyID gMaskPositionSubpropTable[] = {
   eCSSProperty_mask_position_x,
   eCSSProperty_mask_position_y,

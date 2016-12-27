@@ -2234,8 +2234,9 @@ already_AddRefed<CSSValue>
 nsComputedDOMStyle::DoGetImageLayerRepeat(const nsStyleImageLayers& aLayers)
 {
   RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+  uint32_t maxCount = std::max(aLayers.mRepeatXCount, aLayers.mRepeatYCount);
 
-  for (uint32_t i = 0, i_end = aLayers.mRepeatCount; i < i_end; ++i) {
+  for (uint32_t i = 0, i_end = maxCount; i < i_end; ++i) {
     RefPtr<nsDOMCSSValueList> itemList = GetROCSSValueList(false);
     RefPtr<nsROCSSPrimitiveValue> valX = new nsROCSSPrimitiveValue;
 
@@ -2468,6 +2469,42 @@ nsComputedDOMStyle::DoGetBackgroundRepeat()
 {
   const nsStyleImageLayers& layers = StyleBackground()->mImage;
   return DoGetImageLayerRepeat(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetBackgroundRepeatX()
+{
+  const nsStyleImageLayers& layers = StyleBackground()->mImage;
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = layers.mRepeatXCount; i <i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& xRepeat = layers.mLayers[i].mRepeat.mXRepeat;
+
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
+          nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
+  }
+
+  return valueList.forget();
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetBackgroundRepeatY()
+{
+  const nsStyleImageLayers& layers = StyleBackground()->mImage;
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = layers.mRepeatYCount; i <i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& yRepeat = layers.mLayers[i].mRepeat.mYRepeat;
+
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
+          nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
+  }
+
+  return valueList.forget();
 }
 
 already_AddRefed<CSSValue>
@@ -6278,6 +6315,42 @@ nsComputedDOMStyle::DoGetMaskRepeat()
 {
   const nsStyleImageLayers& layers = StyleSVGReset()->mMask;
   return DoGetImageLayerRepeat(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetMaskRepeatX()
+{
+  const nsStyleImageLayers& layers = StyleSVGReset()->mMask;
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = layers.mRepeatXCount; i <i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& xRepeat = layers.mLayers[i].mRepeat.mXRepeat;
+
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
+          nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
+  }
+
+  return valueList.forget();
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetMaskRepeatY()
+{
+  const nsStyleImageLayers& layers = StyleSVGReset()->mMask;
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = layers.mRepeatYCount; i <i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& yRepeat = layers.mLayers[i].mRepeat.mYRepeat;
+
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
+          nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
+  }
+
+  return valueList.forget();
 }
 
 already_AddRefed<CSSValue>

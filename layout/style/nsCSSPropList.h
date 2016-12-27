@@ -602,17 +602,32 @@ CSS_PROP_BACKGROUND(
     kImageLayerPositionKTable,
     CSS_PROP_NO_OFFSET,
     eStyleAnimType_Custom)
-CSS_PROP_BACKGROUND(
+CSS_PROP_SHORTHAND(
     background-repeat,
     background_repeat,
     BackgroundRepeat,
-    CSS_PROPERTY_PARSE_FUNCTION |
-        CSS_PROPERTY_APPLIES_TO_FIRST_LETTER_AND_FIRST_LINE |
-        CSS_PROPERTY_APPLIES_TO_PLACEHOLDER |
+    CSS_PROPERTY_PARSE_FUNCTION,
+    "")
+CSS_PROP_BACKGROUND(
+    background-repeat-x,
+    background_repeat_x,
+    BackgroundRepeatX,
+    CSS_PROPERTY_PARSE_VALUE_LIST |
         CSS_PROPERTY_VALUE_LIST_USES_COMMAS,
     "",
     VARIANT_KEYWORD, // used by list parsing
-    kImageLayerRepeatKTable,
+    kImageLayerRepeatPartKTable,
+    CSS_PROP_NO_OFFSET,
+    eStyleAnimType_Discrete)
+CSS_PROP_BACKGROUND(
+    background-repeat-y,
+    background_repeat_y,
+    BackgroundRepeatY,
+    CSS_PROPERTY_PARSE_VALUE_LIST |
+        CSS_PROPERTY_VALUE_LIST_USES_COMMAS,
+    "",
+    VARIANT_KEYWORD, // used by list parsing
+    kImageLayerRepeatPartKTable,
     CSS_PROP_NO_OFFSET,
     eStyleAnimType_Discrete)
 CSS_PROP_BACKGROUND(
@@ -2766,15 +2781,32 @@ CSS_PROP_SVGRESET(
     kImageLayerPositionKTable,
     CSS_PROP_NO_OFFSET,
     eStyleAnimType_Custom)
-CSS_PROP_SVGRESET(
+CSS_PROP_SHORTHAND(
     mask-repeat,
     mask_repeat,
     MaskRepeat,
-    CSS_PROPERTY_PARSE_FUNCTION |
+    CSS_PROPERTY_PARSE_FUNCTION,
+    "")
+CSS_PROP_SVGRESET(
+    mask-repeat-x,
+    mask_repeat_x,
+    MaskRepeatX,
+    CSS_PROPERTY_PARSE_VALUE_LIST |
         CSS_PROPERTY_VALUE_LIST_USES_COMMAS,
     "",
     VARIANT_KEYWORD, // used by list parsing
-    kImageLayerRepeatKTable,
+    kImageLayerRepeatPartKTable,
+    CSS_PROP_NO_OFFSET,
+    eStyleAnimType_Discrete)
+CSS_PROP_SVGRESET(
+    mask-repeat-y,
+    mask_repeat_y,
+    MaskRepeatY,
+    CSS_PROPERTY_PARSE_VALUE_LIST |
+        CSS_PROPERTY_VALUE_LIST_USES_COMMAS,
+    "",
+    VARIANT_KEYWORD, // used by list parsing
+    kImageLayerRepeatPartKTable,
     CSS_PROP_NO_OFFSET,
     eStyleAnimType_Discrete)
 CSS_PROP_SVGRESET(

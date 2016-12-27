@@ -872,7 +872,8 @@ protected:
   struct ImageLayersShorthandParseState {
     nsCSSValue&  mColor;
     nsCSSValueList* mImage;
-    nsCSSValuePairList* mRepeat;
+    nsCSSValueList* mRepeatX;
+    nsCSSValueList* mRepeatY;
     nsCSSValueList* mAttachment;   // A property for background layer only
     nsCSSValueList* mClip;
     nsCSSValueList* mOrigin;
@@ -882,13 +883,14 @@ protected:
     nsCSSValueList* mComposite;    // A property for mask layer only
     nsCSSValueList* mMode;         // A property for mask layer only
     ImageLayersShorthandParseState(
-        nsCSSValue& aColor, nsCSSValueList* aImage, nsCSSValuePairList* aRepeat,
+        nsCSSValue& aColor, nsCSSValueList* aImage,
+        nsCSSValueList* aRepeatX, nsCSSValueList* aRepeatY,
         nsCSSValueList* aAttachment, nsCSSValueList* aClip,
         nsCSSValueList* aOrigin,
         nsCSSValueList* aPositionX, nsCSSValueList* aPositionY,
         nsCSSValuePairList* aSize, nsCSSValueList* aComposite,
         nsCSSValueList* aMode) :
-        mColor(aColor), mImage(aImage), mRepeat(aRepeat),
+        mColor(aColor), mImage(aImage), mRepeatX(aRepeatX), mRepeatY(aRepeatY),
         mAttachment(aAttachment), mClip(aClip), mOrigin(aOrigin),
         mPositionX(aPositionX), mPositionY(aPositionY),
         mSize(aSize), mComposite(aComposite),
@@ -900,7 +902,7 @@ protected:
                             const nsCSSPropertyID aTable[]);
 
   bool ParseValueList(nsCSSPropertyID aPropID); // a single value prop-id
-  bool ParseImageLayerRepeat(nsCSSPropertyID aPropID);
+  bool ParseImageLayerRepeat(const nsCSSPropertyID aTable[]);
   bool ParseImageLayerRepeatValues(nsCSSValuePair& aValue);
   bool ParseImageLayerPosition(const nsCSSPropertyID aTable[]);
   bool ParseImageLayerPositionCoord(nsCSSPropertyID aPropID, bool aIsHorizontal);
@@ -11802,7 +11804,7 @@ CSSParserImpl::ParsePropertyByFunction(nsCSSPropertyID aPropID)
   case eCSSProperty_background:
     return ParseImageLayers(nsStyleImageLayers::kBackgroundLayerTable);
   case eCSSProperty_background_repeat:
-    return ParseImageLayerRepeat(eCSSProperty_background_repeat);
+    return ParseImageLayerRepeat(nsStyleImageLayers::kBackgroundLayerTable);
   case eCSSProperty_background_position:
     return ParseImageLayerPosition(nsStyleImageLayers::kBackgroundLayerTable);
   case eCSSProperty_background_position_x:
@@ -11986,7 +11988,7 @@ CSSParserImpl::ParsePropertyByFunction(nsCSSPropertyID aPropID)
   case eCSSProperty_mask:
     return ParseImageLayers(nsStyleImageLayers::kMaskLayerTable);
   case eCSSProperty_mask_repeat:
-    return ParseImageLayerRepeat(eCSSProperty_mask_repeat);
+    return ParseImageLayerRepeat(nsStyleImageLayers::kMaskLayerTable);
   case eCSSProperty_mask_position:
     return ParseImageLayerPosition(nsStyleImageLayers::kMaskLayerTable);
   case eCSSProperty_mask_position_x:
@@ -12279,10 +12281,10 @@ CSSParserImpl::ParseImageLayers(const nsCSSPropertyID aTable[])
     return true;
   }
 
-  nsCSSValue image, repeat, attachment, clip, origin, positionX, positionY, size,
+  nsCSSValue image, repeatX, repeatY, attachment, clip, origin, positionX, positionY, size,
              composite, maskMode;
   ImageLayersShorthandParseState state(color, image.SetListValue(),
-                                       repeat.SetPairListValue(),
+                                       repeatX.SetListValue(), repeatY.SetListValue(),
                                        attachment.SetListValue(), clip.SetListValue(),
                                        origin.SetListValue(),
                                        positionX.SetListValue(), positionY.SetListValue(),
@@ -12313,8 +12315,10 @@ CSSParserImpl::ParseImageLayers(const nsCSSPropertyID aTable[])
     // Chain another entry on all the lists.
     APPENDNEXT(nsStyleImageLayers::image, state.mImage,
                nsCSSValueList);
-    APPENDNEXT(nsStyleImageLayers::repeat, state.mRepeat,
-               nsCSSValuePairList);
+    APPENDNEXT(nsStyleImageLayers::repeatX, state.mRepeatX,
+               nsCSSValueList);
+    APPENDNEXT(nsStyleImageLayers::repeatY, state.mRepeatY,
+               nsCSSValueList);
     APPENDNEXT(nsStyleImageLayers::clip, state.mClip,
                nsCSSValueList);
     APPENDNEXT(nsStyleImageLayers::origin, state.mOrigin,
@@ -12347,7 +12351,8 @@ CSSParserImpl::ParseImageLayers(const nsCSSPropertyID aTable[])
   }
 
   APPENDVALUE(aTable[nsStyleImageLayers::image],      image);
-  APPENDVALUE(aTable[nsStyleImageLayers::repeat],     repeat);
+  APPENDVALUE(aTable[nsStyleImageLayers::repeatX],    repeatX);
+  APPENDVALUE(aTable[nsStyleImageLayers::repeatY],    repeatY);
   APPENDVALUE(aTable[nsStyleImageLayers::clip],       clip);
   APPENDVALUE(aTable[nsStyleImageLayers::origin],     origin);
   APPENDVALUE(aTable[nsStyleImageLayers::positionX],  positionX);
@@ -12406,9 +12411,10 @@ CSSParserImpl::ParseImageLayersItem(
   aState.mClip->mValue.SetIntValue(NS_STYLE_IMAGELAYER_CLIP_BORDER,
                                    eCSSUnit_Enumerated);
 
-  aState.mRepeat->mXValue.SetIntValue(NS_STYLE_IMAGELAYER_REPEAT_REPEAT,
+  aState.mRepeatX->mValue.SetIntValue(NS_STYLE_IMAGELAYER_REPEAT_REPEAT,
                                       eCSSUnit_Enumerated);
-  aState.mRepeat->mYValue.Reset();
+  aState.mRepeatY->mValue.SetIntValue(NS_STYLE_IMAGELAYER_REPEAT_REPEAT,
+                                      eCSSUnit_Enumerated);
 
   RefPtr<nsCSSValue::Array> positionXArr = nsCSSValue::Array::Create(2);
   RefPtr<nsCSSValue::Array> positionYArr = nsCSSValue::Array::Create(2);
@@ -12490,8 +12496,8 @@ CSSParserImpl::ParseImageLayersItem(
           NS_NOTREACHED("should be able to parse");
           return false;
         }
-        aState.mRepeat->mXValue = scratch.mXValue;
-        aState.mRepeat->mYValue = scratch.mYValue;
+        aState.mRepeatX->mValue = scratch.mXValue;
+        aState.mRepeatY->mValue = scratch.mYValue;
       } else if (nsCSSProps::FindKeyword(keyword,
                    nsCSSProps::kImageLayerPositionKTable, dummy)) {
         if (havePositionAndSize)
@@ -12671,31 +12677,42 @@ CSSParserImpl::ParseValueList(nsCSSPropertyID aPropID)
 }
 
 bool
-CSSParserImpl::ParseImageLayerRepeat(nsCSSPropertyID aPropID)
+CSSParserImpl::ParseImageLayerRepeat(const nsCSSPropertyID aTable[])
 {
   nsCSSValue value;
   // 'initial', 'inherit' and 'unset' stand alone, no list permitted.
-  if (!ParseSingleTokenVariant(value, VARIANT_INHERIT, nullptr)) {
-    nsCSSValuePair valuePair;
+  if (ParseSingleTokenVariant(value, VARIANT_INHERIT, nullptr)) {
+    AppendValue(aTable[nsStyleImageLayers::repeatX], value);
+    AppendValue(aTable[nsStyleImageLayers::repeatY], value);
+    return true;
+  }
+
+  nsCSSValuePair valuePair;
+  if (!ParseImageLayerRepeatValues(valuePair)) {
+    return false;
+  }
+
+  nsCSSValue valueX;
+  nsCSSValue valueY;
+  nsCSSValueList* itemX = valueX.SetListValue();
+  nsCSSValueList* itemY = valueY.SetListValue();
+  for (;;) {
+    itemX->mValue = valuePair.mXValue;
+    itemY->mValue = valuePair.mYValue;
+
+    if (!ExpectSymbol(',', true)) {
+      break;
+    }
     if (!ParseImageLayerRepeatValues(valuePair)) {
       return false;
     }
-    nsCSSValuePairList* item = value.SetPairListValue();
-    for (;;) {
-      item->mXValue = valuePair.mXValue;
-      item->mYValue = valuePair.mYValue;
-      if (!ExpectSymbol(',', true)) {
-        break;
-      }
-      if (!ParseImageLayerRepeatValues(valuePair)) {
-        return false;
-      }
-      item->mNext = new nsCSSValuePairList;
-      item = item->mNext;
-    }
+    itemX->mNext = new nsCSSValueList;
+    itemY->mNext = new nsCSSValueList;
+    itemX = itemX->mNext;
+    itemY = itemY->mNext;
   }
-
-  AppendValue(aPropID, value);
+  AppendValue(aTable[nsStyleImageLayers::repeatX], valueX);
+  AppendValue(aTable[nsStyleImageLayers::repeatY], valueY);
   return true;
 }
 
@@ -12708,12 +12725,20 @@ CSSParserImpl::ParseImageLayerRepeatValues(nsCSSValuePair& aValue)
   if (ParseEnum(xValue, nsCSSProps::kImageLayerRepeatKTable)) {
     int32_t value = xValue.GetIntValue();
     // For single values set yValue as eCSSUnit_Null.
-    if (value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT_X ||
-        value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT_Y ||
-        !ParseEnum(yValue, nsCSSProps::kImageLayerRepeatPartKTable)) {
-      // the caller will fail cases like "repeat-x no-repeat"
-      // by expecting a list separator or an end property.
-      yValue.Reset();
+    if (value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT_X) {
+      xValue.SetIntValue(NS_STYLE_IMAGELAYER_REPEAT_REPEAT,
+                         eCSSUnit_Enumerated);
+      yValue.SetIntValue(NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT,
+                         eCSSUnit_Enumerated);
+    } else if (value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT_Y) {
+      xValue.SetIntValue(NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT,
+                         eCSSUnit_Enumerated);
+      yValue.SetIntValue(NS_STYLE_IMAGELAYER_REPEAT_REPEAT,
+                         eCSSUnit_Enumerated);
+    } else {
+      if (!ParseEnum(yValue, nsCSSProps::kImageLayerRepeatPartKTable)) {
+        yValue.SetIntValue(xValue.GetIntValue(), eCSSUnit_Enumerated);
+      }
     }
     return true;
   }

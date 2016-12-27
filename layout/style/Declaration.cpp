@@ -320,8 +320,10 @@ Declaration::GetImageLayerValue(
   // Common CSS properties for both background & mask layer.
   const nsCSSValueList *image =
     data->ValueFor(aTable[nsStyleImageLayers::image])->GetListValue();
-  const nsCSSValuePairList *repeat =
-    data->ValueFor(aTable[nsStyleImageLayers::repeat])->GetPairListValue();
+  const nsCSSValueList *repeatX =
+    data->ValueFor(aTable[nsStyleImageLayers::repeatX])->GetListValue();
+  const nsCSSValueList *repeatY =
+    data->ValueFor(aTable[nsStyleImageLayers::repeatY])->GetListValue();
   const nsCSSValueList *positionX =
     data->ValueFor(aTable[nsStyleImageLayers::positionX])->GetListValue();
   const nsCSSValueList *positionY =
@@ -363,12 +365,12 @@ Declaration::GetImageLayerValue(
                                  aSerialization);
 
     aValue.Append(char16_t(' '));
-    repeat->mXValue.AppendToString(aTable[nsStyleImageLayers::repeat], aValue,
+    repeatX->mValue.AppendToString(aTable[nsStyleImageLayers::repeatX], aValue,
                                    aSerialization);
-    if (repeat->mYValue.GetUnit() != eCSSUnit_Null) {
-      repeat->mYValue.AppendToString(aTable[nsStyleImageLayers::repeat], aValue,
-                                     aSerialization);
-    }
+
+    aValue.Append(char16_t(' '));
+    repeatY->mValue.AppendToString(aTable[nsStyleImageLayers::repeatY], aValue,
+                                   aSerialization);
 
     if (attachment) {
       aValue.Append(char16_t(' '));
@@ -442,7 +444,8 @@ Declaration::GetImageLayerValue(
     }
 
     image = image->mNext;
-    repeat = repeat->mNext;
+    repeatX = repeatX->mNext;
+    repeatY = repeatY->mNext;
     positionX = positionX->mNext;
     positionY = positionY->mNext;
     clip = clip->mNext;
@@ -455,7 +458,7 @@ Declaration::GetImageLayerValue(
     if (!image) {
       // This layer is an background layer
       if (aTable == nsStyleImageLayers::kBackgroundLayerTable) {
-        if (repeat || positionX || positionY || clip || origin || size ||
+        if (repeatX || repeatY || positionX || positionY || clip || origin || size ||
             attachment) {
           // Uneven length lists, so can't be serialized as shorthand.
           aValue.Truncate();
@@ -468,7 +471,7 @@ Declaration::GetImageLayerValue(
 #else
         MOZ_ASSERT_UNREACHABLE("Should never get here when mask-as-shorthand is disable");
 #endif
-        if (repeat || positionX || positionY || clip || origin || size ||
+        if (repeatX || repeatY || positionX || positionY || clip || origin || size ||
             composite || mode) {
           // Uneven length lists, so can't be serialized as shorthand.
           aValue.Truncate();
@@ -480,7 +483,7 @@ Declaration::GetImageLayerValue(
 
     // This layer is an background layer
     if (aTable == nsStyleImageLayers::kBackgroundLayerTable) {
-      if (!repeat || !positionX || !positionY || !clip || !origin || !size ||
+      if (!repeatX || !repeatY || !positionX || !positionY || !clip || !origin || !size ||
           !attachment) {
         // Uneven length lists, so can't be serialized as shorthand.
         aValue.Truncate();
@@ -493,12 +496,48 @@ Declaration::GetImageLayerValue(
 #else
       MOZ_ASSERT_UNREACHABLE("Should never get here when mask-as-shorthand is disable");
 #endif
-      if (!repeat || !positionX || !positionY || !clip || !origin || !size ||
+      if (!repeatX || !repeatY || !positionX || !positionY || !clip || !origin || !size ||
           !composite || !mode) {
         // Uneven length lists, so can't be serialized as shorthand.
         aValue.Truncate();
         return;
       }
+    }
+    aValue.Append(char16_t(','));
+    aValue.Append(char16_t(' '));
+  }
+}
+
+void
+Declaration::GetImageLayerRepeatValue(
+                   nsCSSCompressedDataBlock *data,
+                   nsAString& aValue,
+                   nsCSSValue::Serialization aSerialization,
+                   const nsCSSPropertyID aTable[]) const
+{
+  // We know from above that all subproperties were specified.
+  // However, we still can't represent that in the shorthand unless
+  // they're all lists of the same length.  So if they're different
+  // lengths, we need to bail out.
+  const nsCSSValueList *repeatX =
+    data->ValueFor(aTable[nsStyleImageLayers::repeatX])->GetListValue();
+  const nsCSSValueList *repeatY =
+    data->ValueFor(aTable[nsStyleImageLayers::repeatY])->GetListValue();
+  for (;;) {
+    repeatX->mValue.AppendToString(aTable[nsStyleImageLayers::repeatX], aValue,
+                                   aSerialization);
+    aValue.Append(char16_t(' '));
+    repeatY->mValue.AppendToString(aTable[nsStyleImageLayers::repeatY], aValue,
+                                   aSerialization);
+    repeatX = repeatX->mNext;
+    repeatY = repeatY->mNext;
+
+    if (!repeatX || !repeatY) {
+      if (repeatX || repeatY) {
+        // Uneven length lists, so can't be serialized as shorthand.
+        aValue.Truncate();
+      }
+      return;
     }
     aValue.Append(char16_t(','));
     aValue.Append(char16_t(' '));
@@ -813,6 +852,11 @@ Declaration::GetPropertyValueInternal(
                          nsStyleImageLayers::kBackgroundLayerTable);
       break;
     }
+    case eCSSProperty_background_repeat: {
+      GetImageLayerRepeatValue(data, aValue, aSerialization,
+                               nsStyleImageLayers::kBackgroundLayerTable);
+      break;
+    }
     case eCSSProperty_background_position: {
       GetImageLayerPositionValue(data, aValue, aSerialization,
                                  nsStyleImageLayers::kBackgroundLayerTable);
@@ -822,6 +866,11 @@ Declaration::GetPropertyValueInternal(
     case eCSSProperty_mask: {
       GetImageLayerValue(data, aValue, aSerialization,
                          nsStyleImageLayers::kMaskLayerTable);
+      break;
+    }
+    case eCSSProperty_mask_repeat: {
+      GetImageLayerRepeatValue(data, aValue, aSerialization,
+                               nsStyleImageLayers::kMaskLayerTable);
       break;
     }
     case eCSSProperty_mask_position: {
