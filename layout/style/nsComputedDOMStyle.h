@@ -294,6 +294,8 @@ private:
   already_AddRefed<CSSValue> DoGetImageLayerPositionX(const nsStyleImageLayers& aLayers);
   already_AddRefed<CSSValue> DoGetImageLayerPositionY(const nsStyleImageLayers& aLayers);
   already_AddRefed<CSSValue> DoGetImageLayerRepeat(const nsStyleImageLayers& aLayers);
+  already_AddRefed<CSSValue> DoGetImageLayerRepeatX(const nsStyleImageLayers& aLayers);
+  already_AddRefed<CSSValue> DoGetImageLayerRepeatY(const nsStyleImageLayers& aLayers);
   already_AddRefed<CSSValue> DoGetImageLayerSize(const nsStyleImageLayers& aLayers);
 
   /* Background properties */

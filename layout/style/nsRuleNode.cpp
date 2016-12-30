@@ -6789,65 +6789,6 @@ struct BackgroundItemComputer<nsCSSValueList, uint8_t>
 };
 
 template <>
-struct BackgroundItemComputer<nsCSSValuePairList, nsStyleImageLayers::Repeat>
-{
-  static void ComputeValue(nsStyleContext* aStyleContext,
-                           const nsCSSValuePairList* aSpecifiedValue,
-                           nsStyleImageLayers::Repeat& aComputedValue,
-                           RuleNodeCacheConditions& aConditions)
-  {
-    NS_ASSERTION(aSpecifiedValue->mXValue.GetUnit() == eCSSUnit_Enumerated &&
-                 (aSpecifiedValue->mYValue.GetUnit() == eCSSUnit_Enumerated ||
-                  aSpecifiedValue->mYValue.GetUnit() == eCSSUnit_Null),
-                 "Invalid unit");
-
-    bool hasContraction = true;
-    uint8_t value = aSpecifiedValue->mXValue.GetIntValue();
-    switch (value) {
-    case NS_STYLE_IMAGELAYER_REPEAT_REPEAT_X:
-      aComputedValue.mXRepeat = NS_STYLE_IMAGELAYER_REPEAT_REPEAT;
-      aComputedValue.mYRepeat = NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT;
-      break;
-    case NS_STYLE_IMAGELAYER_REPEAT_REPEAT_Y:
-      aComputedValue.mXRepeat = NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT;
-      aComputedValue.mYRepeat = NS_STYLE_IMAGELAYER_REPEAT_REPEAT;
-      break;
-    default:
-      NS_ASSERTION(value == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_SPACE ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_ROUND, "Unexpected value");
-      aComputedValue.mXRepeat = value;
-      hasContraction = false;
-      break;
-    }
-
-    if (hasContraction) {
-      NS_ASSERTION(aSpecifiedValue->mYValue.GetUnit() == eCSSUnit_Null,
-                   "Invalid unit.");
-      return;
-    }
-
-    switch (aSpecifiedValue->mYValue.GetUnit()) {
-    case eCSSUnit_Null:
-      aComputedValue.mYRepeat = aComputedValue.mXRepeat;
-      break;
-    case eCSSUnit_Enumerated:
-      value = aSpecifiedValue->mYValue.GetIntValue();
-      NS_ASSERTION(value == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_SPACE ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_ROUND, "Unexpected value");
-      aComputedValue.mYRepeat = value;
-      break;
-    default:
-      NS_NOTREACHED("Unexpected CSS value");
-      break;
-    }
-  }
-};
-
-template <>
 struct BackgroundItemComputer<nsCSSValueList, nsStyleImage>
 {
   static void ComputeValue(nsStyleContext* aStyleContext,
