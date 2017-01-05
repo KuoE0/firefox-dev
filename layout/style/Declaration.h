@@ -333,6 +333,11 @@ private:
                           nsCSSValue::Serialization aSerialization,
                           const nsCSSPropertyID aTable[]) const;
 
+  void GetImageLayerRepeatValue(nsCSSCompressedDataBlock *data,
+                                nsAString& aValue,
+                                nsCSSValue::Serialization aSerialization,
+                                const nsCSSPropertyID aTable[]) const;
+
   void GetImageLayerPositionValue(nsCSSCompressedDataBlock *data,
                                   nsAString& aValue,
                                   nsCSSValue::Serialization aSerialization,

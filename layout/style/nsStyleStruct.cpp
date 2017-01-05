@@ -2413,7 +2413,8 @@ const nsCSSPropertyID nsStyleImageLayers::kBackgroundLayerTable[] = {
   eCSSProperty_background,                // shorthand
   eCSSProperty_background_color,          // color
   eCSSProperty_background_image,          // image
-  eCSSProperty_background_repeat,         // repeat
+  eCSSProperty_background_repeat_x,       // repeatX
+  eCSSProperty_background_repeat_y,       // repeatY
   eCSSProperty_background_position_x,     // positionX
   eCSSProperty_background_position_y,     // positionY
   eCSSProperty_background_clip,           // clip
@@ -2429,7 +2430,8 @@ const nsCSSPropertyID nsStyleImageLayers::kMaskLayerTable[] = {
   eCSSProperty_mask,                      // shorthand
   eCSSProperty_UNKNOWN,                   // color
   eCSSProperty_mask_image,                // image
-  eCSSProperty_mask_repeat,               // repeat
+  eCSSProperty_mask_repeat_x,             // repeatX
+  eCSSProperty_mask_repeat_y,             // repeatY
   eCSSProperty_mask_position_x,           // positionX
   eCSSProperty_mask_position_y,           // positionY
   eCSSProperty_mask_clip,                 // clip
@@ -2445,7 +2447,8 @@ nsStyleImageLayers::nsStyleImageLayers(nsStyleImageLayers::LayerType aType)
   : mAttachmentCount(1)
   , mClipCount(1)
   , mOriginCount(1)
-  , mRepeatCount(1)
+  , mRepeatXCount(1)
+  , mRepeatYCount(1)
   , mPositionXCount(1)
   , mPositionYCount(1)
   , mImageCount(1)
@@ -2465,7 +2468,8 @@ nsStyleImageLayers::nsStyleImageLayers(const nsStyleImageLayers &aSource)
   : mAttachmentCount(aSource.mAttachmentCount)
   , mClipCount(aSource.mClipCount)
   , mOriginCount(aSource.mOriginCount)
-  , mRepeatCount(aSource.mRepeatCount)
+  , mRepeatXCount(aSource.mRepeatXCount)
+  , mRepeatYCount(aSource.mRepeatYCount)
   , mPositionXCount(aSource.mPositionXCount)
   , mPositionYCount(aSource.mPositionYCount)
   , mImageCount(aSource.mImageCount)
@@ -2483,7 +2487,8 @@ nsStyleImageLayers::nsStyleImageLayers(const nsStyleImageLayers &aSource)
     mAttachmentCount = std::max(mAttachmentCount, count);
     mClipCount = std::max(mClipCount, count);
     mOriginCount = std::max(mOriginCount, count);
-    mRepeatCount = std::max(mRepeatCount, count);
+    mRepeatXCount = std::max(mRepeatXCount, count);
+    mRepeatYCount = std::max(mRepeatYCount, count);
     mPositionXCount = std::max(mPositionXCount, count);
     mPositionYCount = std::max(mPositionYCount, count);
     mImageCount = std::max(mImageCount, count);
@@ -2540,7 +2545,8 @@ nsStyleImageLayers::CalcDifference(const nsStyleImageLayers& aNewLayers,
       mCompositeCount != aNewLayers.mCompositeCount ||
       mMaskModeCount != aNewLayers.mMaskModeCount ||
       mOriginCount != aNewLayers.mOriginCount ||
-      mRepeatCount != aNewLayers.mRepeatCount ||
+      mRepeatXCount != aNewLayers.mRepeatXCount ||
+      mRepeatYCount != aNewLayers.mRepeatYCount ||
       mPositionXCount != aNewLayers.mPositionXCount ||
       mPositionYCount != aNewLayers.mPositionYCount ||
       mSizeCount != aNewLayers.mSizeCount) {
@@ -2574,7 +2580,8 @@ nsStyleImageLayers::operator=(const nsStyleImageLayers& aOther)
   mAttachmentCount = aOther.mAttachmentCount;
   mClipCount = aOther.mClipCount;
   mOriginCount = aOther.mOriginCount;
-  mRepeatCount = aOther.mRepeatCount;
+  mRepeatXCount = aOther.mRepeatXCount;
+  mRepeatYCount = aOther.mRepeatYCount;
   mPositionXCount = aOther.mPositionXCount;
   mPositionYCount = aOther.mPositionYCount;
   mImageCount = aOther.mImageCount;
@@ -2590,7 +2597,8 @@ nsStyleImageLayers::operator=(const nsStyleImageLayers& aOther)
     mAttachmentCount = std::max(mAttachmentCount, count);
     mClipCount = std::max(mClipCount, count);
     mOriginCount = std::max(mOriginCount, count);
-    mRepeatCount = std::max(mRepeatCount, count);
+    mRepeatXCount = std::max(mRepeatXCount, count);
+    mRepeatYCount = std::max(mRepeatYCount, count);
     mPositionXCount = std::max(mPositionXCount, count);
     mPositionYCount = std::max(mPositionYCount, count);
     mImageCount = std::max(mImageCount, count);

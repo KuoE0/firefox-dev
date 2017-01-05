@@ -6805,65 +6805,6 @@ struct BackgroundItemComputer<nsCSSValueList, uint8_t>
 };
 
 template <>
-struct BackgroundItemComputer<nsCSSValuePairList, nsStyleImageLayers::Repeat>
-{
-  static void ComputeValue(nsStyleContext* aStyleContext,
-                           const nsCSSValuePairList* aSpecifiedValue,
-                           nsStyleImageLayers::Repeat& aComputedValue,
-                           RuleNodeCacheConditions& aConditions)
-  {
-    NS_ASSERTION(aSpecifiedValue->mXValue.GetUnit() == eCSSUnit_Enumerated &&
-                 (aSpecifiedValue->mYValue.GetUnit() == eCSSUnit_Enumerated ||
-                  aSpecifiedValue->mYValue.GetUnit() == eCSSUnit_Null),
-                 "Invalid unit");
-
-    bool hasContraction = true;
-    uint8_t value = aSpecifiedValue->mXValue.GetIntValue();
-    switch (value) {
-    case NS_STYLE_IMAGELAYER_REPEAT_REPEAT_X:
-      aComputedValue.mXRepeat = NS_STYLE_IMAGELAYER_REPEAT_REPEAT;
-      aComputedValue.mYRepeat = NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT;
-      break;
-    case NS_STYLE_IMAGELAYER_REPEAT_REPEAT_Y:
-      aComputedValue.mXRepeat = NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT;
-      aComputedValue.mYRepeat = NS_STYLE_IMAGELAYER_REPEAT_REPEAT;
-      break;
-    default:
-      NS_ASSERTION(value == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_SPACE ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_ROUND, "Unexpected value");
-      aComputedValue.mXRepeat = value;
-      hasContraction = false;
-      break;
-    }
-
-    if (hasContraction) {
-      NS_ASSERTION(aSpecifiedValue->mYValue.GetUnit() == eCSSUnit_Null,
-                   "Invalid unit.");
-      return;
-    }
-
-    switch (aSpecifiedValue->mYValue.GetUnit()) {
-    case eCSSUnit_Null:
-      aComputedValue.mYRepeat = aComputedValue.mXRepeat;
-      break;
-    case eCSSUnit_Enumerated:
-      value = aSpecifiedValue->mYValue.GetIntValue();
-      NS_ASSERTION(value == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_SPACE ||
-                   value == NS_STYLE_IMAGELAYER_REPEAT_ROUND, "Unexpected value");
-      aComputedValue.mYRepeat = value;
-      break;
-    default:
-      NS_NOTREACHED("Unexpected CSS value");
-      break;
-    }
-  }
-};
-
-template <>
 struct BackgroundItemComputer<nsCSSValueList, nsStyleImage>
 {
   static void ComputeValue(nsStyleContext* aStyleContext,
@@ -7004,6 +6945,25 @@ ComputePositionValue(nsStyleContext* aStyleContext,
                        &aComputedValue.mYPosition,
                        aConditions);
 }
+
+/* /1* Helper function to convert the -x or -y part of a CSS <repeat> specified */
+/*  * value into its computed-style form. *1/ */
+/* static void */
+/* ComputeRepeatDirectionValue(nsStyleContext* aStyleContext, */
+/*                             const nsCSSValueList* aSpecifiedValue, */
+/*                             uint8_t& aComputedValue, */
+/*                             RuleNodeCacheConditions& aConditions) */
+/* { */
+/*   NS_ASSERTION(aSpecifiedValue->mValue.GetUnit() == eCSSUnit_Enumerated, */
+/*                "Invalid unit"); */
+
+/*   uint8_t value = aSpecifiedValue->mValue.GetIntValue(); */
+/*   NS_ASSERTION(value == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT || */
+/*                value == NS_STYLE_IMAGELAYER_REPEAT_REPEAT || */
+/*                value == NS_STYLE_IMAGELAYER_REPEAT_SPACE || */
+/*                value == NS_STYLE_IMAGELAYER_REPEAT_ROUND, "Unexpected value"); */
+/*   aComputedValue = value; */
+/* } */
 
 /* Helper function to convert the -x or -y part of a CSS <position> specified
  * value into its computed-style form. */
@@ -7198,6 +7158,76 @@ SetImageLayerList(nsStyleContext* aStyleContext,
 }
 
 // The same as SetImageLayerList, but for values stored in
+// layer.mRepeat.*aResultLocation instead of layer.*aResultLocation.
+// This code is duplicated because it would be annoying to make
+// SetImageLayerList generic enough to handle both cases.
+static void
+SetImageLayerRepeatDirectionList(
+                  nsStyleContext* aStyleContext,
+                  const nsCSSValue& aValue,
+                  nsStyleAutoArray<nsStyleImageLayers::Layer>& aLayers,
+                  const nsStyleAutoArray<nsStyleImageLayers::Layer>& aParentLayers,
+                  uint8_t nsStyleImageLayers::Repeat::* aResultLocation,
+                  uint8_t aInitialValue,
+                  uint32_t aParentItemCount,
+                  uint32_t& aItemCount,
+                  uint32_t& aMaxItemCount,
+                  bool& aRebuild,
+                  RuleNodeCacheConditions& aConditions)
+{
+  switch (aValue.GetUnit()) {
+  case eCSSUnit_Null:
+    break;
+
+  case eCSSUnit_Inherit:
+    aRebuild = true;
+    aConditions.SetUncacheable();
+    aLayers.EnsureLengthAtLeast(aParentItemCount);
+    aItemCount = aParentItemCount;
+    for (uint32_t i = 0; i < aParentItemCount; ++i) {
+      aLayers[i].mRepeat.*aResultLocation = aParentLayers[i].mRepeat.*aResultLocation;
+    }
+    break;
+
+  case eCSSUnit_Initial:
+  case eCSSUnit_Unset:
+    aRebuild = true;
+    aItemCount = 1;
+    aLayers[0].mRepeat.*aResultLocation = aInitialValue;
+    break;
+
+  case eCSSUnit_List:
+  case eCSSUnit_ListDep: {
+    aRebuild = true;
+    aItemCount = 0;
+    const nsCSSValueList* item = aValue.GetListValue();
+    do {
+      NS_ASSERTION(item->mValue.GetUnit() != eCSSUnit_Null &&
+                   item->mValue.GetUnit() != eCSSUnit_Inherit &&
+                   item->mValue.GetUnit() != eCSSUnit_Initial &&
+                   item->mValue.GetUnit() != eCSSUnit_Unset,
+                   "unexpected unit");
+      ++aItemCount;
+      aLayers.EnsureLengthAtLeast(aItemCount);
+
+      BackgroundItemComputer<nsCSSValueList, uint8_t>::
+        ComputeValue(aStyleContext, item,
+                     aLayers[aItemCount - 1].mRepeat.*aResultLocation,
+                     aConditions);
+      item = item->mNext;
+    } while (item);
+    break;
+  }
+
+  default:
+    MOZ_ASSERT(false, "unexpected unit");
+  }
+
+  if (aItemCount > aMaxItemCount)
+    aMaxItemCount = aItemCount;
+}
+
+// The same as SetImageLayerList, but for values stored in
 // layer.mPosition.*aResultLocation instead of layer.*aResultLocation.
 // This code is duplicated because it would be annoying to make
 // SetImageLayerList generic enough to handle both cases.
@@ -7352,6 +7382,23 @@ FillImageLayerList(
 }
 
 // The same as FillImageLayerList, but for values stored in
+// layer.mRepeat.*aResultLocation instead of layer.*aResultLocation.
+static void
+FillImageLayerRepeatDirectionList(
+    nsStyleAutoArray<nsStyleImageLayers::Layer>& aLayers,
+    uint8_t nsStyleImageLayers::Repeat::* aResultLocation,
+    uint32_t aItemCount, uint32_t aFillCount)
+{
+  NS_PRECONDITION(aFillCount <= aLayers.Length(), "unexpected array length");
+  for (uint32_t sourceLayer = 0, destLayer = aItemCount;
+       destLayer < aFillCount;
+       ++sourceLayer, ++destLayer) {
+    aLayers[destLayer].mRepeat.*aResultLocation =
+      aLayers[sourceLayer].mRepeat.*aResultLocation;
+  }
+}
+
+// The same as FillImageLayerList, but for values stored in
 // layer.mPosition.*aResultLocation instead of layer.*aResultLocation.
 static void
 FillImageLayerPositionCoordList(
@@ -7382,9 +7429,12 @@ nsRuleNode::FillAllBackgroundLists(nsStyleImageLayers& aImage,
   FillImageLayerList(aImage.mLayers,
                      &nsStyleImageLayers::Layer::mImage,
                      aImage.mImageCount, fillCount);
-  FillImageLayerList(aImage.mLayers,
-                     &nsStyleImageLayers::Layer::mRepeat,
-                     aImage.mRepeatCount, fillCount);
+  FillImageLayerRepeatDirectionList(aImage.mLayers,
+                                    &nsStyleImageLayers::Repeat::mXRepeat,
+                                    aImage.mRepeatXCount, fillCount);
+  FillImageLayerRepeatDirectionList(aImage.mLayers,
+                                    &nsStyleImageLayers::Repeat::mYRepeat,
+                                    aImage.mRepeatYCount, fillCount);
   FillImageLayerList(aImage.mLayers,
                      &nsStyleImageLayers::Layer::mAttachment,
                      aImage.mAttachmentCount, fillCount);
@@ -7439,16 +7489,27 @@ nsRuleNode::ComputeBackgroundData(void* aStartStruct,
                     bg->mImage.mImageCount,
                     maxItemCount, rebuild, conditions);
 
-  // background-repeat: enum, inherit, initial [pair list]
-  nsStyleImageLayers::Repeat initialRepeat;
-  initialRepeat.SetInitialValues();
-  SetImageLayerPairList(aContext, *aRuleData->ValueForBackgroundRepeat(),
-                        bg->mImage.mLayers,
-                        parentBG->mImage.mLayers,
-                        &nsStyleImageLayers::Layer::mRepeat,
-                        initialRepeat, parentBG->mImage.mRepeatCount,
-                        bg->mImage.mRepeatCount, maxItemCount, rebuild,
-                        conditions);
+  // background-repeat-x: enum, inherit, initial [list]
+  SetImageLayerRepeatDirectionList(aContext,
+                                   *aRuleData->ValueForBackgroundRepeatX(),
+                                   bg->mImage.mLayers,
+                                   parentBG->mImage.mLayers,
+                                   &nsStyleImageLayers::Repeat::mXRepeat,
+                                   uint8_t(NS_STYLE_IMAGELAYER_REPEAT_REPEAT),
+                                   parentBG->mImage.mRepeatXCount,
+                                   bg->mImage.mRepeatXCount, maxItemCount,
+                                   rebuild, conditions);
+
+  // background-repeat-y: enum, inherit, initial [list]
+  SetImageLayerRepeatDirectionList(aContext,
+                                   *aRuleData->ValueForBackgroundRepeatY(),
+                                   bg->mImage.mLayers,
+                                   parentBG->mImage.mLayers,
+                                   &nsStyleImageLayers::Repeat::mYRepeat,
+                                   uint8_t(NS_STYLE_IMAGELAYER_REPEAT_REPEAT),
+                                   parentBG->mImage.mRepeatYCount,
+                                   bg->mImage.mRepeatYCount, maxItemCount,
+                                   rebuild, conditions);
 
   // background-attachment: enum, inherit, initial [list]
   SetImageLayerList(aContext, *aRuleData->ValueForBackgroundAttachment(),
@@ -9422,9 +9483,12 @@ nsRuleNode::FillAllMaskLists(nsStyleImageLayers& aMask,
   FillImageLayerList(aMask.mLayers,
                      &nsStyleImageLayers::Layer::mSourceURI,
                      aMask.mImageCount, fillCount);
-  FillImageLayerList(aMask.mLayers,
-                     &nsStyleImageLayers::Layer::mRepeat,
-                     aMask.mRepeatCount, fillCount);
+  FillImageLayerRepeatDirectionList(aMask.mLayers,
+                                    &nsStyleImageLayers::Repeat::mXRepeat,
+                                    aMask.mRepeatXCount, fillCount);
+  FillImageLayerRepeatDirectionList(aMask.mLayers,
+                                    &nsStyleImageLayers::Repeat::mYRepeat,
+                                    aMask.mRepeatYCount, fillCount);
   FillImageLayerList(aMask.mLayers,
                      &nsStyleImageLayers::Layer::mClip,
                      aMask.mClipCount, fillCount);
@@ -10087,16 +10151,27 @@ nsRuleNode::ComputeSVGResetData(void* aStartStruct,
                     svgReset->mMask.mImageCount,
                     maxItemCount, rebuild, conditions);
 
-  // mask-repeat: enum, inherit, initial [pair list]
-  nsStyleImageLayers::Repeat initialRepeat;
-  initialRepeat.SetInitialValues();
-  SetImageLayerPairList(aContext, *aRuleData->ValueForMaskRepeat(),
-                        svgReset->mMask.mLayers,
-                        parentSVGReset->mMask.mLayers,
-                        &nsStyleImageLayers::Layer::mRepeat,
-                        initialRepeat, parentSVGReset->mMask.mRepeatCount,
-                        svgReset->mMask.mRepeatCount, maxItemCount, rebuild,
-                        conditions);
+  // mask-repeat-x: enum, inherit, initial [list]
+  SetImageLayerRepeatDirectionList(aContext,
+                                   *aRuleData->ValueForMaskRepeatX(),
+                                   svgReset->mMask.mLayers,
+                                   parentSVGReset->mMask.mLayers,
+                                   &nsStyleImageLayers::Repeat::mXRepeat,
+                                   uint8_t(NS_STYLE_IMAGELAYER_REPEAT_REPEAT),
+                                   parentSVGReset->mMask.mImageCount,
+                                   svgReset->mMask.mImageCount, maxItemCount,
+                                   rebuild, conditions);
+
+  // mask-repeat-y: enum, inherit, initial [list]
+  SetImageLayerRepeatDirectionList(aContext,
+                                   *aRuleData->ValueForMaskRepeatY(),
+                                   svgReset->mMask.mLayers,
+                                   parentSVGReset->mMask.mLayers,
+                                   &nsStyleImageLayers::Repeat::mYRepeat,
+                                   uint8_t(NS_STYLE_IMAGELAYER_REPEAT_REPEAT),
+                                   parentSVGReset->mMask.mImageCount,
+                                   svgReset->mMask.mImageCount, maxItemCount,
+                                   rebuild, conditions);
 
   // mask-clip: enum, inherit, initial [list]
   SetImageLayerList(aContext, *aRuleData->ValueForMaskClip(),
