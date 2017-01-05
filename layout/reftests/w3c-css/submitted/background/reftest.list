@@ -20,6 +20,9 @@
 == background-repeat-round-3.html background-repeat-round-3-ref.html
 == background-repeat-round-4.html background-repeat-round-4-ref.html
 
+# background-repeat-xy test cases
+== background-repeat-xy-1.html background-repeat-xy-1-ref.html
+
 #border-image test cases
 == border-image-repeat-round-1.html border-image-repeat-round-1-ref.html
 == border-image-repeat-round-2.html border-image-repeat-round-2-ref.html

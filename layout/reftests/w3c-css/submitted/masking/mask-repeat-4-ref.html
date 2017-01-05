@@ -1,0 +1,58 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: mask-repeat-xy: repeated mask layer image</title>
+    <link rel="author" title="Tommy Kuo" href="mailto:tokuo@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <style>
+      span {
+        display: inline-block;
+        -webkit-mask-image: url(diagonal-mask);
+        mask-image: url(diagonal-mask);
+        -webkit-mask-position: top left;
+        mask-position: top left;
+        width: 80px;
+        height: 50px;
+        border: 2px solid black;
+        background: aqua;
+      }
+    </style>
+  </head>
+  <body>
+    <p>
+      <!-- unstyled -->
+      <span></span>
+    </p>
+
+    <p>
+      <!-- mask-repeat: no-repeat -->
+      <span style="mask-repeat: no-repeat"></span>
+    </p>
+
+    <p>
+      <!-- -webkit-mask-repeat: no-repeat -->
+      <span style="-webkit-mask-repeat: no-repeat"></span>
+    </p>
+
+    <p>
+      <!-- mask-repeat-x: no-repeat -->
+      <span style="mask-repeat: no-repeat repeat"></span>
+    </p>
+
+    <p>
+      <!-- mask-repeat-y: no-repeat -->
+      <span style="mask-repeat: repeat no-repeat"></span>
+    </p>
+
+    <p>
+      <!-- -webkit-mask-repeat-x: no-repeat -->
+      <span style="-webkit-mask-repeat: no-repeat repeat"></span>
+    </p>
+
+    <p>
+      <!-- -webkit-mask-repeat-y: no-repeat -->
+      <span style="-webkit-mask-repeat: repeat no-repeat"></span>
+    </p>
+  </body>
+</html>
