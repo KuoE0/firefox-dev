@@ -289,6 +289,8 @@ private:
   already_AddRefed<CSSValue> DoGetImageLayerPositionX(const nsStyleImageLayers& aLayers);
   already_AddRefed<CSSValue> DoGetImageLayerPositionY(const nsStyleImageLayers& aLayers);
   already_AddRefed<CSSValue> DoGetImageLayerRepeat(const nsStyleImageLayers& aLayers);
+  already_AddRefed<CSSValue> DoGetImageLayerRepeatX(const nsStyleImageLayers& aLayers);
+  already_AddRefed<CSSValue> DoGetImageLayerRepeatY(const nsStyleImageLayers& aLayers);
   already_AddRefed<CSSValue> DoGetImageLayerSize(const nsStyleImageLayers& aLayers);
 
   /* Background properties */
@@ -299,6 +301,8 @@ private:
   already_AddRefed<CSSValue> DoGetBackgroundPositionX();
   already_AddRefed<CSSValue> DoGetBackgroundPositionY();
   already_AddRefed<CSSValue> DoGetBackgroundRepeat();
+  already_AddRefed<CSSValue> DoGetBackgroundRepeatX();
+  already_AddRefed<CSSValue> DoGetBackgroundRepeatY();
   already_AddRefed<CSSValue> DoGetBackgroundClip();
   already_AddRefed<CSSValue> DoGetBackgroundBlendMode();
   already_AddRefed<CSSValue> DoGetBackgroundOrigin();
@@ -312,6 +316,8 @@ private:
   already_AddRefed<CSSValue> DoGetMaskPositionX();
   already_AddRefed<CSSValue> DoGetMaskPositionY();
   already_AddRefed<CSSValue> DoGetMaskRepeat();
+  already_AddRefed<CSSValue> DoGetMaskRepeatX();
+  already_AddRefed<CSSValue> DoGetMaskRepeatY();
   already_AddRefed<CSSValue> DoGetMaskClip();
   already_AddRefed<CSSValue> DoGetMaskOrigin();
   already_AddRefed<CSSValue> DoGetMaskSize();

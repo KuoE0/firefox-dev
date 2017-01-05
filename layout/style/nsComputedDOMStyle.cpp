@@ -2248,46 +2248,65 @@ nsComputedDOMStyle::DoGetImageLayerPositionY(const nsStyleImageLayers& aLayers)
 already_AddRefed<CSSValue>
 nsComputedDOMStyle::DoGetImageLayerRepeat(const nsStyleImageLayers& aLayers)
 {
+  if (aLayers.mRepeatXCount != aLayers.mRepeatYCount) {
+    // No value to return.  We can't express this combination of
+    // values as a shorthand.
+    return nullptr;
+  }
+
   RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
 
-  for (uint32_t i = 0, i_end = aLayers.mRepeatCount; i < i_end; ++i) {
+  for (uint32_t i = 0, i_end = aLayers.mRepeatXCount; i < i_end; ++i) {
     RefPtr<nsDOMCSSValueList> itemList = GetROCSSValueList(false);
-    RefPtr<nsROCSSPrimitiveValue> valX = new nsROCSSPrimitiveValue;
 
     const uint8_t& xRepeat = aLayers.mLayers[i].mRepeat.mXRepeat;
     const uint8_t& yRepeat = aLayers.mLayers[i].mRepeat.mYRepeat;
 
-    bool hasContraction = true;
-    unsigned contraction;
-    if (xRepeat == yRepeat) {
-      contraction = xRepeat;
-    } else if (xRepeat == NS_STYLE_IMAGELAYER_REPEAT_REPEAT &&
-               yRepeat == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT) {
-      contraction = NS_STYLE_IMAGELAYER_REPEAT_REPEAT_X;
-    } else if (xRepeat == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT &&
-               yRepeat == NS_STYLE_IMAGELAYER_REPEAT_REPEAT) {
-      contraction = NS_STYLE_IMAGELAYER_REPEAT_REPEAT_Y;
-    } else {
-      hasContraction = false;
-    }
-
-    RefPtr<nsROCSSPrimitiveValue> valY;
-    if (hasContraction) {
-      valX->SetIdent(nsCSSProps::ValueToKeywordEnum(contraction,
-                                         nsCSSProps::kImageLayerRepeatKTable));
-    } else {
-      valY = new nsROCSSPrimitiveValue;
-
-      valX->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
+    RefPtr<nsROCSSPrimitiveValue> valX = new nsROCSSPrimitiveValue;
+    valX->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
                                           nsCSSProps::kImageLayerRepeatKTable));
-      valY->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
-                                          nsCSSProps::kImageLayerRepeatKTable));
-    }
     itemList->AppendCSSValue(valX.forget());
-    if (valY) {
-      itemList->AppendCSSValue(valY.forget());
-    }
+
+    RefPtr<nsROCSSPrimitiveValue> valY = new nsROCSSPrimitiveValue;
+    valY->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
+                                          nsCSSProps::kImageLayerRepeatKTable));
+    itemList->AppendCSSValue(valY.forget());
+
     valueList->AppendCSSValue(itemList.forget());
+  }
+
+  return valueList.forget();
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetImageLayerRepeatX(const nsStyleImageLayers& aLayers)
+{
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = aLayers.mRepeatXCount; i <i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& xRepeat = aLayers.mLayers[i].mRepeat.mXRepeat;
+
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
+                                      nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
+  }
+
+  return valueList.forget();
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetImageLayerRepeatY(const nsStyleImageLayers& aLayers)
+{
+  RefPtr<nsDOMCSSValueList> valueList = GetROCSSValueList(true);
+
+  for (uint32_t i = 0, i_end = aLayers.mRepeatYCount; i <i_end; ++i) {
+    RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+    const uint8_t& yRepeat = aLayers.mLayers[i].mRepeat.mYRepeat;
+
+    val->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
+                                      nsCSSProps::kImageLayerRepeatPartKTable));
+    valueList->AppendCSSValue(val.forget());
   }
 
   return valueList.forget();
@@ -2483,6 +2502,20 @@ nsComputedDOMStyle::DoGetBackgroundRepeat()
 {
   const nsStyleImageLayers& layers = StyleBackground()->mImage;
   return DoGetImageLayerRepeat(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetBackgroundRepeatX()
+{
+  const nsStyleImageLayers& layers = StyleBackground()->mImage;
+  return DoGetImageLayerRepeatX(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetBackgroundRepeatY()
+{
+  const nsStyleImageLayers& layers = StyleBackground()->mImage;
+  return DoGetImageLayerRepeatY(layers);
 }
 
 already_AddRefed<CSSValue>
@@ -6295,6 +6328,20 @@ nsComputedDOMStyle::DoGetMaskRepeat()
 {
   const nsStyleImageLayers& layers = StyleSVGReset()->mMask;
   return DoGetImageLayerRepeat(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetMaskRepeatX()
+{
+  const nsStyleImageLayers& layers = StyleSVGReset()->mMask;
+  return DoGetImageLayerRepeatX(layers);
+}
+
+already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetMaskRepeatY()
+{
+  const nsStyleImageLayers& layers = StyleSVGReset()->mMask;
+  return DoGetImageLayerRepeatY(layers);
 }
 
 already_AddRefed<CSSValue>
