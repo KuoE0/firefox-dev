@@ -2479,7 +2479,7 @@ var gCSSProperties = {
   "background-repeat": {
     domProp: "backgroundRepeat",
     inherited: false,
-    type: CSS_TYPE_LONGHAND,
+    type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
     initial_values: [ "repeat", "repeat repeat" ],
     other_values: [ "repeat-x", "repeat-y", "no-repeat",
       "repeat-x, repeat-x",
@@ -2516,6 +2516,56 @@ var gCSSProperties = {
                       "space repeat-x",
                       "repeat-y space",
                       "space repeat-y" ]
+  },
+  "background-repeat-x": {
+    domProp: "backgroundRepeatX",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "repeat" ],
+    other_values: [
+      "repeat",
+      "no-repeat",
+      "space",
+      "round",
+      "repeat, no-repeat",
+      "repeat, repeat",
+      "round, repeat",
+      "space, repeat"
+    ],
+    invalid_values: [
+      "no-repeat repeat",
+      "round no-repeat, repeat-y",
+      "no-repeat no-repeat",
+      "round round",
+      "space round",
+      "space space",
+      "repeat repeat, repeat repeat"
+    ]
+  },
+  "background-repeat-y": {
+    domProp: "backgroundRepeatY",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "repeat" ],
+    other_values: [
+      "repeat",
+      "no-repeat",
+      "space",
+      "round",
+      "repeat, no-repeat",
+      "repeat, repeat",
+      "round, repeat",
+      "space, repeat"
+    ],
+    invalid_values: [
+      "no-repeat repeat",
+      "round no-repeat, repeat-y",
+      "no-repeat no-repeat",
+      "round round",
+      "space round",
+      "space space",
+      "repeat repeat, repeat repeat"
+    ]
   },
   "background-size": {
     domProp: "backgroundSize",
@@ -7325,6 +7375,56 @@ if (SupportsMaskShorthand()) {
                       "repeat-x repeat",
                       "repeat-y repeat" ]
   };
+  gCSSProperties["background-repeat-x"] = {
+    domProp: "backgroundRepeatX",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "repeat" ],
+    other_values: [
+      "repeat",
+      "no-repeat",
+      "space",
+      "round",
+      "repeat, no-repeat",
+      "repeat, repeat",
+      "round, repeat",
+      "space, repeat"
+    ],
+    invalid_values: [
+      "no-repeat repeat",
+      "round no-repeat, repeat-y",
+      "no-repeat no-repeat",
+      "round round",
+      "space round",
+      "space space",
+      "repeat repeat, repeat repeat"
+    ]
+  };
+  gCSSProperties["background-repeat-y"] = {
+    domProp: "backgroundRepeatY",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "repeat" ],
+    other_values: [
+      "repeat",
+      "no-repeat",
+      "space",
+      "round",
+      "repeat, no-repeat",
+      "repeat, repeat",
+      "round, repeat",
+      "space, repeat"
+    ],
+    invalid_values: [
+      "no-repeat repeat",
+      "round no-repeat, repeat-y",
+      "no-repeat no-repeat",
+      "round round",
+      "space round",
+      "space space",
+      "repeat repeat, repeat repeat"
+    ]
+  };
   gCSSProperties["mask-size"] = {
     domProp: "maskSize",
     inherited: false,
@@ -7822,6 +7922,20 @@ if (IsCSSPropertyPrefEnabled("layout.css.prefixes.webkit")) {
       type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
       alias_for: "mask-repeat",
       subproperties: [ "mask-repeat" ],
+    };
+    gCSSProperties["-webkit-mask-repeat-x"] = {
+      domProp: "webkitMaskRepeatX",
+      inherited: false,
+      type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
+      alias_for: "mask-repeat-x",
+      subproperties: [ "mask-repeat-x" ],
+    };
+    gCSSProperties["-webkit-mask-repeat-y"] = {
+      domProp: "webkitMaskRepeaty",
+      inherited: false,
+      type: CSS_TYPE_SHORTHAND_AND_LONGHAND,
+      alias_for: "mask-repeat-y",
+      subproperties: [ "mask-repeat-y" ],
     };
     gCSSProperties["-webkit-mask-size"] = {
       domProp: "webkitMaskSize",
