@@ -56,6 +56,14 @@
       return iterable(values);
     }
 
+    function repeat_style() {
+      var values = [{actual: "repeat", serialized: "repeat repeat"},
+                    {actual: "repeat-x", serialized: "repeat no-repeat"},
+                    {actual: "repeat-y", serialized: "no-repeat repeat"},
+                    {actual: "no-repeat", serialized: "no-repeat no-repeat"}];
+      return iterable(values);
+    }
+
     function border_style() {
       var values = ['none', 'hidden', 'dotted', 'dashed', 'solid', 'double', 'groove', 'ridge',
                     'inset', 'outset'];
@@ -268,8 +276,8 @@
         'initial': '0% 0%',
       }],
       ['background-repeat', {
-        'values': ['repeat', 'repeat-x', 'repeat-y', 'no-repeat', 'inherit'],
-        'initial': 'repeat',
+        'values': ['inherit', repeat_style],
+        'initial': "repeat",
       }],
       //background
       ['border-collapse', {
