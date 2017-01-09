@@ -79,7 +79,9 @@ var gCSSProperties = {
   'background-repeat': {
     // https://drafts.csswg.org/css-backgrounds-3/#background-repeat
     types: [
-      { type: 'discrete', options: [ [ 'space', 'round' ] ] }
+			// The computed value should be a list contained two keywords, so we use
+			// a list contained two keywords as the specified value.
+      { type: 'discrete', options: [ [ 'space space', 'round round' ] ] }
     ]
   },
   'background-size': {
@@ -908,7 +910,9 @@ var gCSSProperties = {
   'mask-repeat': {
     // https://drafts.fxtf.org/css-masking-1/#propdef-mask-repeat
     types: [
-      { type: 'discrete', options: [ [ 'space', 'round' ] ] }
+			// The computed value should be a list contained two keywords, so we use
+			// a list contained two keywords as the specified value.
+      { type: 'discrete', options: [ [ 'space space', 'round round' ] ] }
     ]
   },
   'mask-size': {
@@ -1520,4 +1524,3 @@ function propertyToIDL(property) {
                           function (str) {
                             return str.substr(1).toUpperCase(); });
 }
-
