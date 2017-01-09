@@ -2250,40 +2250,21 @@ nsComputedDOMStyle::DoGetImageLayerRepeat(const nsStyleImageLayers& aLayers)
   for (uint32_t i = 0, i_end = aLayers.mRepeatCount; i < i_end; ++i) {
     RefPtr<nsDOMCSSValueList> itemList = GetROCSSValueList(false);
     RefPtr<nsROCSSPrimitiveValue> valX = new nsROCSSPrimitiveValue;
+    RefPtr<nsROCSSPrimitiveValue> valY = new nsROCSSPrimitiveValue;
 
     const uint8_t& xRepeat = aLayers.mLayers[i].mRepeat.mXRepeat;
     const uint8_t& yRepeat = aLayers.mLayers[i].mRepeat.mYRepeat;
 
-    bool hasContraction = true;
-    unsigned contraction;
-    if (xRepeat == yRepeat) {
-      contraction = xRepeat;
-    } else if (xRepeat == NS_STYLE_IMAGELAYER_REPEAT_REPEAT &&
-               yRepeat == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT) {
-      contraction = NS_STYLE_IMAGELAYER_REPEAT_REPEAT_X;
-    } else if (xRepeat == NS_STYLE_IMAGELAYER_REPEAT_NO_REPEAT &&
-               yRepeat == NS_STYLE_IMAGELAYER_REPEAT_REPEAT) {
-      contraction = NS_STYLE_IMAGELAYER_REPEAT_REPEAT_Y;
-    } else {
-      hasContraction = false;
-    }
-
-    RefPtr<nsROCSSPrimitiveValue> valY;
-    if (hasContraction) {
-      valX->SetIdent(nsCSSProps::ValueToKeywordEnum(contraction,
-                                         nsCSSProps::kImageLayerRepeatKTable));
-    } else {
-      valY = new nsROCSSPrimitiveValue;
-
-      valX->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
+    // dimension x
+    valX->SetIdent(nsCSSProps::ValueToKeywordEnum(xRepeat,
                                           nsCSSProps::kImageLayerRepeatKTable));
-      valY->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
-                                          nsCSSProps::kImageLayerRepeatKTable));
-    }
     itemList->AppendCSSValue(valX.forget());
-    if (valY) {
-      itemList->AppendCSSValue(valY.forget());
-    }
+
+    // dimension y
+    valY->SetIdent(nsCSSProps::ValueToKeywordEnum(yRepeat,
+                                          nsCSSProps::kImageLayerRepeatKTable));
+    itemList->AppendCSSValue(valY.forget());
+
     valueList->AppendCSSValue(itemList.forget());
   }
 
