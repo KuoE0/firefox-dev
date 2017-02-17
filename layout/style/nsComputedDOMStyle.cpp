@@ -3817,6 +3817,14 @@ nsComputedDOMStyle::DoGetLineHeight()
 }
 
 already_AddRefed<CSSValue>
+nsComputedDOMStyle::DoGetLineHeightStep()
+{
+  RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;
+  SetValueToCoord(val, StyleText()->mLineHeightStep, false);
+  return val.forget();
+}
+
+already_AddRefed<CSSValue>
 nsComputedDOMStyle::DoGetRubyAlign()
 {
   RefPtr<nsROCSSPrimitiveValue> val = new nsROCSSPrimitiveValue;

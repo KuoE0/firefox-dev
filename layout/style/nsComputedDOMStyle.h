@@ -421,6 +421,7 @@ private:
   /* Text Properties */
   already_AddRefed<CSSValue> DoGetInitialLetter();
   already_AddRefed<CSSValue> DoGetLineHeight();
+  already_AddRefed<CSSValue> DoGetLineHeightStep();
   already_AddRefed<CSSValue> DoGetRubyAlign();
   already_AddRefed<CSSValue> DoGetRubyPosition();
   already_AddRefed<CSSValue> DoGetTextAlign();
