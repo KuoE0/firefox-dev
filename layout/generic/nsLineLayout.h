@@ -690,6 +690,10 @@ protected:
                       const nsStyleText* aStyleText, float aInflation,
                       bool* aZeroEffectiveSpanBox);
 
+  void ApplyLineHeightStep(PerSpanData* psd,
+                           nscoord& aLineBSize,
+                           nscoord& aBaselineBBCoord);
+
   void VerticalAlignFrames(PerSpanData* psd);
 
   void PlaceTopBottomFrames(PerSpanData* psd,

@@ -1542,6 +1542,9 @@ nsLineLayout::VerticalAlignLine()
   //
   // [3] the minimum line height ("line-height" property set on the
   // block frame)
+  //
+  // [4] the line-height-step property would make the height be the
+  // multiples of it
   nscoord lineBSize = psd->mMaxBCoord - psd->mMinBCoord;
 
   // Now that the line-height is computed, we need to know where the
@@ -1577,6 +1580,10 @@ nsLineLayout::VerticalAlignLine()
   if (lineBSize < mMaxStartBoxBSize) {
     lineBSize = mMaxStartBoxBSize;
   }
+
+  // Adjust line-height according to line-height-step
+  ApplyLineHeightStep(psd, lineBSize, baselineBCoord);
+
 #ifdef NOISY_BLOCKDIR_ALIGN
   printf("  [line]==> lineBSize=%d baselineBCoord=%d\n", lineBSize, baselineBCoord);
 #endif
@@ -2494,6 +2501,64 @@ nsLineLayout::VerticalAlignFrames(PerSpanData* psd)
   if (maxEndBoxBSize > mMaxEndBoxBSize) {
     mMaxEndBoxBSize = maxEndBoxBSize;
   }
+}
+
+void
+nsLineLayout::ApplyLineHeightStep(PerSpanData* psd,
+                                  nscoord& aLineBSize,
+                                  nscoord& aBaselineBCoord)
+{
+  const nsStyleCoord& lhsCoord =
+    psd->mFrame->mFrame->StyleContext()->StyleText()->mLineHeightStep;
+  if (lhsCoord.GetUnit() == eStyleUnit_None || lhsCoord.GetCoordValue() == 0) {
+    return;
+  }
+
+  // calculate the extra space to add
+  nscoord lineHeightStep = lhsCoord.GetCoordValue();
+  int mod = aLineBSize % lineHeightStep;
+  nscoord extra = mod ? lineHeightStep - mod : 0;
+
+  // get max start/end leading affected by emphasis or ruby frame
+  nscoord maxStartLeading = 0;
+  nscoord maxEndLeading = 0;
+  for (auto pfd = psd->mFirstFrame; pfd; pfd = pfd->mNext) {
+    PerSpanData* frameSpan = pfd->mSpan;
+    if (!frameSpan) {
+      continue;
+    }
+
+    maxStartLeading = maxStartLeading > frameSpan->mBStartLeading
+                    ? maxStartLeading : frameSpan->mBStartLeading;
+    maxEndLeading = maxEndLeading > frameSpan->mBEndLeading
+                  ? maxEndLeading : frameSpan->mBEndLeading;
+  }
+
+  // Calculate baseline offset
+  //
+  // -------------------------------------
+  // |                 | baseline offset |
+  // | top extra space |-----------------|
+  // |                 | top ruby frame  |
+  // |-----------------------------------|
+  // |               text                |
+  // |---------------------------------- |
+  // |                 | end ruby frame  |
+  // | end extra space |-----------------|
+  // |                 |                 |
+  // -------------------------------------
+  //
+  // The extra space we calculated is affected by the height of ruby frame or
+  // emphasis. So, the real extra space corresponding to the text should be the
+  // sum of the extra space we calculated above, the height of the top ruby
+  // frame (emphasis) and the height of the end ruby frame (emphasis).
+  //
+  // And, the baseline offset would be the following calculation.
+  nscoord baselineOffset = (extra + maxStartLeading + maxEndLeading) / 2 - maxStartLeading;
+
+  // adjust new line height and baseline
+  aLineBSize += extra;
+  aBaselineBCoord += baselineOffset;
 }
 
 static void SlideSpanFrameRect(nsIFrame* aFrame, nscoord aDeltaWidth)
