@@ -7825,6 +7825,17 @@ if (IsCSSPropertyPrefEnabled("layout.css.column-span.enabled")) {
   };
 }
 
+if (IsCSSPropertyPrefEnabled("layout.css.line-height-step.enabled")) {
+  gCSSProperties["line-height-step"] = {
+    domProp: "columnSpan",
+    inherited: false,
+    type: CSS_TYPE_LONGHAND,
+    initial_values: [ "none" ],
+    other_values: [ "all" ],
+    invalid_values: [ "-1", "0", "auto", "2px" ]
+  };
+}
+
 if (false) {
   // TODO These properties are chrome-only, and are not exposed via CSSOM.
   // We may still want to find a way to test them. See bug 1206999.
