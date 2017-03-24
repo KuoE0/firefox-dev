@@ -73,7 +73,5 @@ APZThreadUtils::IsControllerThread()
   return sControllerThread == MessageLoop::current();
 }
 
-NS_IMPL_ISUPPORTS(GenericNamedTimerCallbackBase, nsITimerCallback, nsINamed)
-
 } // namespace layers
 } // namespace mozilla

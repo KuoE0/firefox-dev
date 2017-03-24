@@ -31,6 +31,7 @@ EXPORTS += [
     'nsProxyRelease.h',
     'nsThread.h',
     'nsThreadUtils.h',
+    'nsTimerUtils.h',
 ]
 
 EXPORTS.mozilla += [
@@ -78,6 +79,7 @@ UNIFIED_SOURCES += [
     'nsThreadPool.cpp',
     'nsThreadUtils.cpp',
     'nsTimerImpl.cpp',
+    'nsTimerUtils.cpp',
     'SharedThreadPool.cpp',
     'SystemGroup.cpp',
     'TaskQueue.cpp',

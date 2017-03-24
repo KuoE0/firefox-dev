@@ -703,4 +703,3 @@ nsTimerImpl::GetTracedTask()
 }
 
 #endif
-
