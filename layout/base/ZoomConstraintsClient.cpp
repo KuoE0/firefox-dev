@@ -154,7 +154,7 @@ ZoomConstraintsClient::Observe(nsISupports* aSubject, const char* aTopic, const 
     ZCC_LOG("Got a before-first-paint event in %p\n", this);
     RefreshZoomConstraints();
   } else if (NS_PREF_CHANGED.EqualsASCII(aTopic)) {
-    ZCC_LOG("Got a pref-change event in %p\n", this);
+    printf("<kuoe0> Got a pref-change event in %p\n", this);
     // We need to run this later because all the pref change listeners need
     // to execute before we can be guaranteed that gfxPrefs::ForceUserScalable()
     // returns the updated value.
