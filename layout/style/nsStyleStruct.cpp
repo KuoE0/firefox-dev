@@ -3925,6 +3925,7 @@ nsStyleText::nsStyleText(const nsPresContext* aContext)
   , mWordSpacing(0, nsStyleCoord::CoordConstructor)
   , mLetterSpacing(eStyleUnit_Normal)
   , mLineHeight(eStyleUnit_Normal)
+  , mLineHeightStep(0, nsStyleCoord::CoordConstructor)
   , mTextIndent(0, nsStyleCoord::CoordConstructor)
   , mWebkitTextStrokeWidth(0)
   , mTextShadow(nullptr)
@@ -3963,6 +3964,7 @@ nsStyleText::nsStyleText(const nsStyleText& aSource)
   , mWordSpacing(aSource.mWordSpacing)
   , mLetterSpacing(aSource.mLetterSpacing)
   , mLineHeight(aSource.mLineHeight)
+  , mLineHeightStep(aSource.mLineHeightStep)
   , mTextIndent(aSource.mTextIndent)
   , mWebkitTextStrokeWidth(aSource.mWebkitTextStrokeWidth)
   , mTextShadow(aSource.mTextShadow)
@@ -4004,6 +4006,7 @@ nsStyleText::CalcDifference(const nsStyleText& aNewData) const
       (mTextSizeAdjust != aNewData.mTextSizeAdjust) ||
       (mLetterSpacing != aNewData.mLetterSpacing) ||
       (mLineHeight != aNewData.mLineHeight) ||
+      (mLineHeightStep != aNewData.mLineHeightStep) ||
       (mTextIndent != aNewData.mTextIndent) ||
       (mTextJustify != aNewData.mTextJustify) ||
       (mWordSpacing != aNewData.mWordSpacing) ||

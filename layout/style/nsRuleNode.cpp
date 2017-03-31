@@ -4789,6 +4789,28 @@ nsRuleNode::ComputeTextData(void* aStartStruct,
     }
   }
 
+  // line-height-step: none, length, calc
+  const nsCSSValue* lineHeightStepValue = aRuleData->ValueForLineHeightStep();
+  if (eCSSUnit_Null == lineHeightStepValue->GetUnit()) {
+    // do nothing
+  } else if (eCSSUnit_None == lineHeightStepValue->GetUnit() ||
+             eCSSUnit_Initial == lineHeightStepValue->GetUnit()) {
+    text->mLineHeightStep.SetCoordValue(0);
+  } else if (eCSSUnit_Inherit == lineHeightStepValue->GetUnit() ||
+             eCSSUnit_Unset == lineHeightStepValue->GetUnit()) {
+    text->mLineHeightStep = parentText->mLineHeightStep;
+  } else if (eCSSUnit_Calc == lineHeightStepValue->GetUnit()) {
+    SetLineHeightCalcOps ops(aContext, mPresContext, conditions);
+    LengthNumberCalcObj obj = css::ComputeCalc(*lineHeightStepValue, ops);
+    text->mLineHeightStep.SetCoordValue(NSToCoordRoundWithClamp(obj.mValue));
+  } else if (lineHeightStepValue->IsLengthUnit()) {
+    nscoord len = CalcLength(*lineHeightStepValue, aContext, mPresContext,
+                             conditions);
+    conditions.SetUncacheable();
+    text->mLineHeightStep.SetCoordValue(len);
+  } else {
+    MOZ_ASSERT_UNREACHABLE("unexpected unit");
+  }
 
   // text-align: enum, string, pair(enum|string), inherit, initial
   // NOTE: string is not implemented yet.

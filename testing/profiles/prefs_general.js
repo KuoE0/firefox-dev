@@ -190,6 +190,9 @@ user_pref("layout.css.shape-outside.enabled", true);
 // Enable CSS text-justify for testing
 user_pref("layout.css.text-justify.enabled", true);
 
+// Enable CSS line-height-step for testing
+user_pref("layout.css.line-height-step.enabled", true);
+
 // Disable spammy layout warnings because they pollute test logs
 user_pref("layout.spammy_warnings.enabled", false);
 

@@ -1941,6 +1941,7 @@ struct MOZ_NEEDS_MEMMOVABLE_MEMBERS nsStyleText
   nsStyleCoord mWordSpacing;            // [inherited] coord, percent, calc
   nsStyleCoord mLetterSpacing;          // [inherited] coord, normal
   nsStyleCoord mLineHeight;             // [inherited] coord, factor, normal
+  nsStyleCoord mLineHeightStep;         // [inherited] none, coord, calc
   nsStyleCoord mTextIndent;             // [inherited] coord, percent, calc
   nscoord mWebkitTextStrokeWidth;       // [inherited] coord
 

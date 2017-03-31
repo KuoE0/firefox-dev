@@ -5644,3 +5644,6 @@ pref("layers.advanced.caret-layers", true);
 #else
 pref("layers.advanced.caret-layers", false);
 #endif
+
+// Is line-height-step enabled?
+pref("layout.css.line-height-step.enabled", false);

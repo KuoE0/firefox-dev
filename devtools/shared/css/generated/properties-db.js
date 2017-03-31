@@ -2935,6 +2935,7 @@ exports.CSS_PROPERTIES = {
       "letter-spacing",
       "lighting-color",
       "line-height",
+      "line-height-step",
       "list-style-image",
       "list-style-position",
       "list-style-type",
@@ -6826,6 +6827,22 @@ exports.CSS_PROPERTIES = {
       "unset"
     ]
   },
+  "line-height-step": {
+    "isInherited": true,
+    "subproperties": [
+      "line-height-step"
+    ],
+    "supports": [
+      6
+    ],
+    "values": [
+      "calc",
+      "inherit",
+      "initial",
+      "none",
+      "unset"
+    ]
+  },
   "list-style": {
     "isInherited": true,
     "subproperties": [
@@ -9442,6 +9459,10 @@ exports.PREFERENCES = [
   [
     "isolation",
     "layout.css.isolation.enabled"
+  ],
+  [
+    "line-height-step",
+    "layout.css.line-height-step.enabled"
   ],
   [
     "mix-blend-mode",

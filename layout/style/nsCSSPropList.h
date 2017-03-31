@@ -2468,6 +2468,20 @@ CSS_PROP_TEXT(
     kLineHeightKTable,
     offsetof(nsStyleText, mLineHeight),
     eStyleAnimType_Coord)
+CSS_PROP_TEXT(
+    line-height-step,
+    line_height_step,
+    LineHeightStep,
+    CSS_PROPERTY_PARSE_VALUE |
+        CSS_PROPERTY_VALUE_NONNEGATIVE |
+        CSS_PROPERTY_APPLIES_TO_FIRST_LETTER_AND_FIRST_LINE |
+        CSS_PROPERTY_APPLIES_TO_PLACEHOLDER |
+        CSS_PROPERTY_GETCS_NEEDS_LAYOUT_FLUSH,
+    "layout.css.line-height-step.enabled",
+    VARIANT_NONE | VARIANT_HL | VARIANT_CALC,
+    nullptr,
+    CSS_PROP_NO_OFFSET,
+    eStyleAnimType_None)
 CSS_PROP_SHORTHAND(
     list-style,
     list_style,
