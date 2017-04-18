@@ -29,13 +29,6 @@ ${helpers.predefined_type("-moz-box-flex", "Number", "0.0", "parse_non_negative"
                           alias="-webkit-box-flex",
                           spec="Nonstandard (https://developer.mozilla.org/en-US/docs/Web/CSS/box-flex)")}
 
-${helpers.single_keyword("-moz-box-orient", "horizontal vertical",
-                         products="gecko", gecko_ffi_name="mBoxOrient",
-                         gecko_enum_prefix="StyleBoxOrient",
-                         animation_type="none",
-                         alias="-webkit-box-orient",
-                         spec="Nonstandard (https://developer.mozilla.org/en-US/docs/Web/CSS/box-orient)")}
-
 ${helpers.single_keyword("-moz-box-pack", "start center end justify",
                          products="gecko", gecko_ffi_name="mBoxPack",
                          gecko_enum_prefix="StyleBoxPack",
@@ -56,3 +49,47 @@ ${helpers.predefined_type("-moz-box-ordinal-group", "Integer", "0",
                           gecko_ffi_name="mBoxOrdinal",
                           animation_type="none",
                           spec="Nonstandard (https://developer.mozilla.org/en-US/docs/Web/CSS/-moz-box-ordinal-group)")}
+
+<%helpers:longhand name="-moz-box-orient"
+                   products="gecko"
+                   animation_type="none"
+                   alias="-webkit-box-orient"
+                   spec="Nonstandard (https://developer.mozilla.org/en-US/docs/Web/CSS/box-orient)">
+    use style_traits::ToCss;
+    use values::computed::ComputedValueAsSpecified;
+    use values::HasViewportPercentage;
+
+    define_css_keyword_enum!(BoxOrientKeyword:
+                            "inline-axis" => InlineAxis,
+                            "block-axis" => BlockAxis,
+                            "horizontal" => Horizontal,
+                            "vertical" => Vertical);
+
+    pub use self::BoxOrientKeyword as SpecifiedValue;
+    no_viewport_percentage!(SpecifiedValue);
+
+    pub mod computed_value {
+        pub use super::SpecifiedValue as T;
+    }
+
+    #[inline]
+    pub fn get_initial_value() -> computed_value::T {
+        self::computed_value::T::Horizontal
+    }
+
+    #[inline]
+    pub fn parse(_context: &ParserContext, input: &mut Parser)
+                 -> Result<SpecifiedValue, ()> {
+        SpecifiedValue::parse(input)
+    }
+
+    impl Parse for SpecifiedValue {
+        #[inline]
+        fn parse(_context: &ParserContext, input: &mut Parser)
+                 -> Result<SpecifiedValue, ()> {
+            SpecifiedValue::parse(input)
+        }
+    }
+
+    impl ComputedValueAsSpecified for SpecifiedValue {}
+</%helpers:longhand>
