@@ -245,8 +245,6 @@ to mochitest command.
   * writing-mode: sideways-{lr,rl} and SVG values servo/servo#15213
     * test_logical_properties.html `sideways` [1224]
     * test_value_storage.html `writing-mode` [8]
-  * -moz-box-orient: {block,inline}-axis bug 1355005
-    * test_value_storage.html `box-orient` [6]
 * Incorrect parsing
   * Incorrect bounds
     * test_bug664955.html `font size is larger than max font size` [2]
