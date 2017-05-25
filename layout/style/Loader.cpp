@@ -500,6 +500,7 @@ bool
 LoaderReusableStyleSheets::FindReusableStyleSheet(nsIURI* aURL,
                                                   RefPtr<StyleSheet>& aResult)
 {
+  printf("<kuoe0> %s\n", __func__);
   MOZ_ASSERT(aURL);
   for (size_t i = mReusableSheets.Length(); i > 0; --i) {
     size_t index = i - 1;
@@ -510,9 +511,11 @@ LoaderReusableStyleSheets::FindReusableStyleSheet(nsIURI* aURL,
     if (!NS_FAILED(rv) && sameURI) {
       aResult = mReusableSheets[index];
       mReusableSheets.RemoveElementAt(index);
+      printf("<kuoe0> %s: found!\n", __func__);
       return true;
     }
   }
+      printf("<kuoe0> %s: not found!\n", __func__);
   return false;
 }
 
@@ -1407,6 +1410,7 @@ Loader::InsertChildSheet(StyleSheet* aSheet,
                          ImportRule* aGeckoParentRule,
                          const RawServoStyleSheet* aServoChildSheet)
 {
+  printf("<kuoe0> %s\n", __func__);
   LOG(("css::Loader::InsertChildSheet"));
   MOZ_ASSERT(aSheet, "Nothing to insert");
   MOZ_ASSERT(aParentSheet, "Need a parent to insert into");
@@ -2203,6 +2207,7 @@ Loader::LoadChildSheet(StyleSheet* aParentSheet,
                        LoaderReusableStyleSheets* aReusableSheets)
 {
   LOG(("css::Loader::LoadChildSheet"));
+  printf("<kuoe0>: %s\n", __func__);
   NS_PRECONDITION(aURL, "Must have a URI to load");
   NS_PRECONDITION(aParentSheet, "Must have a parent sheet");
 

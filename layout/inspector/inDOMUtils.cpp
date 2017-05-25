@@ -1369,15 +1369,19 @@ NS_IMETHODIMP
 inDOMUtils::ParseStyleSheet(nsIDOMCSSStyleSheet *aSheet,
                             const nsAString& aInput)
 {
+  printf("<kuoe0> %s\n", __func__);
+  printf("<kuoe0> %s: input=%s\n", __func__, NS_ConvertUTF16toUTF8(aInput).Data());
   RefPtr<CSSStyleSheet> geckoSheet = do_QueryObject(aSheet);
   if (geckoSheet) {
     NS_ENSURE_ARG_POINTER(geckoSheet);
+    printf("<kuoe0> %s: is gecko stylesheet\n", __func__);
     return geckoSheet->ReparseSheet(aInput);
   }
 
   RefPtr<ServoStyleSheet> servoSheet = do_QueryObject(aSheet);
   if (servoSheet) {
     NS_ENSURE_ARG_POINTER(servoSheet);
+    printf("<kuoe0> %s: is servo stylesheet\n", __func__);
     return servoSheet->ReparseSheet(aInput);
   }
 
