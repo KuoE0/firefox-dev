@@ -1967,6 +1967,45 @@ Gecko_nsStyleSVG_CopyContextProperties(nsStyleSVG* aDst, const nsStyleSVG* aSrc)
   aDst->mContextPropsBits = aSrc->mContextPropsBits;
 }
 
+void
+Gecko_nsStyleSVG_ResetFillOpacity(nsStyleSVG* aSvg)
+{
+  aSvg->SetFillOpacitySource(eStyleSVGOpacitySource_Normal);
+  aSvg->mFillOpacity = 1.0;
+}
+
+void
+Gecko_nsStyleSVG_SetFillOpacitySource(nsStyleSVG* aSvg, const nsStyleSVGOpacitySource aOpacity)
+{
+  aSvg->SetFillOpacitySource(aOpacity);
+}
+
+void
+Gecko_nsStyleSVG_CopyFillOpacityFrom(nsStyleSVG* aDest, const nsStyleSVG* aSrc)
+{
+  aDest->SetFillOpacitySource(aSrc->FillOpacitySource());
+  aDest->mFillOpacity = aSrc->mFillOpacity;
+}
+
+void
+Gecko_nsStyleSVG_ResetStrokeOpacity(nsStyleSVG* aSvg)
+{
+  aSvg->SetStrokeOpacitySource(eStyleSVGOpacitySource_Normal);
+  aSvg->mStrokeOpacity = 1.0;
+}
+
+void
+Gecko_nsStyleSVG_SetStrokeOpacitySource(nsStyleSVG* aSvg, const nsStyleSVGOpacitySource aOpacity)
+{
+  aSvg->SetStrokeOpacitySource(aOpacity);
+}
+
+void
+Gecko_nsStyleSVG_CopyStrokeOpacityFrom(nsStyleSVG* aDest, const nsStyleSVG* aSrc)
+{
+  aDest->SetStrokeOpacitySource(aSrc->StrokeOpacitySource());
+  aDest->mStrokeOpacity = aSrc->mStrokeOpacity;
+}
 
 css::URLValue*
 Gecko_NewURLValue(ServoBundledURI aURI)

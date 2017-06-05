@@ -480,6 +480,14 @@ void Gecko_nsStyleSVG_CopyDashArray(nsStyleSVG* dst, const nsStyleSVG* src);
 void Gecko_nsStyleSVG_SetContextPropertiesLength(nsStyleSVG* svg, uint32_t len);
 void Gecko_nsStyleSVG_CopyContextProperties(nsStyleSVG* dst, const nsStyleSVG* src);
 
+void Gecko_nsStyleSVG_ResetFillOpacity(nsStyleSVG* svg);
+void Gecko_nsStyleSVG_SetFillOpacitySource(nsStyleSVG* svg, const nsStyleSVGOpacitySource opacity);
+void Gecko_nsStyleSVG_CopyFillOpacityFrom(nsStyleSVG* dest, const nsStyleSVG* src);
+
+void Gecko_nsStyleSVG_ResetStrokeOpacity(nsStyleSVG* svg);
+void Gecko_nsStyleSVG_SetStrokeOpacitySource(nsStyleSVG* svg, const nsStyleSVGOpacitySource opacity);
+void Gecko_nsStyleSVG_CopyStrokeOpacityFrom(nsStyleSVG* dest, const nsStyleSVG* src);
+
 mozilla::css::URLValue* Gecko_NewURLValue(ServoBundledURI uri);
 NS_DECL_THREADSAFE_FFI_REFCOUNTING(mozilla::css::URLValue, CSSURLValue);
 NS_DECL_THREADSAFE_FFI_REFCOUNTING(RawGeckoURLExtraData, URLExtraData);
