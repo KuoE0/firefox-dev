@@ -449,6 +449,33 @@ impl ToComputedValue for specified::NumberOrPercentage {
 /// A type used for opacity.
 pub type Opacity = CSSFloat;
 
+/// An SVG opacity value.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "servo", derive(HeapSizeOf))]
+pub enum SVGOpacity {
+    /// Float from 0 to 1
+    Opacity(Opacity),
+    /// `context-fill-opacity`
+    ContextFillOpacity,
+    /// `context-stroke-opacity`
+    ContextStrokeOpacity,
+}
+
+impl Default for SVGOpacity {
+    fn default() -> Self {
+        SVGOpacity::Opacity(1.0)
+    }
+}
+
+impl ToCss for SVGOpacity {
+    fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+        match *self {
+            SVGOpacity::ContextFillOpacity => dest.write_str("context-fill-opacity"),
+            SVGOpacity::ContextStrokeOpacity => dest.write_str("context-stroke-opacity"),
+            SVGOpacity::Opacity(opacity) => opacity.to_css(dest),
+        }
+    }
+}
 /// A `<integer>` value.
 pub type Integer = CSSInteger;
 

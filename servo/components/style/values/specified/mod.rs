@@ -549,6 +549,12 @@ pub struct Opacity(Number);
 
 no_viewport_percentage!(Opacity);
 
+impl Default for Opacity {
+    fn default() -> Self {
+        Opacity(Number{value: 1.0, calc_clamping_mode: None,})
+    }
+}
+
 impl Parse for Opacity {
     fn parse<'i, 't>(context: &ParserContext, input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i>> {
         parse_number(context, input).map(Opacity)
@@ -729,6 +735,80 @@ impl ToComputedValue for SVGPaintKind {
     #[inline]
     fn from_computed_value(computed: &Self::ComputedValue) -> Self {
         computed.convert(ToComputedValue::from_computed_value)
+    }
+}
+
+no_viewport_percentage!(SVGOpacity);
+
+/// An SVG opacity value.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "servo", derive(HeapSizeOf))]
+pub enum SVGOpacity {
+    /// Float from 0 to 1
+    Opacity(Opacity),
+    /// `context-fill-opacity`
+    ContextFillOpacity,
+    /// `context-stroke-opacity`
+    ContextStrokeOpacity,
+}
+
+impl Default for SVGOpacity {
+    fn default() -> Self {
+        SVGOpacity::Opacity(Opacity::default())
+    }
+}
+
+impl ToCss for SVGOpacity {
+    fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+        match *self {
+            SVGOpacity::ContextFillOpacity => dest.write_str("context-fill-opacity"),
+            SVGOpacity::ContextStrokeOpacity => dest.write_str("context-stroke-opacity"),
+            SVGOpacity::Opacity(opacity) => opacity.to_css(dest),
+        }
+    }
+}
+
+impl SVGOpacity {
+    fn parse_ident(input: &mut Parser) -> Result<Self, ()> {
+        Ok(match_ignore_ascii_case! { &input.expect_ident()?,
+            "context-fill-opacity" => SVGOpacity::ContextFillOpacity,
+            "context-stroke-opacity" => SVGOpacity::ContextStrokeOpacity,
+            _ => return Err(())
+        })
+    }
+}
+
+impl Parse for SVGOpacity {
+    fn parse(context: &ParserContext, input: &mut Parser) -> Result<Self, ()> {
+        if let Ok(opacity) = Opacity::parse(context, input) {
+            return Ok(SVGOpacity::Opacity(opacity));
+        } else if let Ok(opacity) = input.try(SVGOpacity::parse_ident) {
+            return Ok(opacity);
+        }
+
+        Err(())
+    }
+}
+
+impl ToComputedValue for SVGOpacity {
+    type ComputedValue = super::computed::SVGOpacity;
+
+    #[inline]
+    fn to_computed_value(&self, context: &Context) -> Self::ComputedValue {
+        match *self {
+            SVGOpacity::Opacity(opacity) => super::computed::SVGOpacity::Opacity(opacity.to_computed_value(context)),
+            SVGOpacity::ContextFillOpacity => super::computed::SVGOpacity::ContextFillOpacity,
+            SVGOpacity::ContextStrokeOpacity => super::computed::SVGOpacity::ContextStrokeOpacity,
+        }
+    }
+
+    #[inline]
+    fn from_computed_value(computed: &Self::ComputedValue) -> Self {
+        match *computed {
+            super::computed::SVGOpacity::Opacity(opacity) => SVGOpacity::Opacity(Opacity(Number{value:opacity, calc_clamping_mode: None})),
+            super::computed::SVGOpacity::ContextFillOpacity => SVGOpacity::ContextFillOpacity,
+            super::computed::SVGOpacity::ContextStrokeOpacity => SVGOpacity::ContextStrokeOpacity,
+        }
     }
 }
 
