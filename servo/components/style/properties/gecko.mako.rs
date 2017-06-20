@@ -4155,12 +4155,16 @@ clip-path
         self.gecko.mContextPropsBits = 0;
         for (mut gecko, servo) in self.gecko.mContextProps.iter_mut().zip(v) {
             if servo.0 == atom!("fill") {
+                println!("<kuoe0> -moz-context-properties: fill");
                 self.gecko.mContextPropsBits |= structs::NS_STYLE_CONTEXT_PROPERTY_FILL as u8;
             } else if servo.0 == atom!("stroke") {
+                println!("<kuoe0> -moz-context-properties: stroke");
                 self.gecko.mContextPropsBits |= structs::NS_STYLE_CONTEXT_PROPERTY_STROKE as u8;
             } else if servo.0 == atom!("fill-opacity") {
+                println!("<kuoe0> -moz-context-properties: fill-opacity");
                 self.gecko.mContextPropsBits |= structs::NS_STYLE_CONTEXT_PROPERTY_FILL_OPACITY as u8;
             } else if servo.0 == atom!("stroke-opacity") {
+                println!("<kuoe0> -moz-context-properties: stroke-opacity");
                 self.gecko.mContextPropsBits |= structs::NS_STYLE_CONTEXT_PROPERTY_STROKE_OPACITY as u8;
             }
             unsafe { gecko.set_raw_from_addrefed::<structs::nsIAtom>(servo.0.into_addrefed()) }
