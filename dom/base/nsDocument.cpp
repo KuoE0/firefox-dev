@@ -13172,8 +13172,7 @@ nsIDocument::UpdateStyleBackendType()
   if (nsLayoutUtils::StyloEnabled()) {
     if (!mDocumentContainer) {
       NS_WARNING("stylo: No docshell yet, assuming Gecko style system");
-    } else if ((IsHTMLOrXHTML() || IsSVGDocument()) &&
-               IsContentDocument()) {
+    } else if (!IsXULDocument() && IsContentDocument()) {
       mStyleBackendType = StyleBackendType::Servo;
     }
   }
