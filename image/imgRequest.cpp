@@ -1036,7 +1036,7 @@ PrepareForNewPart(nsIRequest* aRequest, nsIInputStream* aInStr, uint32_t aCount,
       image::ImageFactory::CreateImage(aRequest, aProgressTracker,
                                        result.mContentType,
                                        aURI, /* aIsMultipart = */ false,
-                                       aInnerWindowId);
+                                       aInnerWindowId, aBackendType);
   }
 
   MOZ_ASSERT(result.mImage);

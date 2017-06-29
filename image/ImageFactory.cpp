@@ -84,7 +84,8 @@ ImageFactory::CreateImage(nsIRequest* aRequest,
                           const nsCString& aMimeType,
                           ImageURL* aURI,
                           bool aIsMultiPart,
-                          uint32_t aInnerWindowId)
+                          uint32_t aInnerWindowId,
+                          StyleBackendType aBackendType /* = StyleBackendType::Gecko */)
 {
   MOZ_ASSERT(gfxPrefs::SingletonExists(),
              "Pref observers should have been initialized already");
@@ -108,7 +109,7 @@ ImageFactory::CreateImage(nsIRequest* aRequest,
   // Select the type of image to create based on MIME type.
   if (aMimeType.EqualsLiteral(IMAGE_SVG_XML)) {
     return CreateVectorImage(aRequest, aProgressTracker, aMimeType,
-                             aURI, imageFlags, aInnerWindowId);
+                             aURI, imageFlags, aInnerWindowId, aBackendType);
   } else {
     return CreateRasterImage(aRequest, aProgressTracker, aMimeType,
                              aURI, imageFlags, aInnerWindowId);
@@ -253,13 +254,14 @@ ImageFactory::CreateVectorImage(nsIRequest* aRequest,
                                 const nsCString& aMimeType,
                                 ImageURL* aURI,
                                 uint32_t aImageFlags,
-                                uint32_t aInnerWindowId)
+                                uint32_t aInnerWindowId,
+                                StyleBackendType aBackendType)
 {
   MOZ_ASSERT(aProgressTracker);
 
   nsresult rv;
 
-  RefPtr<VectorImage> newImage = new VectorImage(aURI);
+  RefPtr<VectorImage> newImage = new VectorImage(aURI, aBackendType);
   aProgressTracker->SetImage(newImage);
   newImage->SetProgressTracker(aProgressTracker);
 
