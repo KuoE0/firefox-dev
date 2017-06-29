@@ -335,14 +335,16 @@ NS_IMPL_ISUPPORTS(VectorImage,
 //------------------------------------------------------------------------------
 // Constructor / Destructor
 
-VectorImage::VectorImage(ImageURL* aURI /* = nullptr */) :
+VectorImage::VectorImage(ImageURL* aURI /* = nullptr */,
+                         StyleBackendType aBackendType /* = StyleBackendType::Gecko */) :
   ImageResource(aURI), // invoke superclass's constructor
   mLockCount(0),
   mIsInitialized(false),
   mIsFullyLoaded(false),
   mIsDrawing(false),
   mHaveAnimations(false),
-  mHasPendingInvalidation(false)
+  mHasPendingInvalidation(false),
+  mBackendType(aBackendType)
 { }
 
 VectorImage::~VectorImage()

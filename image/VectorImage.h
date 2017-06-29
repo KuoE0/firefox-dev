@@ -72,7 +72,8 @@ public:
   virtual void ReportUseCounters() override;
 
 protected:
-  explicit VectorImage(ImageURL* aURI = nullptr);
+  explicit VectorImage(ImageURL* aURI = nullptr,
+                       StyleBackendType aBackendType = StyleBackendType::Gecko);
   virtual ~VectorImage();
 
   virtual nsresult StartAnimation() override;
@@ -123,7 +124,7 @@ private:
                                           // (Only set after mIsFullyLoaded.)
   bool           mHasPendingInvalidation; // Invalidate observers next refresh
                                           // driver tick.
-
+  StyleBackendType mBackendType;          // The backend used for this image document.
   friend class ImageFactory;
 };
 
