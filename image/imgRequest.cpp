@@ -963,7 +963,8 @@ struct NewPartResult final
 static NewPartResult
 PrepareForNewPart(nsIRequest* aRequest, nsIInputStream* aInStr, uint32_t aCount,
                   ImageURL* aURI, bool aIsMultipart, image::Image* aExistingImage,
-                  ProgressTracker* aProgressTracker, uint32_t aInnerWindowId)
+                  ProgressTracker* aProgressTracker, uint32_t aInnerWindowId,
+                  StyleBackendType aBackendType)
 {
   NewPartResult result(aExistingImage);
 
@@ -1011,7 +1012,7 @@ PrepareForNewPart(nsIRequest* aRequest, nsIInputStream* aInStr, uint32_t aCount,
       image::ImageFactory::CreateImage(aRequest, progressTracker,
                                        result.mContentType,
                                        aURI, /* aIsMultipart = */ true,
-                                       aInnerWindowId);
+                                       aInnerWindowId, aBackendType);
 
     if (result.mIsFirstPart) {
       // First part for a multipart channel. Create the MultipartImage wrapper.
@@ -1129,7 +1130,9 @@ imgRequest::OnDataAvailable(nsIRequest* aRequest, nsISupports* aContext,
   if (newPartPending) {
     NewPartResult result = PrepareForNewPart(aRequest, aInStr, aCount, mURI,
                                              isMultipart, image,
-                                             progressTracker, mInnerWindowId);
+                                             progressTracker, mInnerWindowId,
+                                             IsChrome() ? StyleBackendType::Gecko :
+                                                          StyleBackendType::Servo);
     bool succeeded = result.mSucceeded;
 
     if (result.mImage) {
