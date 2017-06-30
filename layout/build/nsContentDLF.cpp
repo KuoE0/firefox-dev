@@ -140,6 +140,7 @@ nsContentDLF::CreateInstance(const char* aCommand,
                              const nsACString& aContentType,
                              nsIDocShell* aContainer,
                              nsISupports* aExtraInfo,
+                             uint8_t aBackendType,
                              nsIStreamListener** aDocListener,
                              nsIContentViewer** aDocViewer)
 {

@@ -278,6 +278,8 @@
 
 #include "nsIURIClassifier.h"
 
+#include "mozilla/StyleBackendType.h"
+
 using namespace mozilla;
 using namespace mozilla::dom;
 
@@ -1019,6 +1021,7 @@ nsExternalResourceMap::PendingLoad::SetupViewer(nsIRequest* aRequest,
   nsCOMPtr<nsIStreamListener> listener;
   rv = docLoaderFactory->CreateInstance("external-resource", chan, newLoadGroup,
                                         type, nullptr, nullptr,
+                                        (uint8_t)StyleBackendType::None,
                                         getter_AddRefs(listener),
                                         getter_AddRefs(viewer));
   NS_ENSURE_SUCCESS(rv, rv);

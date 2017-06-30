@@ -30,6 +30,7 @@ interface nsIDocumentLoaderFactory : nsISupports {
                               in ACString aContentType, 
                               in nsIDocShell aContainer,
                               in nsISupports aExtraInfo,
+                              in octet aBackendType,
                               out nsIStreamListener aDocListenerResult);
 
     nsIContentViewer createInstanceForDocument(in nsISupports aContainer,

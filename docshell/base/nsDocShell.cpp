@@ -27,6 +27,7 @@
 #include "mozilla/Preferences.h"
 #include "mozilla/Services.h"
 #include "mozilla/StartupTimeline.h"
+#include "mozilla/StyleBackendType.h"
 #include "mozilla/Telemetry.h"
 #include "mozilla/Unused.h"
 #include "Navigator.h"
@@ -9353,6 +9354,7 @@ nsDocShell::NewContentViewerObj(const nsACString& aContentType,
                                                  aLoadGroup, aContentType,
                                                  this,
                                                  nullptr,
+                                                 (uint8_t)StyleBackendType::None,
                                                  aContentHandler,
                                                  aViewer);
   NS_ENSURE_SUCCESS(rv, rv);

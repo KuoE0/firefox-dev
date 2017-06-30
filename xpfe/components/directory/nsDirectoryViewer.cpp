@@ -1261,6 +1261,7 @@ nsDirectoryViewerFactory::CreateInstance(const char *aCommand,
                                          const nsACString& aContentType,
                                          nsIDocShell* aContainer,
                                          nsISupports* aExtraInfo,
+                                         uint8_t aBackendType,
                                          nsIStreamListener** aDocListenerResult,
                                          nsIContentViewer** aDocViewerResult)
 {
@@ -1307,8 +1308,8 @@ nsDirectoryViewerFactory::CreateInstance(const char *aCommand,
     nsCOMPtr<nsIStreamListener> listener;
     rv = factory->CreateInstance(aCommand, channel, aLoadGroup,
                                  NS_LITERAL_CSTRING("application/vnd.mozilla.xul+xml"),
-                                 aContainer, aExtraInfo, getter_AddRefs(listener),
-                                 aDocViewerResult);
+                                 aContainer, aExtraInfo, (uint8_t)StyleBackendType::None,
+                                 getter_AddRefs(listener), aDocViewerResult);
     if (NS_FAILED(rv)) return rv;
 
     rv = channel->AsyncOpen2(listener);
@@ -1356,13 +1357,13 @@ nsDirectoryViewerFactory::CreateInstance(const char *aCommand,
   if (viewSource) {
     rv = factory->CreateInstance("view-source", aChannel, aLoadGroup,
                                  NS_LITERAL_CSTRING("text/html; x-view-type=view-source"),
-                                 aContainer, aExtraInfo, getter_AddRefs(listener),
-                                 aDocViewerResult);
+                                 aContainer, aExtraInfo, (uint8_t)StyleBackendType::None,
+                                 getter_AddRefs(listener), aDocViewerResult);
   } else {
     rv = factory->CreateInstance("view", aChannel, aLoadGroup,
                                  NS_LITERAL_CSTRING("text/html"),
-                                 aContainer, aExtraInfo, getter_AddRefs(listener),
-                                 aDocViewerResult);
+                                 aContainer, aExtraInfo, (uint8_t)StyleBackendType::None,
+                                 getter_AddRefs(listener), aDocViewerResult);
   }
 
   if (NS_FAILED(rv)) return rv;
