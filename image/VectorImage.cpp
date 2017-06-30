@@ -1184,7 +1184,7 @@ VectorImage::OnStartRequest(nsIRequest* aRequest, nsISupports* aCtxt)
   MOZ_ASSERT(!mSVGDocumentWrapper,
              "Repeated call to OnStartRequest -- can this happen?");
 
-  mSVGDocumentWrapper = new SVGDocumentWrapper();
+  mSVGDocumentWrapper = new SVGDocumentWrapper(mBackendType);
   nsresult rv = mSVGDocumentWrapper->OnStartRequest(aRequest, aCtxt);
   if (NS_FAILED(rv)) {
     mSVGDocumentWrapper = nullptr;

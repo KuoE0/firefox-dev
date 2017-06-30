@@ -48,8 +48,9 @@ NS_IMPL_ISUPPORTS(SVGDocumentWrapper,
                   nsIObserver,
                   nsISupportsWeakReference)
 
-SVGDocumentWrapper::SVGDocumentWrapper()
-  : mIgnoreInvalidation(false),
+SVGDocumentWrapper::SVGDocumentWrapper(StyleBackendType aBackendType)
+  : mBackendType(aBackendType),
+    mIgnoreInvalidation(false),
     mRegisteredForXPCOMShutdown(false)
 { }
 
