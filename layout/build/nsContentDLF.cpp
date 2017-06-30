@@ -186,7 +186,8 @@ nsContentDLF::CreateInstance(const char* aCommand,
     return CreateDocument(aCommand,
                           aChannel, aLoadGroup,
                           aContainer, kHTMLDocumentCID,
-                          aDocListener, aDocViewer);
+                          aDocListener, aDocViewer,
+                          StyleBackendType(aBackendType));
   }
 
   // Try XML
@@ -194,7 +195,8 @@ nsContentDLF::CreateInstance(const char* aCommand,
     return CreateDocument(aCommand,
                           aChannel, aLoadGroup,
                           aContainer, kXMLDocumentCID,
-                          aDocListener, aDocViewer);
+                          aDocListener, aDocViewer,
+                          StyleBackendType(aBackendType));
   }
 
   // Try SVG
@@ -202,7 +204,8 @@ nsContentDLF::CreateInstance(const char* aCommand,
     return CreateDocument(aCommand,
                           aChannel, aLoadGroup,
                           aContainer, kSVGDocumentCID,
-                          aDocListener, aDocViewer);
+                          aDocListener, aDocViewer,
+                          StyleBackendType(aBackendType));
   }
 
   // Try XUL
@@ -220,7 +223,8 @@ nsContentDLF::CreateInstance(const char* aCommand,
     return CreateDocument(aCommand,
                           aChannel, aLoadGroup,
                           aContainer, kVideoDocumentCID,
-                          aDocListener, aDocViewer);
+                          aDocListener, aDocViewer,
+                          StyleBackendType(aBackendType));
   }
 
   // Try image types
@@ -228,7 +232,8 @@ nsContentDLF::CreateInstance(const char* aCommand,
     return CreateDocument(aCommand,
                           aChannel, aLoadGroup,
                           aContainer, kImageDocumentCID,
-                          aDocListener, aDocViewer);
+                          aDocListener, aDocViewer,
+                          StyleBackendType(aBackendType));
   }
 
   RefPtr<nsPluginHost> pluginHost = nsPluginHost::GetInst();
@@ -239,7 +244,8 @@ nsContentDLF::CreateInstance(const char* aCommand,
     return CreateDocument(aCommand,
                           aChannel, aLoadGroup,
                           aContainer, kPluginDocumentCID,
-                          aDocListener, aDocViewer);
+                          aDocListener, aDocViewer,
+                          StyleBackendType(aBackendType));
   }
 
   // If we get here, then we weren't able to create anything. Sorry!
@@ -345,7 +351,8 @@ nsContentDLF::CreateDocument(const char* aCommand,
                              nsIDocShell* aContainer,
                              const nsCID& aDocumentCID,
                              nsIStreamListener** aDocListener,
-                             nsIContentViewer** aContentViewer)
+                             nsIContentViewer** aContentViewer,
+                             StyleBackendType aBackendType)
 {
   nsresult rv = NS_ERROR_FAILURE;
 
@@ -365,6 +372,11 @@ nsContentDLF::CreateDocument(const char* aCommand,
   // Create the document
   nsCOMPtr<nsIDocument> doc = do_CreateInstance(aDocumentCID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
+
+  // Set style backend type before document loading
+  if (aBackendType != StyleBackendType::None) {
+    doc->SetStyleBackendType(aBackendType);
+  }
 
   // Create the content viewer  XXX: could reuse content viewer here!
   nsCOMPtr<nsIContentViewer> contentViewer = NS_NewContentViewer();

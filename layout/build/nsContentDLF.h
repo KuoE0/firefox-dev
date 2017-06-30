@@ -8,6 +8,9 @@
 
 #include "nsIDocumentLoaderFactory.h"
 #include "nsMimeTypes.h"
+#include "StyleBackendType.h"
+
+using mozilla::StyleBackendType;
 
 class nsIChannel;
 class nsIContentViewer;
@@ -36,7 +39,8 @@ public:
                           nsIDocShell* aContainer,
                           const nsCID& aDocumentCID,
                           nsIStreamListener** aDocListener,
-                          nsIContentViewer** aContentViewer);
+                          nsIContentViewer** aContentViewer,
+                          StyleBackendType aBackendType);
 
   nsresult CreateXULDocument(const char* aCommand,
                              nsIChannel* aChannel,
@@ -90,4 +94,3 @@ NS_NewContentDocumentLoaderFactory(nsIDocumentLoaderFactory** aResult);
 
 
 #endif
-
