@@ -22,6 +22,7 @@
 #include "nsIScriptSecurityManager.h"
 #include "nsString.h"
 #include "nsContentCID.h"
+#include "nsLayoutUtils.h"
 #include "nsNetUtil.h"
 #include "nsCRT.h"
 #include "nsIViewSourceChannel.h"
@@ -345,7 +346,8 @@ nsContentDLF::CreateDocument(const char* aCommand,
                              nsIDocShell* aContainer,
                              const nsCID& aDocumentCID,
                              nsIStreamListener** aDocListener,
-                             nsIContentViewer** aContentViewer)
+                             nsIContentViewer** aContentViewer,
+                             StyleBackendType aStyleBackendType /* = StyleBackendType::None */)
 {
   nsresult rv = NS_ERROR_FAILURE;
 
@@ -365,6 +367,17 @@ nsContentDLF::CreateDocument(const char* aCommand,
   // Create the document
   nsCOMPtr<nsIDocument> doc = do_CreateInstance(aDocumentCID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
+
+  // Set style backend type before document loading. Can't set None as the
+  // backend type, it would hit an assertion.
+  if (aStyleBackendType != StyleBackendType::None) {
+    // To dynamic switch the backend type, check stylo is enabled or not
+    // before setting the backend type. If stylo is not enabled, we always set
+    // backend type to gecko.
+    doc->SetStyleBackendType(
+        nsLayoutUtils::StyloEnabled() ? aStyleBackendType
+                                      : StyleBackendType::Gecko);
+  }
 
   // Create the content viewer  XXX: could reuse content viewer here!
   nsCOMPtr<nsIContentViewer> contentViewer = NS_NewContentViewer();
