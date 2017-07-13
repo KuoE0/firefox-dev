@@ -22,6 +22,8 @@
 #include "nsIXMLContentSink.h"
 #include "nsNetCID.h"
 #include "nsComponentManagerUtils.h"
+#include "nsContentDLF.h"
+#include "nsContentCID.h"
 #include "nsSMILAnimationController.h"
 #include "nsServiceManagerUtils.h"
 #include "mozilla/dom/SVGSVGElement.h"
@@ -49,7 +51,14 @@ NS_IMPL_ISUPPORTS(SVGDocumentWrapper,
                   nsISupportsWeakReference)
 
 SVGDocumentWrapper::SVGDocumentWrapper()
-  : mIgnoreInvalidation(false),
+  : mStyleBackendType(StyleBackendType::None),
+    mIgnoreInvalidation(false),
+    mRegisteredForXPCOMShutdown(false)
+{ }
+
+SVGDocumentWrapper::SVGDocumentWrapper(StyleBackendType aStyleBackendType)
+  : mStyleBackendType(aStyleBackendType),
+    mIgnoreInvalidation(false),
     mRegisteredForXPCOMShutdown(false)
 { }
 
@@ -339,14 +348,17 @@ SVGDocumentWrapper::SetupViewer(nsIRequest* aRequest,
     do_GetService(contractId);
   NS_ENSURE_TRUE(docLoaderFactory, NS_ERROR_NOT_AVAILABLE);
 
+  RefPtr<nsContentDLF> contentDLF =
+    static_cast<nsContentDLF*>(docLoaderFactory.get());
+  NS_ENSURE_TRUE(contentDLF, NS_ERROR_UNEXPECTED);
+
   nsCOMPtr<nsIContentViewer> viewer;
   nsCOMPtr<nsIStreamListener> listener;
-  rv = docLoaderFactory->CreateInstance("external-resource", chan,
-                                        newLoadGroup,
-                                        NS_LITERAL_CSTRING(IMAGE_SVG_XML),
-                                        nullptr, nullptr,
-                                        getter_AddRefs(listener),
-                                        getter_AddRefs(viewer));
+  rv = contentDLF->CreateDocument("external-resource", chan, newLoadGroup,
+                                  nullptr, NS_SVGDOCUMENT_CID,
+                                  getter_AddRefs(listener),
+                                  getter_AddRefs(viewer),
+                                  mStyleBackendType);
   NS_ENSURE_SUCCESS(rv, rv);
 
   NS_ENSURE_TRUE(viewer, NS_ERROR_UNEXPECTED);
