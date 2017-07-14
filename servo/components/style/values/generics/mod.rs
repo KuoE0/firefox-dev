@@ -377,3 +377,76 @@ impl<ColorType: ToCss> ToCss for SVGPaint<ColorType> {
 }
 
 
+/// An SVG opacity value.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "servo", derive(HeapSizeOf))]
+pub enum SVGOpacitySource {
+    /// Float from 0 to 1
+    Opacity(Opacity),
+    /// `context-fill-opacity`
+    ContextFillOpacity,
+    /// `context-stroke-opacity`
+    ContextStrokeOpacity,
+}
+
+impl Default for SVGOpacitySource {
+    fn default() -> Self {
+        SVGOpacitySource::Opacity(Opacity::default())
+    }
+}
+
+impl ToCss for SVGOpacitySource {
+    fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+        match *self {
+            SVGOpacitySource::ContextFillOpacity => dest.write_str("context-fill-opacity"),
+            SVGOpacitySource::ContextStrokeOpacity => dest.write_str("context-stroke-opacity"),
+            SVGOpacitySource::Opacity(opacity) => opacity.to_css(dest),
+        }
+    }
+}
+
+impl SVGOpacitySource {
+    fn parse_ident(input: &mut Parser) -> Result<Self, ()> {
+        Ok(match_ignore_ascii_case! { &input.expect_ident()?,
+            "context-fill-opacity" => SVGOpacitySource::ContextFillOpacity,
+            "context-stroke-opacity" => SVGOpacitySource::ContextStrokeOpacity,
+            _ => return Err(())
+        })
+    }
+}
+
+impl Parse for SVGOpacitySource {
+    fn parse<'i, 't>(context: &ParserContext, input: &mut Parser<'i, 't>) -> Result<Self, ParseError<'i>> {
+        if let Ok(opacity) = Opacity::parse(context, input) {
+            return Ok(SVGOpacitySource::Opacity(opacity));
+        } else if let Ok(opacity) = input.try(SVGOpacitySource::parse_ident) {
+            return Ok(opacity);
+        }
+
+        Err(())
+    }
+}
+
+impl ToComputedValue for SVGOpacitySource {
+    type ComputedValue = super::computed::SVGOpacitySource;
+
+    #[inline]
+    fn to_computed_value(&self, context: &Context) -> Self::ComputedValue {
+        match *self {
+            SVGOpacitySource::Opacity(opacity) => super::computed::SVGOpacitySource::Opacity(opacity.to_computed_value(context)),
+            SVGOpacitySource::ContextFillOpacity => super::computed::SVGOpacitySource::ContextFillOpacity,
+            SVGOpacitySource::ContextStrokeOpacity => super::computed::SVGOpacitySource::ContextStrokeOpacity,
+        }
+    }
+
+    #[inline]
+    fn from_computed_value(computed: &Self::ComputedValue) -> Self {
+        match *computed {
+            super::computed::SVGOpacitySource::Opacity(opacity) => SVGOpacitySource::Opacity(Opacity(Number{value:opacity, calc_clamping_mode: None})),
+            super::computed::SVGOpacitySource::ContextFillOpacity => SVGOpacitySource::ContextFillOpacity,
+            super::computed::SVGOpacitySource::ContextStrokeOpacity => SVGOpacitySource::ContextStrokeOpacity,
+        }
+    }
+}
+
+no_viewport_percentage!(SVGOpacitySource);
