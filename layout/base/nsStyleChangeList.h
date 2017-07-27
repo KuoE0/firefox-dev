@@ -17,6 +17,10 @@
 #include "nsChangeHint.h"
 #include "nsCOMPtr.h"
 
+#ifdef DEBUG
+#include "nsDataHashtable.h"
+#endif
+
 class nsIFrame;
 class nsIContent;
 
@@ -63,6 +67,9 @@ public:
 
 private:
   mozilla::StyleBackendType mType;
+#ifdef DEBUG
+  nsDataHashtable<nsISupportsHashKey, nsChangeHint> contentHintTable;
+#endif
 };
 
 #endif /* nsStyleChangeList_h___ */

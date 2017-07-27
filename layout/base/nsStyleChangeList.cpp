@@ -44,10 +44,14 @@ nsStyleChangeList::AppendChange(nsIFrame* aFrame, nsIContent* aContent, nsChange
   // If Servo fires reconstruct at a node, it is the only change hint fired at
   // that node.
   if (IsServo()) {
-    for (size_t i = 0; i < Length(); ++i) {
-      MOZ_ASSERT(!aContent || !((aHint | (*this)[i].mHint) & nsChangeHint_ReconstructFrame) ||
-                 (*this)[i].mContent != aContent);
+#ifdef DEBUG
+    nsChangeHint changeHint;
+    if (aContent && (aHint & nsChangeHint_ReconstructFrame) &&
+        contentHintTable.Get(aContent, &changeHint)) {
+      MOZ_ASSERT(!(changeHint & nsChangeHint_ReconstructFrame),
+                 "It should be the only reconstruct frame hint.");
     }
+#endif
   } else {
     // Filter out all other changes for same content for Gecko (Servo asserts against this
     // case above).
@@ -61,9 +65,22 @@ nsStyleChangeList::AppendChange(nsIFrame* aFrame, nsIContent* aContent, nsChange
   }
 
   if (!IsEmpty() && aFrame && aFrame == LastElement().mFrame) {
+#ifdef DEBUG
+    if (IsServo()) {
+      nsChangeHint changeHint;
+      contentHintTable.Get(aContent, &changeHint);
+      contentHintTable.Put(aContent, changeHint | aHint);
+    }
+#endif
     LastElement().mHint |= aHint;
     return;
   }
+
+#ifdef DEBUG
+  if (IsServo() && aContent) {
+    contentHintTable.Put(aContent, aHint);
+  }
+#endif
 
   AppendElement(nsStyleChangeData { aFrame, aContent, aHint });
 }
