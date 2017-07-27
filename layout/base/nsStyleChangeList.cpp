@@ -41,17 +41,23 @@ nsStyleChangeList::AppendChange(nsIFrame* aFrame, nsIContent* aContent, nsChange
              (aHint & nsChangeHint_NeedReflow),
              "Reflow hint bits set without actually asking for a reflow");
 
-  // If Servo fires reconstruct at a node, it is the only change hint fired at
-  // that node.
-  if (IsServo()) {
-    for (size_t i = 0; i < Length(); ++i) {
-      MOZ_ASSERT(!aContent || !((aHint | (*this)[i].mHint) & nsChangeHint_ReconstructFrame) ||
-                 (*this)[i].mContent != aContent);
-    }
-  } else {
-    // Filter out all other changes for same content for Gecko (Servo asserts against this
-    // case above).
-    if (aContent && (aHint & nsChangeHint_ReconstructFrame)) {
+  if (aContent && (aHint & nsChangeHint_ReconstructFrame)) {
+    // If Servo fires reconstruct at a node, it is the only change hint fired at
+    // that node.
+    if (IsServo()) {
+      // XXXkuoe0 It cannot catch the case that we append an nsStyleChangeData
+      // without nsChangeHint_ReconstructFrame of content A when there is
+      // already an nsStyleChangeData with nsChangeHint_ReconstructFrame of
+      // content A.
+      for (size_t i = 0; i < Length(); ++i) {
+        MOZ_ASSERT(aContent != (*this)[i].mContent ||
+                   !((*this)[i].mHint & nsChangeHint_ReconstructFrame),
+                   "This should be the only reconstruct frame hint of this \
+                   content.");
+      }
+    } else {
+      // Filter out all other changes for same content for Gecko (Servo asserts against this
+      // case above).
       // NOTE: This is captured by reference to please static analysis.
       // Capturing it by value as a pointer should be fine in this case.
       RemoveElementsBy([&](const nsStyleChangeData& aData) {
