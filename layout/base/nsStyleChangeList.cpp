@@ -46,9 +46,8 @@ nsStyleChangeList::AppendChange(nsIFrame* aFrame, nsIContent* aContent, nsChange
   if (IsServo()) {
 #ifdef DEBUG
     nsChangeHint changeHint;
-    if (aContent && (aHint & nsChangeHint_ReconstructFrame) &&
-        contentHintTable.Get(aContent, &changeHint)) {
-      MOZ_ASSERT(!(changeHint & nsChangeHint_ReconstructFrame),
+    if (aContent && contentHintTable.Get(aContent, &changeHint)) {
+      MOZ_ASSERT(!((aHint | changeHint) & nsChangeHint_ReconstructFrame),
                  "It should be the only reconstruct frame hint.");
     }
 #endif
