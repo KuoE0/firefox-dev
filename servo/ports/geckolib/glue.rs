@@ -1911,6 +1911,7 @@ pub extern "C" fn Servo_ComputedValues_EqualCustomProperties(
 #[no_mangle]
 pub extern "C" fn Servo_ComputedValues_GetStyleRuleList(values: ServoStyleContextBorrowed,
                                                         rules: RawGeckoServoStyleRuleListBorrowedMut) {
+    use std::io;
     let rule_node = match values.rules {
         Some(ref r) => r,
         None => return,
@@ -1927,7 +1928,14 @@ pub extern "C" fn Servo_ComputedValues_GetStyleRuleList(values: ServoStyleContex
             _ => continue,
         };
 
+        match *node.style_source() {
+            StyleSource::Style(_) => {
+                let mut stdout = io::stdout();
+                println!("<kuoe0> Get rule:");
+                node.style_source().dump(&guard, &mut stdout);
+                println!("\n---");
             }
+            _ => {},
         }
 
         if node.importance().important() {

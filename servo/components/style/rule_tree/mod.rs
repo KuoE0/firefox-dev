@@ -98,7 +98,9 @@ impl StyleSource {
         }
     }
 
-    fn dump<W: Write>(&self, guard: &SharedRwLockReadGuard, writer: &mut W) {
+    /// Dump
+    #[inline]
+    pub fn dump<W: Write>(&self, guard: &SharedRwLockReadGuard, writer: &mut W) {
         use self::StyleSource::*;
 
         if let Style(ref rule) = *self {
@@ -190,6 +192,8 @@ impl RuleTree {
         let mut important_ua = SmallVec::<[StyleSource; 4]>::new();
         let mut transition = None;
 
+        let author_guard = guards.author;
+
         for (source, level) in iter {
             debug_assert!(last_level <= level, "Not really ordered");
             debug_assert!(!level.is_important(), "Important levels handled internally");
@@ -217,6 +221,15 @@ impl RuleTree {
                 debug_assert!(transition.is_none());
                 transition = Some(source);
             } else {
+                match level {
+                    AuthorNormal => {
+                        println!("<kuoe0> Insert rule (normal):");
+                        let mut stdout = io::stdout();
+                        source.dump(&author_guard, &mut stdout);
+                        println!("\n---");
+                    },
+                    _ => {},
+                }
                 current = current.ensure_child(self.root.downgrade(), source, level);
             }
             last_level = level;
@@ -233,22 +246,42 @@ impl RuleTree {
         //
 
         for source in important_author.drain() {
+            println!("<kuoe0> Insert rule (important):");
+            let mut stdout = io::stdout();
+            source.dump(&author_guard, &mut stdout);
+            println!("\n---");
             current = current.ensure_child(self.root.downgrade(), source, AuthorImportant);
         }
 
         if let Some(source) = important_style_attr {
+            // println!("Insert rule (important):");
+            // let mut stdout = io::stdout();
+            // source.dump(&author_guard, &mut stdout);
+            // println!("\n---");
             current = current.ensure_child(self.root.downgrade(), source, StyleAttributeImportant);
         }
 
         for source in important_user.drain() {
+            // println!("Insert rule (important):");
+            // let mut stdout = io::stdout();
+            // source.dump(&author_guard, &mut stdout);
+            // println!("\n---");
             current = current.ensure_child(self.root.downgrade(), source, UserImportant);
         }
 
         for source in important_ua.drain() {
+            // println!("Insert rule (important):");
+            // let mut stdout = io::stdout();
+            // source.dump(&author_guard, &mut stdout);
+            // println!("\n---");
             current = current.ensure_child(self.root.downgrade(), source, UAImportant);
         }
 
         if let Some(source) = transition {
+            // println!("Insert rule (important):");
+            // let mut stdout = io::stdout();
+            // source.dump(&author_guard, &mut stdout);
+            // println!("\n---");
             current = current.ensure_child(self.root.downgrade(), source, Transitions);
         }
 
