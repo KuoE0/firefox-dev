@@ -7230,6 +7230,31 @@ nsTextFrame::DrawTextRunAndDecorations(Range aRange,
     params.vertical = verticalDec;
     params.sidewaysLeft = mTextRun->IsSidewaysLeft();
 
+    // We create a clip region in order to draw the decoration lines only in the
+    // range of the text. Restricting the draw area prevents the decoration lines
+    // to be drawn multiple times when a part of the text is selected.
+
+    // We skip clipping for the following cases:
+    // - drawing the whole text
+    // - having different orientation of the text and the writing-mode, such as
+    //   "text-combine-upright" (Bug 1408825)
+    bool skipClipping = aRange.Length() == mTextRun->GetLength() ||
+                        verticalDec != verticalRun;
+
+    gfxFloat clipLength = mTextRun->GetAdvanceWidth(aRange, aParams.provider);
+    gfxRect clipRect(0, 0,
+                     verticalDec ? frameSize.width : clipLength / app,
+                     verticalDec ? clipLength / app : frameSize.height);
+
+    const bool isInlineReversed = mTextRun->IsInlineReversed();
+    if (verticalDec) {
+      clipRect.y = (isInlineReversed ? aTextBaselinePt.y - clipLength
+                                     : aTextBaselinePt.y) / app;
+    } else {
+      clipRect.x = (isInlineReversed ? aTextBaselinePt.x - clipLength
+                                     : aTextBaselinePt.x) / app;
+    }
+
     // The matrix of the context may have been altered for text-combine-
     // upright. However, we want to draw decoration lines unscaled, thus
     // we need to revert the scaling here.
@@ -7268,6 +7293,10 @@ nsTextFrame::DrawTextRunAndDecorations(Range aRange,
       PaintDecorationLine(params);
     };
 
+    if (!skipClipping) {
+      params.context->Clip(clipRect);
+    }
+
     // Underlines
     params.decoration = NS_STYLE_TEXT_DECORATION_LINE_UNDERLINE;
     for (const LineDecoration& dec : Reversed(aDecorations.mUnderlines)) {
@@ -7279,6 +7308,12 @@ nsTextFrame::DrawTextRunAndDecorations(Range aRange,
     params.decoration = NS_STYLE_TEXT_DECORATION_LINE_OVERLINE;
     for (const LineDecoration& dec : Reversed(aDecorations.mOverlines)) {
       paintDecorationLine(dec, &Metrics::underlineSize, &Metrics::maxAscent);
+    }
+
+    // Some glyphs and emphasises may extend outside the region, so we reset the
+    // clip region here. For an example, italic glyphs.
+    if (!skipClipping) {
+      params.context->PopClip();
     }
 
     {
@@ -7298,11 +7333,20 @@ nsTextFrame::DrawTextRunAndDecorations(Range aRange,
                       aTextBaselinePt, aParams.framePt, aRange,
                       aParams.decorationOverrideColor, aParams.provider);
 
+    // Re-apply the clip region when the line-through is been drawing.
+    if (!skipClipping) {
+      params.context->Clip(clipRect);
+    }
+
     // Line-throughs
     params.decoration = NS_STYLE_TEXT_DECORATION_LINE_LINE_THROUGH;
     for (const LineDecoration& dec : Reversed(aDecorations.mStrikes)) {
       paintDecorationLine(dec, &Metrics::strikeoutSize,
                           &Metrics::strikeoutOffset);
+    }
+
+    if (!skipClipping) {
+      params.context->PopClip();
     }
 }
 
