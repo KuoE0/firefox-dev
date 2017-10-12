@@ -6882,6 +6882,7 @@ void
 nsTextFrame::PaintShadows(nsCSSShadowArray* aShadow,
                           const PaintShadowParams& aParams)
 {
+  printf("<kuoe0> %s: shadow painting\n", __func__);
   if (!aShadow) {
     return;
   }
@@ -6928,6 +6929,7 @@ nsTextFrame::PaintShadows(nsCSSShadowArray* aShadow,
     PaintOneShadow(aParams, aShadow->ShadowAt(i - 1),
                    shadowMetrics.mBoundingBox, blurFlags);
   }
+  printf("<kuoe0> %s: shadow painted\n", __func__);
 }
 
 static bool
@@ -7255,6 +7257,11 @@ nsTextFrame::DrawTextRunAndDecorations(Range aRange,
                                      : aTextBaselinePt.x) / app;
     }
 
+    printf("<kuoe0> %s: skipClipping=%s\n", __func__, skipClipping ? "YES" : "NO");
+    printf("<kuoe0> %s: start clipping\n", __func__);
+    printf("<kuoe0> %s: x=%lf y=%lf verticalDec=%s verticalRun=%s IsInlineReverse=%s\n", __func__, aTextBaselinePt.x / app, aTextBaselinePt.y / app, verticalDec ? "YES" : "NO", verticalRun ? "YES" : "NO", isInlineReversed ? "YES": "NO");
+    printf("<kuoe0> %s: clipRect=(%lf, %lf, %lf, %lf)\n", __func__, clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+
     // The matrix of the context may have been altered for text-combine-
     // upright. However, we want to draw decoration lines unscaled, thus
     // we need to revert the scaling here.
@@ -7348,6 +7355,13 @@ nsTextFrame::DrawTextRunAndDecorations(Range aRange,
     if (!skipClipping) {
       params.context->PopClip();
     }
+
+    printf("<kuoe0> %s: end clipping\n", __func__);
+
+    static int dump_cnt;
+    char filename[100];
+    sprintf(filename, "/tmp/dump_%02d.png", dump_cnt++);
+    params.context->WriteAsPNG(filename);
 }
 
 void
