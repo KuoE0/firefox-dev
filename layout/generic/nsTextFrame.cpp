@@ -7286,18 +7286,21 @@ nsTextFrame::DrawTextRunAndDecorations(Range aRange,
       // Get the inline-size according to the specified range.
       gfxFloat clipLength = mTextRun->GetAdvanceWidth(aRange, aParams.provider);
 
-      clipRect.width = verticalDec ? frameSize.width : clipLength / app;
-      clipRect.height = verticalDec ? clipLength / app : frameSize.height;
+      clipRect.width = verticalDec ? frameSize.width : clipLength;
+      clipRect.height = verticalDec ? clipLength : frameSize.height;
 
       const bool isInlineReversed = mTextRun->IsInlineReversed();
       if (verticalDec) {
-        clipRect.y = (isInlineReversed ? aTextBaselinePt.y - clipLength
-                                       : aTextBaselinePt.y) / app;
+        clipRect.x = aParams.framePt.x;
+        clipRect.y = isInlineReversed ? aTextBaselinePt.y - clipLength
+                                      : aTextBaselinePt.y;
       } else {
-        clipRect.x = (isInlineReversed ? aTextBaselinePt.x - clipLength
-                                       : aTextBaselinePt.x) / app;
+        clipRect.x = isInlineReversed ? aTextBaselinePt.x - clipLength
+                                      : aTextBaselinePt.x;
+        clipRect.y = aParams.framePt.y;
       }
 
+      clipRect.Scale(1 / app);
       clipRect.Round();
       params.context->Clip(clipRect);
     }
