@@ -122,6 +122,9 @@ nsListControlFrame::~nsListControlFrame()
 }
 
 static bool ShouldFireDropDownEvent() {
+  if (!Preferences::GetBool("dom.select_popup_in_parent.enabled", false)) {
+    return false;
+  }
   return (XRE_IsContentProcess() &&
           Preferences::GetBool("browser.tabs.remote.desktopbehavior", false)) ||
          Preferences::GetBool("dom.select_popup_in_parent.enabled", false);
