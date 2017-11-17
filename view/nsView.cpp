@@ -650,17 +650,20 @@ nsresult nsView::CreateWidgetForPopup(nsWidgetInitData *aWidgetInitData,
     if (!nearestParent) {
       // Without a parent, we can't make a popup.  This can happen
       // when printing
+      printf("<kuoe0> %s: widget not created!\n", __func__);
       return NS_ERROR_FAILURE;
     }
 
     mWindow = nearestParent->CreateChild(trect, aWidgetInitData);
   }
   if (!mWindow) {
+    printf("<kuoe0> %s: widget not created!\n", __func__);
     return NS_ERROR_FAILURE;
   }
 
   InitializeWindow(aEnableDragDrop, aResetVisibility);
 
+  printf("<kuoe0> %s: widget created!\n", __func__);
   return NS_OK;
 }
 
