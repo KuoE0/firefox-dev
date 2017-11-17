@@ -3197,6 +3197,7 @@ nsCSSFrameConstructor::ConstructSelectFrame(nsFrameConstructorState& aState,
                                             const nsStyleDisplay*    aStyleDisplay,
                                             nsFrameItems&            aFrameItems)
 {
+  printf("<kuoe0> %s\n", __func__);
   nsIContent* const content = aItem.mContent;
   nsStyleContext* const styleContext = aItem.mStyleContext;
 
@@ -3243,26 +3244,25 @@ nsCSSFrameConstructor::ConstructSelectFrame(nsFrameConstructorState& aState,
     // Notify combobox that it should use the listbox as it's popup
     comboboxFrame->SetDropDown(listFrame);
 
-    NS_ASSERTION(!listFrame->IsAbsPosContainingBlock(),
-                 "Ended up with positioned dropdown list somehow.");
-    NS_ASSERTION(!listFrame->IsFloating(),
-                 "Ended up with floating dropdown list somehow.");
+    /* NS_ASSERTION(!listFrame->IsAbsPosContainingBlock(), */
+    /*              "Ended up with positioned dropdown list somehow."); */
+    /* NS_ASSERTION(!listFrame->IsFloating(), */
+    /*              "Ended up with floating dropdown list somehow."); */
 
     // Initialize the scroll frame positioned. Note that it is NOT
     // initialized as absolutely positioned.
     nsContainerFrame* scrolledFrame =
       NS_NewSelectsAreaFrame(mPresShell, styleContext, flags);
 
+    nsFrameItems childItems;
+
+    // Initialize the additional popup child list which contains the
+    // dropdown list frame.
     InitializeSelectFrame(aState, listFrame, scrolledFrame, content,
                           comboboxFrame, listStyle, true,
-                          aItem.mPendingBinding, aFrameItems);
+                          aItem.mPendingBinding, childItems);
 
-    NS_ASSERTION(listFrame->GetView(), "ListFrame's view is nullptr");
-
-    // Create display and button frames from the combobox's anonymous content.
-    // The anonymous content is appended to existing anonymous content for this
-    // element (the scrollbars).
-    nsFrameItems childItems;
+    /* NS_ASSERTION(listFrame->GetView(), "ListFrame's view is nullptr"); */
 
     // nsComboboxControlFrame needs special frame creation behavior for its first
     // piece of anonymous content, which means that we can't take the normal
@@ -3292,10 +3292,10 @@ nsCSSFrameConstructor::ConstructSelectFrame(nsFrameConstructorState& aState,
 
     // Initialize the additional popup child list which contains the
     // dropdown list frame.
-    nsFrameItems popupItems;
-    popupItems.AddChild(listFrame);
-    comboboxFrame->SetInitialChildList(nsIFrame::kSelectPopupList,
-                                       popupItems);
+    /* nsFrameItems popupItems; */
+    /* popupItems.AddChild(listFrame); */
+    /* comboboxFrame->SetInitialChildList(nsIFrame::kSelectPopupList, */
+    /*                                    popupItems); */
 
     aState.mFrameState = historyState;
     if (aState.mFrameState) {
@@ -3347,9 +3347,7 @@ nsCSSFrameConstructor::InitializeSelectFrame(nsFrameConstructorState& aState,
 
   scrollFrame->Init(aContent, geometricParent, nullptr);
 
-  if (!aBuildCombobox) {
-    aState.AddChild(scrollFrame, aFrameItems, aContent, aParentFrame);
-  }
+  aState.AddChild(scrollFrame, aFrameItems, aContent, aParentFrame);
 
   BuildScrollFrame(aState, aContent, aStyleContext, scrolledFrame,
                    geometricParent, scrollFrame);

@@ -32,6 +32,7 @@
 #include "mozilla/Preferences.h"
 #include "mozilla/TextEvents.h"
 #include <algorithm>
+#include "LayersLogging.h"
 
 using namespace mozilla;
 
@@ -83,6 +84,7 @@ NS_NewListControlFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
     new (aPresShell) nsListControlFrame(aContext);
 
   it->AddStateBits(NS_FRAME_INDEPENDENT_SELECTION);
+  printf("<kuoe0> nsListControlFrame::%s: ListControl=%p\n", __func__, it);
 
   return it;
 }
@@ -99,6 +101,7 @@ nsListControlFrame::nsListControlFrame(nsStyleContext* aContext)
   , mForceSelection(false)
   , mLastDropdownComputedBSize(NS_UNCONSTRAINEDSIZE)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   mComboboxFrame      = nullptr;
   mChangesSinceDragStart = false;
   mButtonDown         = false;
@@ -119,6 +122,9 @@ nsListControlFrame::~nsListControlFrame()
 }
 
 static bool ShouldFireDropDownEvent() {
+  if (!Preferences::GetBool("dom.select_popup_in_parent.enabled", false)) {
+    return false;
+  }
   return (XRE_IsContentProcess() &&
           Preferences::GetBool("browser.tabs.remote.desktopbehavior", false)) ||
          Preferences::GetBool("dom.select_popup_in_parent.enabled", false);
@@ -128,6 +134,7 @@ static bool ShouldFireDropDownEvent() {
 void
 nsListControlFrame::DestroyFrom(nsIFrame* aDestructRoot, PostDestroyData& aPostDestroyData)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // get the receiver interface from the browser button's content node
   ENSURE_TRUE(mContent);
 
@@ -175,6 +182,9 @@ nsListControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   if (IsInDropDownMode()) {
     NS_ASSERTION(NS_GET_A(mLastDropdownBackstopColor) == 255,
                  "need an opaque backstop color");
+    if (!mComboboxFrame->IsDroppedDown()) {
+      return;
+    }
     // XXX Because we have an opaque widget and we get called to paint with
     // this frame as the root of a stacking context we need make sure to draw
     // some opaque color over the whole widget. (Bug 511323)
@@ -196,6 +206,7 @@ nsListControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
  */
 void nsListControlFrame::PaintFocus(DrawTarget* aDrawTarget, nsPoint aPt)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (mFocused != this) return;
 
   nsPresContext* presContext = PresContext();
@@ -247,6 +258,7 @@ void nsListControlFrame::PaintFocus(DrawTarget* aDrawTarget, nsPoint aPt)
 void
 nsListControlFrame::InvalidateFocus()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (mFocused != this)
     return;
 
@@ -266,6 +278,7 @@ NS_QUERYFRAME_TAIL_INHERITING(nsHTMLScrollFrame)
 a11y::AccType
 nsListControlFrame::AccessibleType()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   return a11y::eHTMLSelectListType;
 }
 #endif
@@ -273,6 +286,7 @@ nsListControlFrame::AccessibleType()
 static nscoord
 GetMaxOptionBSize(nsIFrame* aContainer, WritingMode aWM)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   nscoord result = 0;
   for (nsIFrame* option : aContainer->PrincipalChildList()) {
     nscoord optionBSize;
@@ -298,6 +312,7 @@ GetMaxOptionBSize(nsIFrame* aContainer, WritingMode aWM)
 nscoord
 nsListControlFrame::CalcBSizeOfARow()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // Calculate the block size in our writing mode of a single row in the
   // listbox or dropdown list by using the tallest thing in the subtree,
   // since there may be option groups in addition to option elements,
@@ -306,11 +321,13 @@ nsListControlFrame::CalcBSizeOfARow()
   int32_t blockSizeOfARow = GetMaxOptionBSize(GetOptionsContainer(),
                                               GetWritingMode());
 
+  printf("<kuoe0> nsListControlFrame::%s: BSizeOfARow=%d\n", __func__, blockSizeOfARow);
   // Check to see if we have zero items (and optimize by checking
   // blockSizeOfARow first)
   if (blockSizeOfARow == 0 && GetNumberOfOptions() == 0) {
     float inflation = nsLayoutUtils::FontSizeInflationFor(this);
     blockSizeOfARow = CalcFallbackRowBSize(inflation);
+    printf("<kuoe0> nsListControlFrame::%s: 2nd BSizeOfARow=%d\n", __func__, blockSizeOfARow);
   }
 
   return blockSizeOfARow;
@@ -319,6 +336,7 @@ nsListControlFrame::CalcBSizeOfARow()
 nscoord
 nsListControlFrame::GetPrefISize(gfxContext *aRenderingContext)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   nscoord result;
   DISPLAY_PREF_WIDTH(this, result);
 
@@ -337,6 +355,7 @@ nsListControlFrame::GetPrefISize(gfxContext *aRenderingContext)
 nscoord
 nsListControlFrame::GetMinISize(gfxContext *aRenderingContext)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   nscoord result;
   DISPLAY_MIN_WIDTH(this, result);
 
@@ -359,6 +378,7 @@ nsListControlFrame::Reflow(nsPresContext*           aPresContext,
                            const ReflowInput& aReflowInput,
                            nsReflowStatus&          aStatus)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   MOZ_ASSERT(aStatus.IsEmpty(), "Caller should pass a fresh reflow status!");
   NS_PRECONDITION(aReflowInput.ComputedISize() != NS_UNCONSTRAINEDSIZE,
                   "Must have a computed inline size");
@@ -496,6 +516,7 @@ nsListControlFrame::ReflowAsDropdown(nsPresContext*           aPresContext,
                                      const ReflowInput& aReflowInput,
                                      nsReflowStatus&          aStatus)
 {
+  printf("<kuoe0> nsListControlFrame::%s: start\n", __func__);
   NS_PRECONDITION(aReflowInput.ComputedBSize() == NS_UNCONSTRAINEDSIZE,
                   "We should not have a computed block size here!");
 
@@ -551,6 +572,8 @@ nsListControlFrame::ReflowAsDropdown(nsPresContext*           aPresContext,
 
   nscoord visibleBSize = GetScrolledFrame()->BSize(wm);
   nscoord blockSizeOfARow = BSizeOfARow();
+  printf("<kuoe0> nsListControlFrame::%s: visibleBSize=%d\n", __func__, visibleBSize);
+  printf("<kuoe0> nsListControlFrame::%s: blockSizeOfARow=%d\n", __func__, blockSizeOfARow);
 
   // Gotta reflow again.
   // XXXbz We're just changing the block size here; do we need to dirty
@@ -566,7 +589,7 @@ nsListControlFrame::ReflowAsDropdown(nsPresContext*           aPresContext,
   // rules applied to the combobox dropdown.
 
   mDropdownCanGrow = false;
-  if (visibleBSize <= 0 || blockSizeOfARow <= 0 || XRE_IsContentProcess()) {
+  if (visibleBSize <= 0 || blockSizeOfARow <= 0) {
     // Looks like we have no options.  Just size us to a single row
     // block size.
     state.SetComputedBSize(blockSizeOfARow);
@@ -613,6 +636,8 @@ nsListControlFrame::ReflowAsDropdown(nsPresContext*           aPresContext,
 
   aStatus.Reset();
   nsHTMLScrollFrame::Reflow(aPresContext, aDesiredSize, state, aStatus);
+  printf("<kuoe0> nsListControlFrame::%s: ComputedSize=%s\n", __func__, Stringify(state.ComputedSize().GetPhysicalSize(wm)).c_str());
+  printf("<kuoe0> nsListControlFrame::%s: end / rect=%s\n", __func__, layers::Stringify(GetRect()).c_str());
 }
 
 ScrollbarStyles
@@ -632,6 +657,7 @@ nsListControlFrame::GetScrollbarStyles() const
 bool
 nsListControlFrame::ShouldPropagateComputedBSizeToScrolledContent() const
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   return !IsInDropDownMode();
 }
 
@@ -647,6 +673,7 @@ nsListControlFrame::ExtendedSelection(int32_t aStartIndex,
                                       int32_t aEndIndex,
                                       bool aClearAll)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   return SetOptionsSelectedFromFrame(aStartIndex, aEndIndex,
                                      true, aClearAll);
 }
@@ -655,6 +682,7 @@ nsListControlFrame::ExtendedSelection(int32_t aStartIndex,
 bool
 nsListControlFrame::SingleSelection(int32_t aClickedIndex, bool aDoToggle)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (mComboboxFrame) {
     mComboboxFrame->UpdateRecentIndex(GetSelectedIndex());
   }
@@ -692,6 +720,7 @@ nsListControlFrame::SingleSelection(int32_t aClickedIndex, bool aDoToggle)
 void
 nsListControlFrame::InitSelectionRange(int32_t aClickedIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   //
   // If nothing is selected, set the start selection depending on where
   // the user clicked and what the initial selection is:
@@ -738,6 +767,7 @@ nsListControlFrame::InitSelectionRange(int32_t aClickedIndex)
 static uint32_t
 CountOptionsAndOptgroups(nsIFrame* aFrame)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   uint32_t count = 0;
   nsFrameList::Enumerator e(aFrame->PrincipalChildList());
   for (; !e.AtEnd(); e.Next()) {
@@ -766,6 +796,7 @@ CountOptionsAndOptgroups(nsIFrame* aFrame)
 uint32_t
 nsListControlFrame::GetNumberOfRows()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   return ::CountOptionsAndOptgroups(GetContentInsertionFrame());
 }
 
@@ -775,6 +806,7 @@ nsListControlFrame::PerformSelection(int32_t aClickedIndex,
                                      bool aIsShift,
                                      bool aIsControl)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   bool wasChanged = false;
 
   if (aClickedIndex == kNothingSelected && !mForceSelection) {
@@ -841,6 +873,7 @@ bool
 nsListControlFrame::HandleListSelection(nsIDOMEvent* aEvent,
                                         int32_t aClickedIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
   bool isShift;
   bool isControl;
@@ -892,6 +925,7 @@ nsListControlFrame::HandleEvent(nsPresContext* aPresContext,
                                 WidgetGUIEvent* aEvent,
                                 nsEventStatus* aEventStatus)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   NS_ENSURE_ARG_POINTER(aEventStatus);
 
   /*const char * desc[] = {"eMouseMove",
@@ -941,6 +975,7 @@ void
 nsListControlFrame::SetInitialChildList(ChildListID    aListID,
                                         nsFrameList&   aChildList)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (aListID == kPrincipalList) {
     // First check to see if all the content has been added
     mIsAllContentHere = mContent->IsDoneAddingChildren();
@@ -969,10 +1004,10 @@ nsListControlFrame::Init(nsIContent*       aContent,
                          nsContainerFrame* aParent,
                          nsIFrame*         aPrevInFlow)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   nsHTMLScrollFrame::Init(aContent, aParent, aPrevInFlow);
 
   if (IsInDropDownMode()) {
-    AddStateBits(NS_FRAME_IN_POPUP);
     CreateView();
   }
 
@@ -1002,6 +1037,7 @@ nsListControlFrame::Init(nsIContent*       aContent,
 dom::HTMLOptionsCollection*
 nsListControlFrame::GetOptions() const
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   dom::HTMLSelectElement* select =
     dom::HTMLSelectElement::FromContentOrNull(mContent);
   NS_ENSURE_TRUE(select, nullptr);
@@ -1012,6 +1048,7 @@ nsListControlFrame::GetOptions() const
 dom::HTMLOptionElement*
 nsListControlFrame::GetOption(uint32_t aIndex) const
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   dom::HTMLSelectElement* select =
     dom::HTMLSelectElement::FromContentOrNull(mContent);
   NS_ENSURE_TRUE(select, nullptr);
@@ -1022,6 +1059,7 @@ nsListControlFrame::GetOption(uint32_t aIndex) const
 NS_IMETHODIMP
 nsListControlFrame::OnOptionSelected(int32_t aIndex, bool aSelected)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (aSelected) {
     ScrollToIndex(aIndex);
   }
@@ -1031,12 +1069,14 @@ nsListControlFrame::OnOptionSelected(int32_t aIndex, bool aSelected)
 void
 nsListControlFrame::OnContentReset()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   ResetList(true);
 }
 
 void
 nsListControlFrame::ResetList(bool aAllowScrolling)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // if all the frames aren't here
   // don't bother reseting
   if (!mIsAllFramesHere) {
@@ -1069,6 +1109,7 @@ nsListControlFrame::ResetList(bool aAllowScrolling)
 void
 nsListControlFrame::SetFocus(bool aOn, bool aRepaint)
 {
+  printf("<kuoe0> nsListControlFrame::%s: %s\n", __func__, aOn ? "YES" : "NO");
   InvalidateFocus();
 
   if (aOn) {
@@ -1083,20 +1124,24 @@ nsListControlFrame::SetFocus(bool aOn, bool aRepaint)
 
 void nsListControlFrame::ComboboxFocusSet()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   gLastKeyTime = 0;
 }
 
 void
 nsListControlFrame::SetComboboxFrame(nsIFrame* aComboboxFrame)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (nullptr != aComboboxFrame) {
     mComboboxFrame = do_QueryFrame(aComboboxFrame);
+    /* SetParent(aComboboxFrame); */
   }
 }
 
 void
 nsListControlFrame::GetOptionText(uint32_t aIndex, nsAString& aStr)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   aStr.Truncate();
   if (dom::HTMLOptionElement* optionElement = GetOption(aIndex)) {
     optionElement->GetText(aStr);
@@ -1106,6 +1151,7 @@ nsListControlFrame::GetOptionText(uint32_t aIndex, nsAString& aStr)
 int32_t
 nsListControlFrame::GetSelectedIndex()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   dom::HTMLSelectElement* select =
     dom::HTMLSelectElement::FromContentOrNull(mContent);
   return select->SelectedIndex();
@@ -1114,6 +1160,7 @@ nsListControlFrame::GetSelectedIndex()
 dom::HTMLOptionElement*
 nsListControlFrame::GetCurrentOption()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // The mEndSelectionIndex is what is currently being selected. Use
   // the selected index if this is kNothingSelected.
   int32_t focusedIndex = (mEndSelectionIndex == kNothingSelected) ?
@@ -1131,6 +1178,7 @@ HTMLOptionElement*
 nsListControlFrame::GetNonDisabledOptionFrom(int32_t aFromIndex,
                                              int32_t* aFoundIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   RefPtr<dom::HTMLSelectElement> selectElement =
     dom::HTMLSelectElement::FromContent(mContent);
 
@@ -1159,6 +1207,7 @@ nsListControlFrame::IsInDropDownMode() const
 uint32_t
 nsListControlFrame::GetNumberOfOptions()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   dom::HTMLOptionsCollection* options = GetOptions();
   if (!options) {
     return 0;
@@ -1172,6 +1221,7 @@ nsListControlFrame::GetNumberOfOptions()
 //----------------------------------------------------------------------
 bool nsListControlFrame::CheckIfAllFramesHere()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // Get the number of optgroups and options
   //int32_t numContentItems = 0;
   nsCOMPtr<nsIDOMNode> node(do_QueryInterface(mContent));
@@ -1188,6 +1238,7 @@ bool nsListControlFrame::CheckIfAllFramesHere()
 NS_IMETHODIMP
 nsListControlFrame::DoneAddingChildren(bool aIsDone)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   mIsAllContentHere = aIsDone;
   if (mIsAllContentHere) {
     // Here we check to see if all the frames have been created
@@ -1207,6 +1258,7 @@ nsListControlFrame::DoneAddingChildren(bool aIsDone)
 NS_IMETHODIMP
 nsListControlFrame::AddOption(int32_t aIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
 #ifdef DO_REFLOW_DEBUG
   printf("---- Id: %d nsLCF %p Added Option %d\n", mReflowId, this, aIndex);
 #endif
@@ -1235,6 +1287,7 @@ nsListControlFrame::AddOption(int32_t aIndex)
 static int32_t
 DecrementAndClamp(int32_t aSelectionIndex, int32_t aLength)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   return aLength == 0 ? kNothingSelected : std::max(0, aSelectionIndex - 1);
 }
 
@@ -1283,6 +1336,7 @@ nsListControlFrame::SetOptionsSelectedFromFrame(int32_t aStartIndex,
                                                 bool aValue,
                                                 bool aClearAll)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   RefPtr<dom::HTMLSelectElement> selectElement =
     dom::HTMLSelectElement::FromContent(mContent);
 
@@ -1303,6 +1357,7 @@ nsListControlFrame::SetOptionsSelectedFromFrame(int32_t aStartIndex,
 bool
 nsListControlFrame::ToggleOptionSelectedFromFrame(int32_t aIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   RefPtr<dom::HTMLOptionElement> option =
     GetOption(static_cast<uint32_t>(aIndex));
   NS_ENSURE_TRUE(option, false);
@@ -1323,6 +1378,7 @@ nsListControlFrame::ToggleOptionSelectedFromFrame(int32_t aIndex)
 bool
 nsListControlFrame::UpdateSelection()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (mIsAllFramesHere) {
     // if it's a combobox, display the new text
     AutoWeakFrame weakFrame(this);
@@ -1346,6 +1402,7 @@ nsListControlFrame::UpdateSelection()
 void
 nsListControlFrame::ComboboxFinish(int32_t aIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   gLastKeyTime = 0;
 
   if (mComboboxFrame) {
@@ -1373,6 +1430,7 @@ nsListControlFrame::ComboboxFinish(int32_t aIndex)
 void
 nsListControlFrame::FireOnInputAndOnChange()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (mComboboxFrame) {
     // Return hit without changing anything
     int32_t index = mComboboxFrame->UpdateRecentIndex(NS_SKIP_NOTIFY_INDEX);
@@ -1400,6 +1458,7 @@ nsListControlFrame::FireOnInputAndOnChange()
 NS_IMETHODIMP
 nsListControlFrame::OnSetSelectedIndex(int32_t aOldIndex, int32_t aNewIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (mComboboxFrame) {
     // UpdateRecentIndex with NS_SKIP_NOTIFY_INDEX, so that we won't fire an onchange
     // event for this setting of selectedIndex.
@@ -1430,6 +1489,7 @@ nsresult
 nsListControlFrame::SetFormProperty(nsAtom* aName,
                                 const nsAString& aValue)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (nsGkAtoms::selected == aName) {
     return NS_ERROR_INVALID_ARG; // Selected is readonly according to spec.
   } else if (nsGkAtoms::selectedindex == aName) {
@@ -1446,6 +1506,7 @@ nsListControlFrame::SetFormProperty(nsAtom* aName,
 void
 nsListControlFrame::AboutToDropDown()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   NS_ASSERTION(IsInDropDownMode(),
     "AboutToDropDown called without being in dropdown mode");
 
@@ -1490,6 +1551,7 @@ nsListControlFrame::AboutToDropDown()
 void
 nsListControlFrame::AboutToRollup()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // We've been updating the combobox with the keyboard up until now, but not
   // with the mouse.  The problem is, even with mouse selection, we are
   // updating the <select>.  So if the mouse goes over an option just before
@@ -1509,6 +1571,7 @@ nsListControlFrame::DidReflow(nsPresContext*           aPresContext,
                               const ReflowInput* aReflowInput,
                               nsDidReflowStatus        aStatus)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   bool wasInterrupted = !mHasPendingInterruptAtStartOfReflow &&
                           aPresContext->HasPendingInterrupt();
 
@@ -1535,6 +1598,7 @@ nsListControlFrame::DidReflow(nsPresContext*           aPresContext,
 nsresult
 nsListControlFrame::GetFrameName(nsAString& aResult) const
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   return MakeFrameName(NS_LITERAL_STRING("ListControl"), aResult);
 }
 #endif
@@ -1542,12 +1606,14 @@ nsListControlFrame::GetFrameName(nsAString& aResult) const
 nscoord
 nsListControlFrame::GetBSizeOfARow()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   return BSizeOfARow();
 }
 
 nsresult
 nsListControlFrame::IsOptionDisabled(int32_t anIndex, bool &aIsDisabled)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   RefPtr<dom::HTMLSelectElement> sel =
     dom::HTMLSelectElement::FromContent(mContent);
   if (sel) {
@@ -1568,6 +1634,7 @@ nsListControlFrame::IsLeftButton(nsIDOMEvent* aMouseEvent)
   if (mouseEvent) {
     int16_t whichButton;
     if (NS_SUCCEEDED(mouseEvent->GetButton(&whichButton))) {
+      printf("<kuoe0> nsListControlFrame::%s: button=%d\n", __func__, whichButton);
       return whichButton != 0?false:true;
     }
   }
@@ -1577,6 +1644,7 @@ nsListControlFrame::IsLeftButton(nsIDOMEvent* aMouseEvent)
 nscoord
 nsListControlFrame::CalcFallbackRowBSize(float aFontSizeInflation)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   RefPtr<nsFontMetrics> fontMet =
     nsLayoutUtils::GetFontMetricsForFrame(this, aFontSizeInflation);
   return fontMet->MaxHeight();
@@ -1586,6 +1654,7 @@ nscoord
 nsListControlFrame::CalcIntrinsicBSize(nscoord aBSizeOfARow,
                                        int32_t aNumberOfOptions)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   NS_PRECONDITION(!IsInDropDownMode(),
                   "Shouldn't be in dropdown mode when we call this");
 
@@ -1610,6 +1679,7 @@ nsListControlFrame::CalcIntrinsicBSize(nscoord aBSizeOfARow,
 nsresult
 nsListControlFrame::MouseUp(nsIDOMEvent* aMouseEvent)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   NS_ASSERTION(aMouseEvent != nullptr, "aMouseEvent is null.");
 
   nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aMouseEvent);
@@ -1721,14 +1791,19 @@ nsListControlFrame::UpdateInListState(nsIDOMEvent* aEvent)
 
 bool nsListControlFrame::IgnoreMouseEventForSelection(nsIDOMEvent* aEvent)
 {
-  if (!mComboboxFrame)
+  if (!mComboboxFrame) {
+    printf("<kuoe0> nsListControlFrame::%s: (1) FALSE\n", __func__);
     return false;
+  }
 
   // Our DOM listener does get called when the dropdown is not
   // showing, because it listens to events on the SELECT element
-  if (!mComboboxFrame->IsDroppedDown())
-    return true;
+  if (!mComboboxFrame->IsDroppedDown()) {
+    printf("<kuoe0> nsListControlFrame::%s: (2) FALSE\n", __func__);
+    return false;
+  }
 
+  printf("<kuoe0> nsListControlFrame::%s: (3) %s\n", __func__, !mItemSelectionStarted ? "TRUE" : "FALSE");
   return !mItemSelectionStarted;
 }
 
@@ -1736,6 +1811,7 @@ bool nsListControlFrame::IgnoreMouseEventForSelection(nsIDOMEvent* aEvent)
 void
 nsListControlFrame::FireMenuItemActiveEvent()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (mFocused != this && !IsInDropDownMode()) {
     return;
   }
@@ -1753,6 +1829,7 @@ nsresult
 nsListControlFrame::GetIndexFromDOMEvent(nsIDOMEvent* aMouseEvent,
                                          int32_t&     aCurIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (IgnoreMouseEventForSelection(aMouseEvent))
     return NS_ERROR_FAILURE;
 
@@ -1785,6 +1862,7 @@ nsListControlFrame::GetIndexFromDOMEvent(nsIDOMEvent* aMouseEvent,
 static bool
 FireShowDropDownEvent(nsIContent* aContent, bool aShow, bool aIsSourceTouchEvent)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (ShouldFireDropDownEvent()) {
     nsString eventName;
     if (aShow) {
@@ -1804,6 +1882,7 @@ FireShowDropDownEvent(nsIContent* aContent, bool aShow, bool aIsSourceTouchEvent
 nsresult
 nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   NS_ASSERTION(aMouseEvent != nullptr, "aMouseEvent is null.");
 
   nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aMouseEvent);
@@ -1850,32 +1929,33 @@ nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
     if (mComboboxFrame) {
       // Ignore the click that occurs on the option element when one is
       // selected from the parent process popup.
-      if (mComboboxFrame->IsOpenInParentProcess()) {
-        nsCOMPtr<nsIDOMEventTarget> etarget;
-        aMouseEvent->GetTarget(getter_AddRefs(etarget));
-        nsCOMPtr<nsIContent> econtent = do_QueryInterface(etarget);
-        HTMLOptionElement* option = HTMLOptionElement::FromContentOrNull(econtent);
-        if (option) {
-          return NS_OK;
-        }
-      }
+      /* if (mComboboxFrame->IsOpenInParentProcess()) { */
+      /*   printf("<kuoe0> nsListControlFrame::%s: open in parent process\n", __func__); */
+      /*   nsCOMPtr<nsIDOMEventTarget> etarget; */
+      /*   aMouseEvent->GetTarget(getter_AddRefs(etarget)); */
+      /*   nsCOMPtr<nsIContent> econtent = do_QueryInterface(etarget); */
+      /*   HTMLOptionElement* option = HTMLOptionElement::FromContentOrNull(econtent); */
+      /*   if (option) { */
+      /*     return NS_OK; */
+      /*   } */
+      /* } */
 
-      uint16_t inputSource = nsIDOMMouseEvent::MOZ_SOURCE_UNKNOWN;
-      if (NS_FAILED(mouseEvent->GetMozInputSource(&inputSource))) {
-        return NS_ERROR_FAILURE;
-      }
-      bool isSourceTouchEvent = inputSource == nsIDOMMouseEvent::MOZ_SOURCE_TOUCH;
-      if (FireShowDropDownEvent(mContent, !mComboboxFrame->IsDroppedDownOrHasParentPopup(),
-                                isSourceTouchEvent)) {
-        return NS_OK;
-      }
+      /* uint16_t inputSource = nsIDOMMouseEvent::MOZ_SOURCE_UNKNOWN; */
+      /* if (NS_FAILED(mouseEvent->GetMozInputSource(&inputSource))) { */
+      /*   return NS_ERROR_FAILURE; */
+      /* } */
+      /* bool isSourceTouchEvent = inputSource == nsIDOMMouseEvent::MOZ_SOURCE_TOUCH; */
+      /* if (FireShowDropDownEvent(mContent, !mComboboxFrame->IsDroppedDownOrHasParentPopup(), */
+      /*                           isSourceTouchEvent)) { */
+      /*   return NS_OK; */
+      /* } */
 
       if (!IgnoreMouseEventForSelection(aMouseEvent)) {
         return NS_OK;
       }
 
-      if (!nsComboboxControlFrame::ToolkitHasNativePopup())
-      {
+      /* if (!nsComboboxControlFrame::ToolkitHasNativePopup()) */
+      /* { */
         bool isDroppedDown = mComboboxFrame->IsDroppedDown();
         nsIFrame* comboFrame = do_QueryFrame(mComboboxFrame);
         AutoWeakFrame weakFrame(comboFrame);
@@ -1885,7 +1965,7 @@ nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
         if (isDroppedDown) {
           CaptureMouseEvents(false);
         }
-      }
+      /* } */
     }
   }
 
@@ -1922,6 +2002,7 @@ nsListControlFrame::MouseMove(nsIDOMEvent* aMouseEvent)
 nsresult
 nsListControlFrame::DragMove(nsIDOMEvent* aMouseEvent)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   NS_ASSERTION(aMouseEvent, "aMouseEvent is null.");
 
   UpdateInListState(aMouseEvent);
@@ -1960,6 +2041,7 @@ nsListControlFrame::DragMove(nsIDOMEvent* aMouseEvent)
 void
 nsListControlFrame::ScrollToIndex(int32_t aIndex)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (aIndex < 0) {
     // XXX shouldn't we just do nothing if we're asked to scroll to
     // kNothingSelected?
@@ -1976,6 +2058,7 @@ nsListControlFrame::ScrollToIndex(int32_t aIndex)
 void
 nsListControlFrame::ScrollToFrame(dom::HTMLOptionElement& aOptElement)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // otherwise we find the content's frame and scroll to it
   nsIFrame* childFrame = aOptElement.GetPrimaryFrame();
   if (childFrame) {
@@ -2011,6 +2094,7 @@ nsListControlFrame::AdjustIndexForDisabledOpt(int32_t aStartIndex,
                                               int32_t aDoAdjustInc,
                                               int32_t aDoAdjustIncNext)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // Cannot select anything if there is nothing to select
   if (aNumOptions == 0) {
     aNewIndex = kNothingSelected;
@@ -2088,6 +2172,7 @@ nsListControlFrame::AdjustIndexForDisabledOpt(int32_t aStartIndex,
 nsAString&
 nsListControlFrame::GetIncrementalString()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (sIncrementalString == nullptr)
     sIncrementalString = new nsString();
 
@@ -2097,6 +2182,7 @@ nsListControlFrame::GetIncrementalString()
 void
 nsListControlFrame::Shutdown()
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   delete sIncrementalString;
   sIncrementalString = nullptr;
 }
@@ -2104,6 +2190,7 @@ nsListControlFrame::Shutdown()
 void
 nsListControlFrame::DropDownToggleKey(nsIDOMEvent* aKeyEvent)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   // Cocoa widgets do native popups, so don't try to show
   // dropdowns there.
   if (IsInDropDownMode() && !nsComboboxControlFrame::ToolkitHasNativePopup()) {
@@ -2126,6 +2213,7 @@ nsListControlFrame::DropDownToggleKey(nsIDOMEvent* aKeyEvent)
 nsresult
 nsListControlFrame::KeyDown(nsIDOMEvent* aKeyEvent)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   MOZ_ASSERT(aKeyEvent, "aKeyEvent is null.");
 
   EventStates eventStates = mContent->AsElement()->State();
@@ -2317,6 +2405,7 @@ nsListControlFrame::KeyDown(nsIDOMEvent* aKeyEvent)
 nsresult
 nsListControlFrame::KeyPress(nsIDOMEvent* aKeyEvent)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   MOZ_ASSERT(aKeyEvent, "aKeyEvent is null.");
 
   EventStates eventStates = mContent->AsElement()->State();
@@ -2483,6 +2572,7 @@ nsListControlFrame::PostHandleKeyEvent(int32_t aNewIndex,
                                        bool aIsShift,
                                        bool aIsControlOrMeta)
 {
+  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (aNewIndex == kNothingSelected) {
     int32_t focusedIndex = mEndSelectionIndex == kNothingSelected ?
       GetSelectedIndex() : mEndSelectionIndex;

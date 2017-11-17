@@ -19,6 +19,7 @@
 #include "mozilla/dom/ElementInlines.h"
 #include "nsBlockFrame.h"
 #include "nsBulletFrame.h"
+#include "nsListControlFrame.h"
 #include "nsImageFrame.h"
 #include "nsPlaceholderFrame.h"
 #include "nsContentUtils.h"
@@ -58,6 +59,10 @@ ExpectedOwnerForChild(const nsIFrame& aFrame)
   }
 
   if (IsAnonBox(aFrame) && !aFrame.IsTextFrame()) {
+    if (aFrame.IsListControlFrame()) {
+      parent = aFrame.GetPlaceholderFrame()->GetParent();
+      return parent;
+    }
     if (parent->IsLineFrame()) {
       parent = parent->GetParent();
     }
@@ -106,6 +111,8 @@ ExpectedOwnerForChild(const nsIFrame& aFrame)
       MOZ_ASSERT(tableFrame->IsTableFrame());
       // Handle :-moz-table and :-moz-inline-table.
       parent = IsAnonBox(*tableFrame) ? parent->GetParent() : tableFrame;
+    } else if (pseudo == nsCSSAnonBoxes::dropDownList) {
+      parent = parent->GetPlaceholderFrame();
     } else {
       parent = parent->GetParent();
     }
@@ -119,7 +126,13 @@ void
 ServoRestyleState::AssertOwner(const ServoRestyleState& aParent) const
 {
   MOZ_ASSERT(mOwner);
-  MOZ_ASSERT(!mOwner->HasAnyStateBits(NS_FRAME_OUT_OF_FLOW));
+
+  // only dropdown frame can be an out-of-flow frame
+  bool isDropdown =
+    mOwner->StyleContext()->GetPseudo() == nsCSSAnonBoxes::dropDownList;
+  bool isOutOfFlow = mOwner->HasAnyStateBits(NS_FRAME_OUT_OF_FLOW);
+  MOZ_ASSERT(isDropdown == isOutOfFlow);
+
   // We allow aParent.mOwner to be null, for cases when we're not starting at
   // the root of the tree.  We also allow aParent.mOwner to be somewhere up our
   // expected owner chain not our immediate owner, which allows us creating long

@@ -407,7 +407,8 @@ optgroup:before {
   z-index: 2147483647;
   background-color: inherit;
   -moz-user-select: none;
-  position: static !important;
+  -moz-top-layer: top !important;
+  position: absolute !important;
   float: none !important;
 
   /*
@@ -417,8 +418,11 @@ optgroup:before {
    * border+padding of a combobox so that our scrollbar will line up
    * with the dropmarker.  So set our inline-start border to 2px.
    */
-  border: 1px outset black !important;
-  border-inline-start-width: 2px ! important;
+  /* border-inline-start-width: 2px ! important; */
+  border: 1px #aaa solid;
+  box-shadow: 0px 5px 10px #aaa;
+  border-radius: 5px;
+  background-color: #f2f2f2;
 }
 
 input:disabled,

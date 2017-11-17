@@ -319,6 +319,9 @@ protected:
   bool                  mDelayedShowDropDown;
 
   bool                  mIsOpenInParentProcess;
+#ifdef DEBUG
+  bool                  mAlwaysDroppedDown;
+#endif
 
   // static class data member for Bug 32920
   // only one control can be focused at a time

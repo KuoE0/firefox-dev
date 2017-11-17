@@ -3519,8 +3519,7 @@ nsIFrame::BuildDisplayListForChild(nsDisplayListBuilder*   aBuilder,
     // If 'child' is a pushed float then it's owned by a block that's not an
     // ancestor of the placeholder, and it will be painted by that block and
     // should not be painted through the placeholder.
-    if (!child || nsLayoutUtils::IsPopup(child) ||
-        (child->GetStateBits() & NS_FRAME_IS_PUSHED_FLOAT))
+    if (!child || (child->GetStateBits() & NS_FRAME_IS_PUSHED_FLOAT))
       return;
     MOZ_ASSERT(child->GetStateBits() & NS_FRAME_OUT_OF_FLOW);
     // If the out-of-flow frame is in the top layer, the viewport frame
@@ -9809,9 +9808,11 @@ nsFrame::CorrectStyleParentFrame(nsIFrame* aProspectiveParent,
          // ancestor.
          aChildPseudo != nsGkAtoms::placeholderFrame)) {
       return parent;
+    } else if (parentPseudo == nsCSSAnonBoxes::dropDownList) {
+      parent = parent->GetPlaceholderFrame();
+    } else {
+      parent = parent->GetParent();
     }
-
-    parent = parent->GetParent();
   } while (parent);
 
   if (aProspectiveParent->StyleContext()->GetPseudo() ==
@@ -10643,6 +10644,9 @@ void
 nsIFrame::UpdateStyleOfChildAnonBox(nsIFrame* aChildFrame,
                                     ServoRestyleState& aRestyleState)
 {
+  // We could force the caller to pass in the pseudo, since some callers know it
+  // statically...  But this API is a bit nicer.
+  nsAtom* pseudo = aChildFrame->StyleContext()->GetPseudo();
 #ifdef DEBUG
   nsIFrame* parent = aChildFrame->GetParent();;
   if (aChildFrame->IsTableFrame()) {
@@ -10650,6 +10654,9 @@ nsIFrame::UpdateStyleOfChildAnonBox(nsIFrame* aChildFrame,
   }
   if (parent->IsLineFrame()) {
     parent = parent->GetParent();
+  }
+  if (pseudo == nsCSSAnonBoxes::dropDownList) {
+    parent = aChildFrame->GetPlaceholderFrame()->GetParent();
   }
   MOZ_ASSERT(nsLayoutUtils::FirstContinuationOrIBSplitSibling(parent) == this,
              "This should only be used for children!");
@@ -10660,9 +10667,6 @@ nsIFrame::UpdateStyleOfChildAnonBox(nsIFrame* aChildFrame,
   MOZ_ASSERT(!aChildFrame->GetPrevContinuation(),
              "Only first continuations should end up here");
 
-  // We could force the caller to pass in the pseudo, since some callers know it
-  // statically...  But this API is a bit nicer.
-  nsAtom* pseudo = aChildFrame->StyleContext()->GetPseudo();
   MOZ_ASSERT(nsCSSAnonBoxes::IsAnonBox(pseudo), "Child is not an anon box?");
   MOZ_ASSERT(!nsCSSAnonBoxes::IsNonInheritingAnonBox(pseudo),
              "Why did the caller bother calling us?");
