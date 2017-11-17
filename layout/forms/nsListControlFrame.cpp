@@ -182,6 +182,9 @@ nsListControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   if (IsInDropDownMode()) {
     NS_ASSERTION(NS_GET_A(mLastDropdownBackstopColor) == 255,
                  "need an opaque backstop color");
+    if (!mComboboxFrame->IsDroppedDown()) {
+      return;
+    }
     // XXX Because we have an opaque widget and we get called to paint with
     // this frame as the root of a stacking context we need make sure to draw
     // some opaque color over the whole widget. (Bug 511323)
@@ -1005,7 +1008,6 @@ nsListControlFrame::Init(nsIContent*       aContent,
   nsHTMLScrollFrame::Init(aContent, aParent, aPrevInFlow);
 
   if (IsInDropDownMode()) {
-    AddStateBits(NS_FRAME_IN_POPUP);
     CreateView();
   }
 
@@ -1927,33 +1929,33 @@ nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
     if (mComboboxFrame) {
       // Ignore the click that occurs on the option element when one is
       // selected from the parent process popup.
-      if (mComboboxFrame->IsOpenInParentProcess()) {
-        printf("<kuoe0> nsListControlFrame::%s: open in parent process\n", __func__);
-        nsCOMPtr<nsIDOMEventTarget> etarget;
-        aMouseEvent->GetTarget(getter_AddRefs(etarget));
-        nsCOMPtr<nsIContent> econtent = do_QueryInterface(etarget);
-        HTMLOptionElement* option = HTMLOptionElement::FromContentOrNull(econtent);
-        if (option) {
-          return NS_OK;
-        }
-      }
+      /* if (mComboboxFrame->IsOpenInParentProcess()) { */
+      /*   printf("<kuoe0> nsListControlFrame::%s: open in parent process\n", __func__); */
+      /*   nsCOMPtr<nsIDOMEventTarget> etarget; */
+      /*   aMouseEvent->GetTarget(getter_AddRefs(etarget)); */
+      /*   nsCOMPtr<nsIContent> econtent = do_QueryInterface(etarget); */
+      /*   HTMLOptionElement* option = HTMLOptionElement::FromContentOrNull(econtent); */
+      /*   if (option) { */
+      /*     return NS_OK; */
+      /*   } */
+      /* } */
 
-      uint16_t inputSource = nsIDOMMouseEvent::MOZ_SOURCE_UNKNOWN;
-      if (NS_FAILED(mouseEvent->GetMozInputSource(&inputSource))) {
-        return NS_ERROR_FAILURE;
-      }
-      bool isSourceTouchEvent = inputSource == nsIDOMMouseEvent::MOZ_SOURCE_TOUCH;
-      if (FireShowDropDownEvent(mContent, !mComboboxFrame->IsDroppedDownOrHasParentPopup(),
-                                isSourceTouchEvent)) {
-        return NS_OK;
-      }
+      /* uint16_t inputSource = nsIDOMMouseEvent::MOZ_SOURCE_UNKNOWN; */
+      /* if (NS_FAILED(mouseEvent->GetMozInputSource(&inputSource))) { */
+      /*   return NS_ERROR_FAILURE; */
+      /* } */
+      /* bool isSourceTouchEvent = inputSource == nsIDOMMouseEvent::MOZ_SOURCE_TOUCH; */
+      /* if (FireShowDropDownEvent(mContent, !mComboboxFrame->IsDroppedDownOrHasParentPopup(), */
+      /*                           isSourceTouchEvent)) { */
+      /*   return NS_OK; */
+      /* } */
 
       if (!IgnoreMouseEventForSelection(aMouseEvent)) {
         return NS_OK;
       }
 
-      if (!nsComboboxControlFrame::ToolkitHasNativePopup())
-      {
+      /* if (!nsComboboxControlFrame::ToolkitHasNativePopup()) */
+      /* { */
         bool isDroppedDown = mComboboxFrame->IsDroppedDown();
         nsIFrame* comboFrame = do_QueryFrame(mComboboxFrame);
         AutoWeakFrame weakFrame(comboFrame);
@@ -1963,7 +1965,7 @@ nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
         if (isDroppedDown) {
           CaptureMouseEvents(false);
         }
-      }
+      /* } */
     }
   }
 

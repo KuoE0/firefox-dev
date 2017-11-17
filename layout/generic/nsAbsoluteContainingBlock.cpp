@@ -19,6 +19,7 @@
 #include "nsPresContext.h"
 #include "nsCSSFrameConstructor.h"
 #include "nsGridContainerFrame.h"
+#include "nsListControlFrame.h"
 
 #include "mozilla/Sprintf.h"
 
@@ -127,6 +128,12 @@ nsAbsoluteContainingBlock::Reflow(nsContainerFrame*        aDelegatingFrame,
   nsIFrame* kidFrame;
   nsOverflowContinuationTracker tracker(aDelegatingFrame, true);
   for (kidFrame = mAbsoluteFrames.FirstChild(); kidFrame; kidFrame = kidFrame->GetNextSibling()) {
+    // Dropdown frame should be reflowed by nsComboboxControlFrame
+    if (kidFrame->IsListControlFrame() &&
+        static_cast<nsListControlFrame*>(kidFrame)->IsInDropDownMode()) {
+      continue;
+    }
+
     bool kidNeedsReflow = reflowAll || NS_SUBTREE_DIRTY(kidFrame) ||
       FrameDependsOnContainer(kidFrame,
                               !!(aFlags & AbsPosReflowFlags::eCBWidthChanged),

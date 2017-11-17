@@ -139,7 +139,11 @@ nsPlaceholderFrame::Reflow(nsPresContext*           aPresContext,
       }
     }
 
-    if (isInContinuationOrIBSplit) {
+    // Because we should reflow the dropdown frame when the combobox frame is
+    // reflowing, the dropdown frame would reflow before its placeholder frame.
+    bool isInCombobox = GetParent()->IsComboboxControlFrame();
+
+    if (isInContinuationOrIBSplit || isInCombobox) {
       NS_WARNING("Out-of-flow frame got reflowed before its placeholder");
     } else {
       NS_ERROR("Out-of-flow frame got reflowed before its placeholder");

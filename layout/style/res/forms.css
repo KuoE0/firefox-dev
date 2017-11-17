@@ -407,7 +407,8 @@ optgroup:before {
   z-index: 2147483647;
   background-color: inherit;
   -moz-user-select: none;
-  position: static !important;
+  -moz-top-layer: top !important;
+  position: absolute !important;
   float: none !important;
 
   /*

@@ -19,6 +19,7 @@
 #include "mozilla/dom/ElementInlines.h"
 #include "nsBlockFrame.h"
 #include "nsBulletFrame.h"
+#include "nsListControlFrame.h"
 #include "nsImageFrame.h"
 #include "nsPlaceholderFrame.h"
 #include "nsContentUtils.h"
@@ -120,6 +121,7 @@ ServoRestyleState::AssertOwner(const ServoRestyleState& aParent) const
 {
   MOZ_ASSERT(mOwner);
   MOZ_ASSERT(!mOwner->HasAnyStateBits(NS_FRAME_OUT_OF_FLOW));
+
   // We allow aParent.mOwner to be null, for cases when we're not starting at
   // the root of the tree.  We also allow aParent.mOwner to be somewhere up our
   // expected owner chain not our immediate owner, which allows us creating long

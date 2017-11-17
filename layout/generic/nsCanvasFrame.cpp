@@ -605,6 +605,12 @@ nsCanvasFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     BuildDisplayListForChild(aBuilder, kid, aLists);
   }
 
+  for (nsIFrame* kid : GetChildList(nsIFrame::kAbsoluteList)) {
+    if (kid->IsListControlFrame()) {
+      BuildDisplayListForChild(aBuilder, kid, aLists);
+    }
+  }
+
 #ifdef DEBUG_CANVAS_FOCUS
   nsCOMPtr<nsIContent> focusContent;
   aPresContext->EventStateManager()->
