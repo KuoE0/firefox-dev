@@ -188,6 +188,8 @@
 #include "mozilla/dom/ImageTracker.h"
 #include "nsIDocShellTreeOwner.h"
 
+#include "nsListControlFrame.h"
+
 #ifdef MOZ_TASK_TRACER
 #include "GeckoTaskTracer.h"
 using namespace mozilla::tasktracer;
@@ -2813,7 +2815,12 @@ PresShell::FrameNeedsReflow(nsIFrame *aFrame, IntrinsicDirty aIntrinsicDirty,
       }
 
       nsIFrame *child = f;
-      f = f->GetParent();
+      if (f->IsListControlFrame() &&
+          static_cast<nsListControlFrame*>(f)->IsInDropDownMode()) {
+        f = f->GetPlaceholderFrame();
+      } else {
+        f = f->GetParent();
+      }
       wasDirty = NS_SUBTREE_DIRTY(f);
       f->ChildIsDirty(child);
       NS_ASSERTION(f->GetStateBits() & NS_FRAME_HAS_DIRTY_CHILDREN,

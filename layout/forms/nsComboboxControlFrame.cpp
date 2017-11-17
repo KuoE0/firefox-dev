@@ -19,6 +19,7 @@
 #include "nsIFormControl.h"
 #include "nsNameSpaceManager.h"
 #include "nsIListControlFrame.h"
+#include "nsPlaceholderFrame.h"
 #include "nsPIDOMWindow.h"
 #include "nsIPresShell.h"
 #include "nsPresState.h"
@@ -368,6 +369,8 @@ nsComboboxControlFrame::ShowList(bool aShowList)
   }
 
   mDroppedDown = aShowList;
+  mDropdownFrame->InvalidateFrame();
+
   /* nsIWidget* widget = view->GetWidget(); */
   /* if (mDroppedDown) { */
   /*   // The listcontrol frame will call back to the nsComboboxControlFrame's */
@@ -483,6 +486,7 @@ nsComboboxControlFrame::ReflowDropdown(nsPresContext*  aPresContext,
   const nsSize dummyContainerSize;
   ReflowOutput desiredSize(aReflowInput);
   nsReflowStatus ignoredStatus;
+
   ReflowChild(mDropdownFrame, aPresContext, desiredSize,
               kidReflowInput, outerWM, LogicalPoint(outerWM),
               dummyContainerSize, flags, ignoredStatus);
@@ -599,15 +603,40 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
   // In the special case that our transform is only a 2D translation we
   // introduce this hack so that the dropdown will show up in the right place.
   // Use null container size when converting a vector from logical to physical.
-  const nsSize nullContainerSize;
-  *aTranslation = LogicalPoint(aWM, GetCSSTransformTranslation(),
-                               nullContainerSize);
+
+  // XXX DO NOT consider the translation for now. It shifts the dropdown menu.
+  // data:text/html,<div%20style="transform:%20translateX(2em)"><select><option>1<option>2 
+  /* const nsSize nullContainerSize; */
+  /* *aTranslation = LogicalPoint(aWM, GetCSSTransformTranslation(), */
+  /*                              nullContainerSize); */
+
   *aBefore = 0;
   *aAfter = 0;
 
-  nsRect screen = nsCheckboxRadioFrame::GetUsableScreenRect(PresContext());
-  nsSize containerSize = screen.Size();
-  LogicalRect logicalScreen(aWM, screen, containerSize);
+  nsIFrame* root = PresContext()->PresShell()->GetRootFrame();
+  nsRect viewport = root->GetRect();
+
+  nsPoint comboboxPos = GetPosition();
+  nsLayoutUtils::TransformPoint(GetParent(), root, comboboxPos);
+
+  printf("<kuoe0> %s: comboboxPos=(%d,%d)\n", __func__, comboboxPos.x, comboboxPos.y);
+
+  nsSize containerSize = viewport.Size();
+  LogicalRect logicalViewport(aWM, viewport, containerSize);
+
+  *aAfter = logicalViewport.BSize(aWM) - comboboxPos.y - BSize(aWM);
+  *aBefore = comboboxPos.y;
+
+  return;
+
+  if (mLastDropDownAfterScreenBCoord == nscoord_MIN) {
+    LogicalRect thisScreenRect(aWM, GetScreenRectInAppUnits(),
+                               containerSize);
+  }
+
+
+
+  LogicalRect logicalScreen(aWM, viewport, containerSize);
   if (mLastDropDownAfterScreenBCoord == nscoord_MIN) {
     LogicalRect thisScreenRect(aWM, GetScreenRectInAppUnits(),
                                containerSize);
@@ -618,8 +647,6 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
   }
 
   nscoord minBCoord;
-  nsPresContext* pc = PresContext()->GetToplevelContentDocumentPresContext();
-  nsIFrame* root = pc ? pc->PresShell()->GetRootFrame() : nullptr;
   if (root) {
     minBCoord = LogicalRect(aWM,
                             root->GetScreenRectInAppUnits(),
@@ -694,8 +721,12 @@ nsComboboxControlFrame::AbsolutelyPositionDropDown()
   // Position the drop-down after if there is room, otherwise place it before
   // if there is room.  If there is no room for it on either side then place
   // it after (to avoid overlapping UI like the URL bar).
-  bool b = dropdownSize.BSize(wm)<= after || dropdownSize.BSize(wm) > before;
-  LogicalPoint dropdownPosition(wm, 0, b ? BSize(wm) : -dropdownSize.BSize(wm));
+  bool b = dropdownSize.BSize(wm) <= after || dropdownSize.BSize(wm) > before;
+
+  nsPoint comboboxPos = GetPosition();
+  nsLayoutUtils::TransformPoint(GetParent(), mDropdownFrame->GetParent(), comboboxPos);
+
+  LogicalPoint dropdownPosition(wm, comboboxPos.x, b ? comboboxPos.y + BSize(wm) : before - dropdownSize.BSize(wm));
 
   // Don't position the view unless the position changed since it might cause
   // a call to NotifyGeometryChange() and an infinite loop here.
@@ -859,14 +890,14 @@ nsComboboxControlFrame::Reflow(nsPresContext*          aPresContext,
   RedisplayText();
 
   // First reflow our dropdown so that we know how tall we should be.
-  /* ReflowDropdown(aPresContext, aReflowInput); */
-  /* RefPtr<nsResizeDropdownAtFinalPosition> resize = */
-  /*   new nsResizeDropdownAtFinalPosition(this); */
-  /* if (NS_SUCCEEDED(aPresContext->PresShell()->PostReflowCallback(resize))) { */
-  /*   // The reflow callback queue doesn't AddRef so we keep it alive until */
-  /*   // it's released in its ReflowFinished / ReflowCallbackCanceled. */
-  /*   Unused << resize.forget(); */
-  /* } */
+  ReflowDropdown(aPresContext, aReflowInput);
+  RefPtr<nsResizeDropdownAtFinalPosition> resize =
+    new nsResizeDropdownAtFinalPosition(this);
+  if (NS_SUCCEEDED(aPresContext->PresShell()->PostReflowCallback(resize))) {
+    // The reflow callback queue doesn't AddRef so we keep it alive until
+    // it's released in its ReflowFinished / ReflowCallbackCanceled.
+    Unused << resize.forget();
+  }
 
   // Get the width of the vertical scrollbar.  That will be the inline
   // size of the dropdown button.
@@ -942,9 +973,9 @@ nsComboboxControlFrame::ShowDropDown(bool aDoDropDown)
   }
 
   if (!mDroppedDown && aDoDropDown) {
-    nsFocusManager* fm = nsFocusManager::GetFocusManager();
-    printf("<kuoe0> %s: FocusedContent=%p mContent=%p\n", __func__, fm->GetFocusedContent(), GetContent());
-    if (!fm || fm->GetFocusedContent() == GetContent()) {
+    /* nsFocusManager* fm = nsFocusManager::GetFocusManager(); */
+    /* printf("<kuoe0> %s: FocusedContent=%p mContent=%p\n", __func__, fm->GetFocusedContent(), GetContent()); */
+    /* if (!fm || fm->GetFocusedContent() == GetContent()) { */
       DropDownPositionState state = AbsolutelyPositionDropDown();
       if (state == eDropDownPositionFinal) {
         ShowList(aDoDropDown); // might destroy us
@@ -953,11 +984,11 @@ nsComboboxControlFrame::ShowDropDown(bool aDoDropDown)
         // Delay until after the resize reflow, see nsAsyncResize.
         mDelayedShowDropDown = true;
       }
-    } else {
-      // Delay until we get focus, see SetFocus().
-      mDelayedShowDropDown = true;
-      printf("<kuoe0> %s: focus manager ???\n", __func__);
-    }
+    /* } else { */
+    /*   // Delay until we get focus, see SetFocus(). */
+    /*   mDelayedShowDropDown = true; */
+    /*   printf("<kuoe0> %s: focus manager ???\n", __func__); */
+    /* } */
   } else if (mDroppedDown && !aDoDropDown) {
     ShowList(aDoDropDown); // might destroy us
   }
@@ -1164,6 +1195,11 @@ nsComboboxControlFrame::HandleEvent(nsPresContext* aPresContext,
 
   EventStates eventStates = mContent->AsElement()->State();
   if (eventStates.HasState(NS_EVENT_STATE_DISABLED)) {
+    return NS_OK;
+  }
+
+  if (aEvent->mMessage == eMouseDown) {
+    ShowDropDown(!mDroppedDown);
     return NS_OK;
   }
 
@@ -1417,15 +1453,15 @@ nsComboboxControlFrame::DestroyFrom(nsIFrame* aDestructRoot, PostDestroyData& aP
 
   nsCheckboxRadioFrame::RegUnRegAccessKey(static_cast<nsIFrame*>(this), false);
 
-  if (mDroppedDown) {
-    MOZ_ASSERT(mDropdownFrame, "mDroppedDown without frame");
-    nsView* view = mDropdownFrame->GetView();
-    MOZ_ASSERT(view);
-    nsIWidget* widget = view->GetWidget();
-    if (widget) {
-      widget->CaptureRollupEvents(this, false);
-    }
-  }
+  /* if (mDroppedDown) { */
+  /*   MOZ_ASSERT(mDropdownFrame, "mDroppedDown without frame"); */
+  /*   nsView* view = mDropdownFrame->GetView(); */
+  /*   MOZ_ASSERT(view); */
+  /*   nsIWidget* widget = view->GetWidget(); */
+  /*   if (widget) { */
+  /*     widget->CaptureRollupEvents(this, false); */
+  /*   } */
+  /* } */
 
   // Cleanup frames in popup child list
   mPopupFrames.DestroyFramesFrom(aDestructRoot, aPostDestroyData);
@@ -1573,8 +1609,8 @@ nsComboboxControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   } else {
     // REVIEW: Our in-flow child frames are inline-level so they will paint in our
     // content list, so we don't need to mess with layers.
-    nsBlockFrame::BuildDisplayList(aBuilder, aLists);
   }
+  nsBlockFrame::BuildDisplayList(aBuilder, aLists);
 
   // draw a focus indicator only when focus rings should be drawn
   nsIDocument* doc = mContent->GetComposedDoc();
