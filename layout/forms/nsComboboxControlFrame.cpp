@@ -582,7 +582,7 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
                                                   nscoord* aAfter,
                                                   LogicalPoint* aTranslation)
 {
-  MOZ_ASSERT(!XRE_IsContentProcess());
+  /* MOZ_ASSERT(!XRE_IsContentProcess()); */
   // Note: At first glance, it appears that you could simply get the
   // absolute bounding box for the dropdown list by first getting its
   // view, then getting the view's nsIWidget, then asking the nsIWidget
@@ -650,9 +650,9 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
 nsComboboxControlFrame::DropDownPositionState
 nsComboboxControlFrame::AbsolutelyPositionDropDown()
 {
-  if (XRE_IsContentProcess()) {
-    return eDropDownPositionSuppressed;
-  }
+  /* if (XRE_IsContentProcess()) { */
+  /*   return eDropDownPositionSuppressed; */
+  /* } */
 
   WritingMode wm = GetWritingMode();
   LogicalPoint translation(wm);
@@ -711,9 +711,9 @@ nsComboboxControlFrame::AbsolutelyPositionDropDown()
 void
 nsComboboxControlFrame::NotifyGeometryChange()
 {
-  if (XRE_IsContentProcess()) {
-    return;
-  }
+  /* if (XRE_IsContentProcess()) { */
+  /*   return; */
+  /* } */
 
   // We don't need to resize if we're not dropped down since ShowDropDown
   // does that, or if we're dirty then the reflow callback does it,
@@ -931,7 +931,7 @@ nsComboboxControlFrame::GetFrameName(nsAString& aResult) const
 void
 nsComboboxControlFrame::ShowDropDown(bool aDoDropDown)
 {
-  MOZ_ASSERT(!XRE_IsContentProcess());
+  /* MOZ_ASSERT(!XRE_IsContentProcess()); */
   printf("<kuoe0> %s\n", __func__);
   mDelayedShowDropDown = false;
   EventStates eventStates = mContent->AsElement()->State();
