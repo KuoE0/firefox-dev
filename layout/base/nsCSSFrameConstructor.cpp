@@ -3197,6 +3197,7 @@ nsCSSFrameConstructor::ConstructSelectFrame(nsFrameConstructorState& aState,
                                             const nsStyleDisplay*    aStyleDisplay,
                                             nsFrameItems&            aFrameItems)
 {
+  printf("<kuoe0> %s\n", __func__);
   nsIContent* const content = aItem.mContent;
   nsStyleContext* const styleContext = aItem.mStyleContext;
 

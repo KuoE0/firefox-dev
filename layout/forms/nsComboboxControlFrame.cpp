@@ -239,6 +239,7 @@ nsComboboxControlFrame::nsComboboxControlFrame(nsStyleContext* aContext)
   , mDelayedShowDropDown(false)
   , mIsOpenInParentProcess(false)
 {
+  printf("<kuoe0> %s\n", __func__);
   REFLOW_COUNTER_INIT()
 }
 
@@ -270,6 +271,7 @@ nsComboboxControlFrame::AccessibleType()
 void
 nsComboboxControlFrame::SetFocus(bool aOn, bool aRepaint)
 {
+  printf("<kuoe0> nsComboboxControlFrame::%s: %s\n", __func__, aOn ? "YES" : "NO");
   AutoWeakFrame weakFrame(this);
   if (aOn) {
     nsListControlFrame::ComboboxFocusSet();
@@ -306,15 +308,18 @@ nsComboboxControlFrame::SetFocus(bool aOn, bool aRepaint)
 void
 nsComboboxControlFrame::ShowPopup(bool aShowPopup)
 {
+  printf("<kuoe0> %s\n", __func__);
   nsView* view = mDropdownFrame->GetView();
   nsViewManager* viewManager = view->GetViewManager();
 
   if (aShowPopup) {
+    printf("<kuoe0> %s: show\n", __func__);
     nsRect rect = mDropdownFrame->GetRect();
     rect.x = rect.y = 0;
     viewManager->ResizeView(view, rect);
     viewManager->SetViewVisibility(view, nsViewVisibility_kShow);
   } else {
+    printf("<kuoe0> %s: hide\n", __func__);
     viewManager->SetViewVisibility(view, nsViewVisibility_kHide);
     nsRect emptyRect(0, 0, 0, 0);
     viewManager->ResizeView(view, emptyRect);
@@ -334,6 +339,7 @@ nsComboboxControlFrame::ShowPopup(bool aShowPopup)
 bool
 nsComboboxControlFrame::ShowList(bool aShowList)
 {
+  printf("<kuoe0> %s\n", __func__);
   nsView* view = mDropdownFrame->GetView();
   if (aShowList) {
     NS_ASSERTION(!view->HasWidget(),
@@ -926,6 +932,7 @@ void
 nsComboboxControlFrame::ShowDropDown(bool aDoDropDown)
 {
   MOZ_ASSERT(!XRE_IsContentProcess());
+  printf("<kuoe0> %s\n", __func__);
   mDelayedShowDropDown = false;
   EventStates eventStates = mContent->AsElement()->State();
   if (aDoDropDown && eventStates.HasState(NS_EVENT_STATE_DISABLED)) {
@@ -934,17 +941,20 @@ nsComboboxControlFrame::ShowDropDown(bool aDoDropDown)
 
   if (!mDroppedDown && aDoDropDown) {
     nsFocusManager* fm = nsFocusManager::GetFocusManager();
+    printf("<kuoe0> %s: FocusedContent=%p mContent=%p\n", __func__, fm->GetFocusedContent(), GetContent());
     if (!fm || fm->GetFocusedContent() == GetContent()) {
       DropDownPositionState state = AbsolutelyPositionDropDown();
       if (state == eDropDownPositionFinal) {
         ShowList(aDoDropDown); // might destroy us
       } else if (state == eDropDownPositionPendingResize) {
+        printf("<kuoe0> %s: state is pending resize\n", __func__);
         // Delay until after the resize reflow, see nsAsyncResize.
         mDelayedShowDropDown = true;
       }
     } else {
       // Delay until we get focus, see SetFocus().
       mDelayedShowDropDown = true;
+      printf("<kuoe0> %s: focus manager ???\n", __func__);
     }
   } else if (mDroppedDown && !aDoDropDown) {
     ShowList(aDoDropDown); // might destroy us
@@ -1708,8 +1718,10 @@ bool
 nsComboboxControlFrame::ToolkitHasNativePopup()
 {
 #ifdef MOZ_USE_NATIVE_POPUP_WINDOWS
+  printf("<kuoe0> %s: true\n", __func__);
   return true;
 #else
+  printf("<kuoe0> %s: false\n", __func__);
   return false;
 #endif /* MOZ_USE_NATIVE_POPUP_WINDOWS */
 }

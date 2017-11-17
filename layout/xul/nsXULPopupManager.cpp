@@ -395,6 +395,7 @@ bool nsXULPopupManager::ShouldRollupOnMouseActivate()
 uint32_t
 nsXULPopupManager::GetSubmenuWidgetChain(nsTArray<nsIWidget*> *aWidgetChain)
 {
+  printf("<kuoe0> %s\n", __func__);
   // this method is used by the widget code to determine the list of popups
   // that are open. If a mouse click occurs outside one of these popups, the
   // panels will roll up. If the click is inside a popup, they will not roll up

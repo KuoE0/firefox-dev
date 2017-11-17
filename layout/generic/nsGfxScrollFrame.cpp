@@ -706,21 +706,25 @@ nsHTMLScrollFrame::ReflowContents(ScrollReflowInput* aState,
   // Try leaving the horizontal scrollbar unchanged first. This will be more
   // efficient.
   if (TryLayout(aState, &kidDesiredSize, aState->mReflowedContentsWithHScrollbar,
-                aState->mReflowedContentsWithVScrollbar, false))
+        aState->mReflowedContentsWithVScrollbar, false)) {
     return;
+  }
   if (TryLayout(aState, &kidDesiredSize, !aState->mReflowedContentsWithHScrollbar,
-                aState->mReflowedContentsWithVScrollbar, false))
+        aState->mReflowedContentsWithVScrollbar, false)) {
     return;
+  }
 
   // OK, now try toggling the vertical scrollbar. The performance advantage
   // of trying the status-quo horizontal scrollbar state
   // does not exist here (we'll have to reflow due to the vertical scrollbar
   // change), so always try no horizontal scrollbar first.
   bool newVScrollbarState = !aState->mReflowedContentsWithVScrollbar;
-  if (TryLayout(aState, &kidDesiredSize, false, newVScrollbarState, false))
+  if (TryLayout(aState, &kidDesiredSize, false, newVScrollbarState, false)) {
     return;
-  if (TryLayout(aState, &kidDesiredSize, true, newVScrollbarState, false))
+  }
+  if (TryLayout(aState, &kidDesiredSize, true, newVScrollbarState, false)) {
     return;
+  }
 
   // OK, we're out of ideas. Try again enabling whatever scrollbars we can
   // enable and force the layout to stick even if it's inconsistent.
@@ -5498,8 +5502,9 @@ ScrollFrameHelper::ReflowFinished()
   // nsSliderFrame::AttributeChanged's handling of maxpos, but not when
   // we hide the scrollbar on a large size change, such as
   // maximization.)
-  if (!mHScrollbarBox && !mVScrollbarBox)
+  if (!mHScrollbarBox && !mVScrollbarBox) {
     return false;
+  }
   CurPosAttributeChanged(mVScrollbarBox ? mVScrollbarBox->GetContent()
                                         : mHScrollbarBox->GetContent(),
                          doScroll);
