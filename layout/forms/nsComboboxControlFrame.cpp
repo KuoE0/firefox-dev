@@ -308,22 +308,23 @@ nsComboboxControlFrame::SetFocus(bool aOn, bool aRepaint)
 void
 nsComboboxControlFrame::ShowPopup(bool aShowPopup)
 {
+  return;
   printf("<kuoe0> %s\n", __func__);
-  nsView* view = mDropdownFrame->GetView();
-  nsViewManager* viewManager = view->GetViewManager();
+  /* nsView* view = mDropdownFrame->GetView(); */
+  /* nsViewManager* viewManager = view->GetViewManager(); */
 
-  if (aShowPopup) {
-    printf("<kuoe0> %s: show\n", __func__);
-    nsRect rect = mDropdownFrame->GetRect();
-    rect.x = rect.y = 0;
-    viewManager->ResizeView(view, rect);
-    viewManager->SetViewVisibility(view, nsViewVisibility_kShow);
-  } else {
-    printf("<kuoe0> %s: hide\n", __func__);
-    viewManager->SetViewVisibility(view, nsViewVisibility_kHide);
-    nsRect emptyRect(0, 0, 0, 0);
-    viewManager->ResizeView(view, emptyRect);
-  }
+  /* if (aShowPopup) { */
+  /*   printf("<kuoe0> %s: show\n", __func__); */
+  /*   nsRect rect = mDropdownFrame->GetRect(); */
+  /*   rect.x = rect.y = 0; */
+  /*   viewManager->ResizeView(view, rect); */
+  /*   viewManager->SetViewVisibility(view, nsViewVisibility_kShow); */
+  /* } else { */
+  /*   printf("<kuoe0> %s: hide\n", __func__); */
+  /*   viewManager->SetViewVisibility(view, nsViewVisibility_kHide); */
+  /*   nsRect emptyRect(0, 0, 0, 0); */
+  /*   viewManager->ResizeView(view, emptyRect); */
+  /* } */
 
   // fire a popup dom event if it is safe to do so
   nsCOMPtr<nsIPresShell> shell = PresContext()->GetPresShell();
@@ -340,25 +341,25 @@ bool
 nsComboboxControlFrame::ShowList(bool aShowList)
 {
   printf("<kuoe0> %s\n", __func__);
-  nsView* view = mDropdownFrame->GetView();
-  if (aShowList) {
-    NS_ASSERTION(!view->HasWidget(),
-                 "We shouldn't have a widget before we need to display the popup");
+  /* nsView* view = mDropdownFrame->GetView(); */
+  /* if (aShowList) { */
+  /*   NS_ASSERTION(!view->HasWidget(), */
+  /*                "We shouldn't have a widget before we need to display the popup"); */
 
-    // Create the widget for the drop-down list
-    view->GetViewManager()->SetViewFloating(view, true);
+  /*   // Create the widget for the drop-down list */
+  /*   view->GetViewManager()->SetViewFloating(view, true); */
 
-    nsWidgetInitData widgetData;
-    widgetData.mWindowType  = eWindowType_popup;
-    widgetData.mBorderStyle = eBorderStyle_default;
-    view->CreateWidgetForPopup(&widgetData);
-  } else {
-    nsIWidget* widget = view->GetWidget();
-    if (widget) {
-      // We must do this before ShowPopup in case it destroys us (bug 813442).
-      widget->CaptureRollupEvents(this, false);
-    }
-  }
+  /*   nsWidgetInitData widgetData; */
+  /*   widgetData.mWindowType  = eWindowType_popup; */
+  /*   widgetData.mBorderStyle = eBorderStyle_default; */
+  /*   view->CreateWidgetForPopup(&widgetData); */
+  /* } else { */
+  /*   nsIWidget* widget = view->GetWidget(); */
+  /*   if (widget) { */
+  /*     // We must do this before ShowPopup in case it destroys us (bug 813442). */
+  /*     widget->CaptureRollupEvents(this, false); */
+  /*   } */
+  /* } */
 
   AutoWeakFrame weakFrame(this);
   ShowPopup(aShowList);  // might destroy us
@@ -367,20 +368,20 @@ nsComboboxControlFrame::ShowList(bool aShowList)
   }
 
   mDroppedDown = aShowList;
-  nsIWidget* widget = view->GetWidget();
-  if (mDroppedDown) {
-    // The listcontrol frame will call back to the nsComboboxControlFrame's
-    // ListWasSelected which will stop the capture.
-    mListControlFrame->AboutToDropDown();
-    mListControlFrame->CaptureMouseEvents(true);
-    if (widget) {
-      widget->CaptureRollupEvents(this, true);
-    }
-  } else {
-    if (widget) {
-      view->DestroyWidget();
-    }
-  }
+  /* nsIWidget* widget = view->GetWidget(); */
+  /* if (mDroppedDown) { */
+  /*   // The listcontrol frame will call back to the nsComboboxControlFrame's */
+  /*   // ListWasSelected which will stop the capture. */
+  /*   mListControlFrame->AboutToDropDown(); */
+  /*   mListControlFrame->CaptureMouseEvents(true); */
+  /*   if (widget) { */
+  /*     widget->CaptureRollupEvents(this, true); */
+  /*   } */
+  /* } else { */
+  /*   if (widget) { */
+  /*     view->DestroyWidget(); */
+  /*   } */
+  /* } */
 
   return weakFrame.IsAlive();
 }
@@ -453,17 +454,18 @@ nsComboboxControlFrame::ReflowDropdown(nsPresContext*  aPresContext,
   nscoord forcedISize = aReflowInput.ComputedISize() +
     aReflowInput.ComputedLogicalBorderPadding().IStartEnd(wm) -
     kidReflowInput.ComputedLogicalBorderPadding().IStartEnd(wm);
+  printf("<kuoe0> nsComboboxControlFrame::%s: ForceISize=%d\n", __func__, forcedISize);
   kidReflowInput.SetComputedISize(std::max(kidReflowInput.ComputedISize(),
                                          forcedISize));
 
-  // ensure we start off hidden
-  if (!mDroppedDown && GetStateBits() & NS_FRAME_FIRST_REFLOW) {
-    nsView* view = mDropdownFrame->GetView();
-    nsViewManager* viewManager = view->GetViewManager();
-    viewManager->SetViewVisibility(view, nsViewVisibility_kHide);
-    nsRect emptyRect(0, 0, 0, 0);
-    viewManager->ResizeView(view, emptyRect);
-  }
+  /* // ensure we start off hidden */
+  /* if (!mDroppedDown && GetStateBits() & NS_FRAME_FIRST_REFLOW) { */
+  /*   nsView* view = mDropdownFrame->GetView(); */
+  /*   nsViewManager* viewManager = view->GetViewManager(); */
+  /*   viewManager->SetViewVisibility(view, nsViewVisibility_kHide); */
+  /*   nsRect emptyRect(0, 0, 0, 0); */
+  /*   viewManager->ResizeView(view, emptyRect); */
+  /* } */
 
   // Allow the child to move/size/change-visibility its view if it's currently
   // dropped down
@@ -857,14 +859,14 @@ nsComboboxControlFrame::Reflow(nsPresContext*          aPresContext,
   RedisplayText();
 
   // First reflow our dropdown so that we know how tall we should be.
-  ReflowDropdown(aPresContext, aReflowInput);
-  RefPtr<nsResizeDropdownAtFinalPosition> resize =
-    new nsResizeDropdownAtFinalPosition(this);
-  if (NS_SUCCEEDED(aPresContext->PresShell()->PostReflowCallback(resize))) {
-    // The reflow callback queue doesn't AddRef so we keep it alive until
-    // it's released in its ReflowFinished / ReflowCallbackCanceled.
-    Unused << resize.forget();
-  }
+  /* ReflowDropdown(aPresContext, aReflowInput); */
+  /* RefPtr<nsResizeDropdownAtFinalPosition> resize = */
+  /*   new nsResizeDropdownAtFinalPosition(this); */
+  /* if (NS_SUCCEEDED(aPresContext->PresShell()->PostReflowCallback(resize))) { */
+  /*   // The reflow callback queue doesn't AddRef so we keep it alive until */
+  /*   // it's released in its ReflowFinished / ReflowCallbackCanceled. */
+  /*   Unused << resize.forget(); */
+  /* } */
 
   // Get the width of the vertical scrollbar.  That will be the inline
   // size of the dropdown button.
