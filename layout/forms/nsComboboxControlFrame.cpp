@@ -239,7 +239,13 @@ nsComboboxControlFrame::nsComboboxControlFrame(nsStyleContext* aContext)
   , mInRedisplayText(false)
   , mDelayedShowDropDown(false)
   , mIsOpenInParentProcess(false)
+#ifdef DEBUG
+  , mAlwaysDroppedDown(false)
+#endif
 {
+#ifdef DEBUG
+  mDroppedDown |= mAlwaysDroppedDown;
+#endif
   printf("<kuoe0> %s\n", __func__);
   REFLOW_COUNTER_INIT()
 }
@@ -369,6 +375,9 @@ nsComboboxControlFrame::ShowList(bool aShowList)
   }
 
   mDroppedDown = aShowList;
+#ifdef DEBUG
+  mDroppedDown |= mAlwaysDroppedDown;
+#endif
   mDropdownFrame->InvalidateFrame();
 
   /* nsIWidget* widget = view->GetWidget(); */
