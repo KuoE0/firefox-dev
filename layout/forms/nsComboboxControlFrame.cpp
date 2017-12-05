@@ -367,7 +367,9 @@ nsComboboxControlFrame::ShowList(bool aShowList)
     return false;
   }
 
+  printf("<kuoe0> nsComboboxControlFrame::%s:set mDroppedDown to %s\n", __func__, aShowList ? "TRUE" : "FALSE");
   mDroppedDown = aShowList;
+  SchedulePaint();
   /* nsIWidget* widget = view->GetWidget(); */
   /* if (mDroppedDown) { */
   /*   // The listcontrol frame will call back to the nsComboboxControlFrame's */
@@ -1169,12 +1171,14 @@ nsComboboxControlFrame::HandleEvent(nsPresContext* aPresContext,
 
 #if COMBOBOX_ROLLUP_CONSUME_EVENT == 0
   if (aEvent->mMessage == eMouseDown) {
-    if (GetContent() == mozilla::widget::nsAutoRollup::GetLastRollup()) {
-      // This event did a Rollup on this control - prevent it from opening
-      // the dropdown again!
-      *aEventStatus = nsEventStatus_eConsumeNoDefault;
-      return NS_OK;
-    }
+    ShowDropDown(!mDroppedDown);
+    return NS_OK;
+    /* if (GetContent() == mozilla::widget::nsAutoRollup::GetLastRollup()) { */
+    /*   // This event did a Rollup on this control - prevent it from opening */
+    /*   // the dropdown again! */
+    /*   *aEventStatus = nsEventStatus_eConsumeNoDefault; */
+    /*   return NS_OK; */
+    /* } */
   }
 #endif
 
@@ -1573,8 +1577,8 @@ nsComboboxControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   } else {
     // REVIEW: Our in-flow child frames are inline-level so they will paint in our
     // content list, so we don't need to mess with layers.
-    nsBlockFrame::BuildDisplayList(aBuilder, aLists);
   }
+  nsBlockFrame::BuildDisplayList(aBuilder, aLists);
 
   // draw a focus indicator only when focus rings should be drawn
   nsIDocument* doc = mContent->GetComposedDoc();

@@ -248,7 +248,7 @@ select {
   border-width: 2px;
   border-style: inset;
   text-indent: 0;
-  overflow: -moz-hidden-unscrollable;
+  overflow: visible !important;
   text-shadow: none;
   /* No text-decoration reaching inside, by default */
   display: inline-block;
@@ -407,7 +407,7 @@ optgroup:before {
   z-index: 2147483647;
   background-color: inherit;
   -moz-user-select: none;
-  position: static !important;
+  position: relative !important;
   float: none !important;
 
   /*

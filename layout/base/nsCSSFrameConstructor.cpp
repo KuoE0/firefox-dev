@@ -3289,14 +3289,8 @@ nsCSSFrameConstructor::ConstructSelectFrame(nsFrameConstructorState& aState,
                                 /* aParentIsWrapperAnonBox = */ false,
                                 childItems);
 
+    childItems.AddChild(listFrame);
     comboboxFrame->SetInitialChildList(kPrincipalList, childItems);
-
-    // Initialize the additional popup child list which contains the
-    // dropdown list frame.
-    nsFrameItems popupItems;
-    popupItems.AddChild(listFrame);
-    comboboxFrame->SetInitialChildList(nsIFrame::kSelectPopupList,
-                                       popupItems);
 
     aState.mFrameState = historyState;
     if (aState.mFrameState) {

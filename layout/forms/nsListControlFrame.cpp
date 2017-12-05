@@ -180,6 +180,10 @@ nsListControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   DO_GLOBAL_REFLOW_COUNT_DSP("nsListControlFrame");
 
   if (IsInDropDownMode()) {
+    if (!mComboboxFrame->IsDroppedDown()) {
+      printf("<kuoe0> nsListControlFrame::%s: DON'T PAINT\n", __func__);
+      return;
+    }
     NS_ASSERTION(NS_GET_A(mLastDropdownBackstopColor) == 255,
                  "need an opaque backstop color");
     // XXX Because we have an opaque widget and we get called to paint with
@@ -1860,8 +1864,8 @@ nsListControlFrame::GetIndexFromDOMEvent(nsIDOMEvent* aMouseEvent,
 static bool
 FireShowDropDownEvent(nsIContent* aContent, bool aShow, bool aIsSourceTouchEvent)
 {
-  printf("<kuoe0> nsListControlFrame::%s\n", __func__);
   if (ShouldFireDropDownEvent()) {
+    printf("<kuoe0> nsListControlFrame::%s: YES\n", __func__);
     nsString eventName;
     if (aShow) {
       eventName = aIsSourceTouchEvent ? NS_LITERAL_STRING("mozshowdropdown-sourcetouch") :
@@ -1874,6 +1878,7 @@ FireShowDropDownEvent(nsIContent* aContent, bool aShow, bool aIsSourceTouchEvent
     return true;
   }
 
+  printf("<kuoe0> nsListControlFrame::%s: NO\n", __func__);
   return false;
 }
 
