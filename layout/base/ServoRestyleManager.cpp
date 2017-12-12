@@ -59,10 +59,6 @@ ExpectedOwnerForChild(const nsIFrame& aFrame)
   }
 
   if (IsAnonBox(aFrame) && !aFrame.IsTextFrame()) {
-    if (aFrame.IsListControlFrame()) {
-      parent = aFrame.GetPlaceholderFrame()->GetParent();
-      return parent;
-    }
     if (parent->IsLineFrame()) {
       parent = parent->GetParent();
     }
@@ -111,8 +107,6 @@ ExpectedOwnerForChild(const nsIFrame& aFrame)
       MOZ_ASSERT(tableFrame->IsTableFrame());
       // Handle :-moz-table and :-moz-inline-table.
       parent = IsAnonBox(*tableFrame) ? parent->GetParent() : tableFrame;
-    } else if (pseudo == nsCSSAnonBoxes::dropDownList) {
-      parent = parent->GetPlaceholderFrame();
     } else {
       parent = parent->GetParent();
     }
