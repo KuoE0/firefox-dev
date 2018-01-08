@@ -256,6 +256,15 @@ nsRect nsCanvasFrame::CanvasArea() const
 }
 
 void
+nsCanvasFrame::SetDropdownFrame(nsIFrame* aDropdownFrame) {
+  if (aDropdownFrame) {
+    MOZ_ASSERT(aDropdownFrame->IsListControlFrame(),
+               "Only nsListControlFrame can be dropped down.");
+  }
+  mDropdownFrame = aDropdownFrame;
+}
+
+void
 nsDisplayCanvasBackgroundColor::Paint(nsDisplayListBuilder* aBuilder,
                                       gfxContext* aCtx)
 {

@@ -38,6 +38,7 @@ public:
     : nsContainerFrame(aContext, kClassID)
     , mDoPaintFocus(false)
     , mAddedScrollPositionListener(false)
+    , mDropdownFrame(nullptr)
   {}
 
   NS_DECL_QUERYFRAME
@@ -113,6 +114,10 @@ public:
 
   nsRect CanvasArea() const;
 
+  // The frame should be dropped down
+  nsIFrame* GetDropdownFrame() const { return mDropdownFrame; }
+  void SetDropdownFrame(nsIFrame* aDropDownFrame);
+
 protected:
   // Utility function to propagate the WritingMode from our first child to
   // 'this' and all its ancestors.
@@ -123,6 +128,9 @@ protected:
   bool                      mAddedScrollPositionListener;
 
   nsCOMPtr<mozilla::dom::Element> mCustomContentContainer;
+
+private:
+  nsIFrame* mDropdownFrame;
 };
 
 /**

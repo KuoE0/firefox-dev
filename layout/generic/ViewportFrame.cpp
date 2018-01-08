@@ -182,6 +182,13 @@ ViewportFrame::BuildDisplayListForTopLayer(nsDisplayListBuilder* aBuilder,
 
   nsIPresShell* shell = PresShell();
   if (nsCanvasFrame* canvasFrame = shell->GetCanvasFrame()) {
+    // Build display items for the dropped-down menu
+    if (nsIFrame* dropdownFrame = canvasFrame->GetDropdownFrame()) {
+      MOZ_ASSERT(dropdownFrame->StyleDisplay()->mTopLayer == NS_STYLE_TOP_LAYER_TOP,
+                 "The display list that is built here should be a top-layer frame.");
+      BuildDisplayListForTopLayerFrame(aBuilder, dropdownFrame, aList);
+    }
+
     if (Element* container = canvasFrame->GetCustomContentContainer()) {
       if (nsIFrame* frame = container->GetPrimaryFrame()) {
         BuildDisplayListForTopLayerFrame(aBuilder, frame, aList);
