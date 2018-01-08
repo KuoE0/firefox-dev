@@ -3256,7 +3256,10 @@ nsCSSFrameConstructor::ConstructSelectFrame(nsFrameConstructorState& aState,
                           comboboxFrame, listStyle, true,
                           aItem.mPendingBinding, childItems);
 
-    NS_ASSERTION(listFrame->GetView(), "ListFrame's view is nullptr");
+    if (!Preferences::GetBool(kPrefSelectPopupInContent)) {
+      // TODO(kuoe0) Remove this assertion when content-select is shipped.
+      NS_ASSERTION(listFrame->GetView(), "ListFrame's view is nullptr");
+    }
 
     // Create display and button frames from the combobox's anonymous content.
     // The anonymous content is appended to existing anonymous content for this

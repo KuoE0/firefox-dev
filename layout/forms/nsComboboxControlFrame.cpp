@@ -48,9 +48,12 @@
 #include "mozilla/EventStates.h"
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/MouseEvents.h"
+#include "mozilla/Preferences.h"
 #include "mozilla/Unused.h"
 #include "gfx2DGlue.h"
 #include "mozilla/widget/nsAutoRollup.h"
+
+static const char *kPrefSelectPopupInContent = "dom.select_popup_in_content.enabled";
 
 #ifdef XP_WIN
 #define COMBOBOX_ROLLUP_CONSUME_EVENT 0
@@ -335,6 +338,12 @@ nsComboboxControlFrame::ShowPopup(bool aShowPopup)
 bool
 nsComboboxControlFrame::ShowList(bool aShowList)
 {
+
+  if (Preferences::GetBool(kPrefSelectPopupInContent)) {
+    mDroppedDown = aShowList;
+    return true;
+  }
+
   nsView* view = mDropdownFrame->GetView();
   if (aShowList) {
     NS_ASSERTION(!view->HasWidget(),
@@ -452,7 +461,8 @@ nsComboboxControlFrame::ReflowDropdown(nsPresContext*  aPresContext,
                                          forcedISize));
 
   // ensure we start off hidden
-  if (!mDroppedDown && GetStateBits() & NS_FRAME_FIRST_REFLOW) {
+  if (!Preferences::GetBool(kPrefSelectPopupInContent) &&
+      mDroppedDown && GetStateBits() & NS_FRAME_FIRST_REFLOW) {
     nsView* view = mDropdownFrame->GetView();
     nsViewManager* viewManager = view->GetViewManager();
     viewManager->SetViewVisibility(view, nsViewVisibility_kHide);
@@ -655,7 +665,7 @@ nsComboboxControlFrame::AbsolutelyPositionDropDown()
   mLastDropDownAfterScreenBCoord = nscoord_MIN;
   GetAvailableDropdownSpace(wm, &before, &after, &translation);
   if (before <= 0 && after <= 0) {
-    if (IsDroppedDown()) {
+    if (!Preferences::GetBool(kPrefSelectPopupInContent) && IsDroppedDown()) {
       // Hide the view immediately to minimize flicker.
       nsView* view = mDropdownFrame->GetView();
       view->GetViewManager()->SetViewVisibility(view, nsViewVisibility_kHide);
@@ -1406,7 +1416,7 @@ nsComboboxControlFrame::DestroyFrom(nsIFrame* aDestructRoot, PostDestroyData& aP
 
   nsCheckboxRadioFrame::RegUnRegAccessKey(static_cast<nsIFrame*>(this), false);
 
-  if (mDroppedDown) {
+  if (!Preferences::GetBool(kPrefSelectPopupInContent) && mDroppedDown) {
     MOZ_ASSERT(mDropdownFrame, "mDroppedDown without frame");
     nsView* view = mDropdownFrame->GetView();
     MOZ_ASSERT(view);
@@ -1485,7 +1495,8 @@ nsComboboxControlFrame::Rollup(uint32_t aCount, bool aFlush,
     mListControlFrame->CaptureMouseEvents(false);
   }
 
-  if (aFlush && weakFrame.IsAlive()) {
+  if (!Preferences::GetBool(kPrefSelectPopupInContent) &&
+      aFlush && weakFrame.IsAlive()) {
     // The popup's visibility doesn't update until the minimize animation has
     // finished, so call UpdateWidgetGeometry to update it right away.
     nsViewManager* viewManager = mDropdownFrame->GetView()->GetViewManager();
@@ -1505,6 +1516,10 @@ nsComboboxControlFrame::Rollup(uint32_t aCount, bool aFlush,
 nsIWidget*
 nsComboboxControlFrame::GetRollupWidget()
 {
+  if (Preferences::GetBool(kPrefSelectPopupInContent)) {
+    return nullptr;
+  }
+
   nsView* view = mDropdownFrame->GetView();
   MOZ_ASSERT(view);
   return view->GetWidget();

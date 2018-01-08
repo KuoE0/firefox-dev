@@ -7414,7 +7414,8 @@ static bool IsPopupFrame(nsIFrame* aFrame)
 {
   // aFrame is a popup it's the list control frame dropdown for a combobox.
   LayoutFrameType frameType = aFrame->Type();
-  if (frameType == LayoutFrameType::ListControl) {
+  if (!Preferences::GetBool(kPrefSelectPopupInContent) &&
+      frameType == LayoutFrameType::ListControl) {
     nsListControlFrame* lcf = static_cast<nsListControlFrame*>(aFrame);
     return lcf->IsInDropDownMode();
   }

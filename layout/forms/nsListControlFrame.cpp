@@ -969,7 +969,8 @@ nsListControlFrame::Init(nsIContent*       aContent,
 {
   nsHTMLScrollFrame::Init(aContent, aParent, aPrevInFlow);
 
-  if (IsInDropDownMode()) {
+  if (!Preferences::GetBool(kPrefSelectPopupInContent) &&
+      IsInDropDownMode()) {
     AddStateBits(NS_FRAME_IN_POPUP);
     CreateView();
   }
