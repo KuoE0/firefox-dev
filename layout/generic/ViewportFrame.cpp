@@ -187,6 +187,13 @@ ViewportFrame::BuildDisplayListForTopLayer(nsDisplayListBuilder* aBuilder,
         BuildDisplayListForTopLayerFrame(aBuilder, frame, aList);
       }
     }
+
+    // Build display items for dropdown menus
+    for (nsIFrame* frame : canvasFrame->GetChildList(nsIFrame::kAbsoluteList)) {
+      if (frame->IsListControlFrame()) {
+        BuildDisplayListForTopLayerFrame(aBuilder, frame, aList);
+      }
+    }
   }
 }
 
