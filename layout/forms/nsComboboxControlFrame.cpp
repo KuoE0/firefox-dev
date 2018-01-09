@@ -338,7 +338,6 @@ nsComboboxControlFrame::ShowPopup(bool aShowPopup)
 bool
 nsComboboxControlFrame::ShowList(bool aShowList)
 {
-
   if (Preferences::GetBool(kPrefSelectPopupInContent)) {
     mDroppedDown = aShowList;
     return true;
@@ -587,7 +586,9 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
                                                   nscoord* aAfter,
                                                   LogicalPoint* aTranslation)
 {
-  MOZ_ASSERT(!XRE_IsContentProcess());
+  if (!Preferences::GetBool(kPrefSelectPopupInContent)) {
+    MOZ_ASSERT(!XRE_IsContentProcess());
+  }
   // Note: At first glance, it appears that you could simply get the
   // absolute bounding box for the dropdown list by first getting its
   // view, then getting the view's nsIWidget, then asking the nsIWidget
@@ -655,7 +656,8 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
 nsComboboxControlFrame::DropDownPositionState
 nsComboboxControlFrame::AbsolutelyPositionDropDown()
 {
-  if (XRE_IsContentProcess()) {
+  if (!Preferences::GetBool(kPrefSelectPopupInContent) &&
+      XRE_IsContentProcess()) {
     return eDropDownPositionSuppressed;
   }
 
@@ -936,7 +938,9 @@ nsComboboxControlFrame::GetFrameName(nsAString& aResult) const
 void
 nsComboboxControlFrame::ShowDropDown(bool aDoDropDown)
 {
-  MOZ_ASSERT(!XRE_IsContentProcess());
+  if (!Preferences::GetBool(kPrefSelectPopupInContent)) {
+    MOZ_ASSERT(!XRE_IsContentProcess());
+  }
   mDelayedShowDropDown = false;
   EventStates eventStates = mContent->AsElement()->State();
   if (aDoDropDown && eventStates.HasState(NS_EVENT_STATE_DISABLED)) {
@@ -1184,6 +1188,12 @@ nsComboboxControlFrame::HandleEvent(nsPresContext* aPresContext,
       uiStyle->mUserInput == StyleUserInput::Disabled) {
     return nsBlockFrame::HandleEvent(aPresContext, aEvent, aEventStatus);
   }
+
+  if (Preferences::GetBool(kPrefSelectPopupInContent) &&
+      aEvent->mMessage == eMouseDown) {
+    ShowDropDown(!mDroppedDown);
+  }
+
   return NS_OK;
 }
 

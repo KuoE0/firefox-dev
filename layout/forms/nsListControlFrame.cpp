@@ -119,6 +119,10 @@ nsListControlFrame::~nsListControlFrame()
 }
 
 static bool ShouldFireDropDownEvent() {
+  if (Preferences::GetBool(kPrefSelectPopupInContent)) {
+    // XXX Android?
+    return false;
+  }
   return (XRE_IsContentProcess() &&
           Preferences::GetBool("browser.tabs.remote.desktopbehavior", false)) ||
          Preferences::GetBool("dom.select_popup_in_parent.enabled", false);
@@ -173,6 +177,9 @@ nsListControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   DO_GLOBAL_REFLOW_COUNT_DSP("nsListControlFrame");
 
   if (IsInDropDownMode()) {
+    if (!mComboboxFrame->IsDroppedDown()) {
+      return;
+    }
     NS_ASSERTION(NS_GET_A(mLastDropdownBackstopColor) == 255,
                  "need an opaque backstop color");
     // XXX Because we have an opaque widget and we get called to paint with
@@ -1846,6 +1853,10 @@ nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
   } else {
     // NOTE: the combo box is responsible for dropping it down
     if (mComboboxFrame) {
+      if (Preferences::GetBool(kPrefSelectPopupInContent)) {
+        return NS_OK;
+      }
+
       // Ignore the click that occurs on the option element when one is
       // selected from the parent process popup.
       if (mComboboxFrame->IsOpenInParentProcess()) {
