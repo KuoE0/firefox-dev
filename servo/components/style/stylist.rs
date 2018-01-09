@@ -2017,7 +2017,13 @@ impl CascadeData {
 
                         let map = match selector.pseudo_element() {
                             Some(pseudo) if pseudo.is_precomputed() => {
-                                debug_assert!(selector.is_universal());
+
+                                // We don't allow anonymous boxes to use some selector other than a
+                                // universal selector.
+                                if !selector.is_universal() {
+                                    continue;
+                                }
+
                                 debug_assert!(matches!(origin, Origin::UserAgent));
 
                                 precomputed_pseudo_element_decls
