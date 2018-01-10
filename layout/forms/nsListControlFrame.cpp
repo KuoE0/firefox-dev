@@ -179,6 +179,11 @@ nsListControlFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   DO_GLOBAL_REFLOW_COUNT_DSP("nsListControlFrame");
 
   if (IsInDropDownMode()) {
+    if (nsLayoutUtils::IsContentSelectEnabled() &&
+        !mComboboxFrame->IsDroppedDown()) {
+      // Don't build the display list when the list is not dropped down.
+      return;
+    }
     NS_ASSERTION(NS_GET_A(mLastDropdownBackstopColor) == 255,
                  "need an opaque backstop color");
     // XXX Because we have an opaque widget and we get called to paint with
@@ -1850,6 +1855,9 @@ nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
       return NS_OK;
     }
     mChangesSinceDragStart = change;
+  } else if (nsLayoutUtils::IsContentSelectEnabled()) {
+    // We handle the drop-down and roll-up action in the combo box.
+    return NS_OK;
   } else {
     // NOTE: the combo box is responsible for dropping it down
     if (mComboboxFrame) {
