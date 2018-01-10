@@ -344,6 +344,7 @@ nsComboboxControlFrame::ShowList(bool aShowList)
   // when content-select is enabled. And the following callee, ShowPopup(), will
   // also be ignored, it is only used to show and hide the widget.
   if (nsLayoutUtils::IsContentSelectEnabled()) {
+    mDroppedDown = aShowList;
     return true;
   }
 
@@ -590,7 +591,10 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
                                                   nscoord* aAfter,
                                                   LogicalPoint* aTranslation)
 {
-  MOZ_ASSERT(!XRE_IsContentProcess());
+  if (!nsLayoutUtils::IsContentSelectEnabled()) {
+    // TODO(kuoe0) remove this assertion after content-select is enabled
+    MOZ_ASSERT(!XRE_IsContentProcess());
+  }
   // Note: At first glance, it appears that you could simply get the
   // absolute bounding box for the dropdown list by first getting its
   // view, then getting the view's nsIWidget, then asking the nsIWidget
@@ -658,7 +662,8 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
 nsComboboxControlFrame::DropDownPositionState
 nsComboboxControlFrame::AbsolutelyPositionDropDown()
 {
-  if (XRE_IsContentProcess()) {
+  if (!nsLayoutUtils::IsContentSelectEnabled() && XRE_IsContentProcess()) {
+    // TODO(kuoe0) remove this after content-select is enabled
     return eDropDownPositionSuppressed;
   }
 
@@ -1190,6 +1195,13 @@ nsComboboxControlFrame::HandleEvent(nsPresContext* aPresContext,
       uiStyle->mUserInput == StyleUserInput::Disabled) {
     return nsBlockFrame::HandleEvent(aPresContext, aEvent, aEventStatus);
   }
+
+  // We handle the drop-down and roll-up actions here.
+  if (nsLayoutUtils::IsContentSelectEnabled() &&
+      aEvent->mMessage == eMouseDown) {
+    ShowDropDown(!mDroppedDown);
+  }
+
   return NS_OK;
 }
 
