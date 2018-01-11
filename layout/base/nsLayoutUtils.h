@@ -2391,6 +2391,11 @@ public:
    */
   static bool IsInterCharacterRubyEnabled();
 
+  /**
+   * Checks whether content-select is enabled.
+   */
+  static bool IsContentSelectEnabled();
+
   static bool InterruptibleReflowEnabled()
   {
     return sInterruptibleReflowEnabled;
