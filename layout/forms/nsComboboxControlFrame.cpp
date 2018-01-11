@@ -48,6 +48,7 @@
 #include "mozilla/EventStates.h"
 #include "mozilla/LookAndFeel.h"
 #include "mozilla/MouseEvents.h"
+#include "mozilla/Preferences.h"
 #include "mozilla/Unused.h"
 #include "gfx2DGlue.h"
 #include "mozilla/widget/nsAutoRollup.h"
@@ -240,6 +241,13 @@ nsComboboxControlFrame::nsComboboxControlFrame(nsStyleContext* aContext)
   , mDelayedShowDropDown(false)
   , mIsOpenInParentProcess(false)
 {
+#ifdef DEBUG
+  if (nsLayoutUtils::IsContentSelectEnabled()) {
+    mAlwaysDroppedDown = Preferences::GetBool("layout.always_show_select_popup.enabled");
+    mDroppedDown |= mAlwaysDroppedDown;
+  }
+#endif
+
   REFLOW_COUNTER_INIT()
 }
 
@@ -345,6 +353,9 @@ nsComboboxControlFrame::ShowList(bool aShowList)
   // also be ignored, it is only used to show and hide the widget.
   if (nsLayoutUtils::IsContentSelectEnabled()) {
     mDroppedDown = aShowList;
+#ifdef DEBUG
+    mDroppedDown |= mAlwaysDroppedDown;
+#endif
     return true;
   }
 

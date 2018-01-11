@@ -1339,6 +1339,11 @@ pref("dom.select_popup_in_parent.enabled", false);
 // Bug 1421229 - content-select
 pref("dom.select_popup_in_content.enabled", false);
 
+#ifdef DEBUG
+// Always show the select popup
+pref("layout.always_show_select_popup.enabled", false);
+#endif
+
 // Enable Directory API. By default, disabled.
 pref("dom.input.dirpicker", false);
 

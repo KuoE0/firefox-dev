@@ -320,6 +320,11 @@ protected:
 
   bool                  mIsOpenInParentProcess;
 
+#ifdef DEBUG
+  // Always show the dropdown frame
+  bool                  mAlwaysDroppedDown;
+#endif
+
   // static class data member for Bug 32920
   // only one control can be focused at a time
   static nsComboboxControlFrame* sFocused;
