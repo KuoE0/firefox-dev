@@ -626,6 +626,32 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
   *aBefore = 0;
   *aAfter = 0;
 
+  if (nsLayoutUtils::IsContentSelectEnabled()) {
+    nsIFrame* root = PresContext()->PresShell()->GetRootFrame();
+    nsRect viewportRect = root->GetRect();
+
+
+    // TODO
+    // GetLogicalPosition according to parent
+    // Transform to root
+    // Transform to logical
+
+    // Transform the coordinate from parent to root to get the absolute
+    // coordinate.
+    nsPoint comboboxPos = GetPosition();
+    nsLayoutUtils::TransformPoint(GetParent(), root, comboboxPos);
+    LogicalPoint comboboxLogicalPos(root->GetWritingMode(),
+                                    comboboxPos.x, comboboxPos.y);
+
+    printf("<kuoe0> nsComboboxControlFrame::%s x=%d y=%d\n", __func__, comboboxLogicalPos.I(root->GetWritingMode()), comboboxLogicalPos.B(root->GetWritingMode()));
+
+    /* nsSize viewportSize = viewport.Size(); */
+    /* LogicalRect logicalViewportRect(aWM, viewport, viewportSize); */
+
+    /* *aAfter = logicalViewportRect.BSize(aWM) - (comboboxPos.y + BSize(aWM)); */
+
+  }
+
   nsRect screen = nsCheckboxRadioFrame::GetUsableScreenRect(PresContext());
   nsSize containerSize = screen.Size();
   LogicalRect logicalScreen(aWM, screen, containerSize);
@@ -683,6 +709,9 @@ nsComboboxControlFrame::AbsolutelyPositionDropDown()
   nscoord before, after;
   mLastDropDownAfterScreenBCoord = nscoord_MIN;
   GetAvailableDropdownSpace(wm, &before, &after, &translation);
+
+  printf("<kuoe0> nsComboboxControlFrame::%s before=%d after=%d\n", __func__, before, after);
+
   if (before <= 0 && after <= 0) {
     if (!nsLayoutUtils::IsContentSelectEnabled() && IsDroppedDown()) {
       // Hide the view immediately to minimize flicker.
@@ -716,12 +745,27 @@ nsComboboxControlFrame::AbsolutelyPositionDropDown()
   // Position the drop-down after if there is room, otherwise place it before
   // if there is room.  If there is no room for it on either side then place
   // it after (to avoid overlapping UI like the URL bar).
-  bool b = dropdownSize.BSize(wm)<= after || dropdownSize.BSize(wm) > before;
+  nsSize containerSize = GetSize();
+  bool b = dropdownSize.BSize(wm) <= after || dropdownSize.BSize(wm) > before;
   LogicalPoint dropdownPosition(wm, 0, b ? BSize(wm) : -dropdownSize.BSize(wm));
+
+  /* if (nsLayoutUtils::IsContentSelectEnabled()) { */
+  /*   nsPoint comboboxPos = GetPosition(); */
+  /*   nsLayoutUtils::TransformPoint(GetParent(), */
+  /*                                 mDropdownFrame->GetParent(), */
+  /*                                 comboboxPos); */
+
+  /*   nscoord x = comboboxPos.x; */
+  /*   nscoord y = comboboxPos.y + BSize(wm) : before - dropdownSize.BSize(wm); */
+
+  /*   LogicalPoint dropdownPosition(wm, comboboxPos.x, b ? */ 
+  /* } else { */
+
+
+  /* } */
 
   // Don't position the view unless the position changed since it might cause
   // a call to NotifyGeometryChange() and an infinite loop here.
-  nsSize containerSize = GetSize();
   const LogicalPoint currentPos =
     mDropdownFrame->GetLogicalPosition(containerSize);
   const LogicalPoint newPos = dropdownPosition + translation;
