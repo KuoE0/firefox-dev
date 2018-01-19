@@ -2163,6 +2163,7 @@ nsCocoaWindow::CaptureRollupEvents(nsIRollupListener* aListener,
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+  printf("<kuoe0> %s\n", __func__);
   gRollupListener = nullptr;
   
   if (aDoCapture) {
@@ -2173,6 +2174,7 @@ nsCocoaWindow::CaptureRollupEvents(nsIRollupListener* aListener,
       // and gdb sessions. See bug 699538.
       nsToolkit::GetToolkit()->RegisterForAllProcessMouseEvents();
     }
+	printf("<kuoe0> %s: Set RollupListener to %p\n", __func__, aListener);
     gRollupListener = aListener;
 
     // Sometimes more than one popup window can be visible at the same time

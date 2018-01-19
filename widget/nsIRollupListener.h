@@ -66,6 +66,12 @@ class nsIRollupListener {
   virtual void NotifyGeometryChange() = 0;
 
   virtual nsIWidget* GetRollupWidget() = 0;
+
+  virtual bool IsCombobox() = 0;
+
+  virtual mozilla::LayoutDeviceIntRect GetDropdownRect() {
+    return mozilla::LayoutDeviceIntRect(0, 0, 0, 0);
+  }
 };
 
 #endif /* __nsIRollupListener_h__ */

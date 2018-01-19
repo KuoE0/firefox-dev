@@ -143,6 +143,7 @@ public:
 
   NS_DECL_ISUPPORTS
 
+  virtual nsIWidget* GetXULWindowWidget() const { return nullptr; };
   // nsIWidget interface
   virtual void            CaptureMouse(bool aCapture) override {}
   virtual void            CaptureRollupEvents(nsIRollupListener* aListener,

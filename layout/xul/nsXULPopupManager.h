@@ -352,6 +352,8 @@ public:
   virtual uint32_t GetSubmenuWidgetChain(nsTArray<nsIWidget*> *aWidgetChain) override;
   virtual void NotifyGeometryChange() override {}
   virtual nsIWidget* GetRollupWidget() override;
+  virtual bool IsCombobox() override
+    { return true; }
 
   static nsXULPopupManager* sInstance;
 

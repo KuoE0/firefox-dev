@@ -871,8 +871,8 @@ nsListControlFrame::CaptureMouseEvents(bool aGrabMouseEvents)
   // is in drop-down mode, and the caller is requesting capture (we let release capture
   // requests go through to ensure that we can release capture requested via other
   // code paths, if any exist).
-  if (aGrabMouseEvents && IsInDropDownMode() && nsComboboxControlFrame::ToolkitHasNativePopup())
-    return;
+  /* if (aGrabMouseEvents && IsInDropDownMode() && nsComboboxControlFrame::ToolkitHasNativePopup()) */
+  /*   return; */
 
   if (aGrabMouseEvents) {
     nsIPresShell::SetCapturingContent(mContent, CAPTURE_IGNOREALLOWED);
@@ -1855,9 +1855,6 @@ nsListControlFrame::MouseDown(nsIDOMEvent* aMouseEvent)
       return NS_OK;
     }
     mChangesSinceDragStart = change;
-  } else if (nsLayoutUtils::IsContentSelectEnabled()) {
-    // We handle the drop-down and roll-up action in the combo box.
-    return NS_OK;
   } else {
     // NOTE: the combo box is responsible for dropping it down
     if (mComboboxFrame) {

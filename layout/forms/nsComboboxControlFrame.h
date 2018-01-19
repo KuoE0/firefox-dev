@@ -31,6 +31,7 @@
 #include "nsIRollupListener.h"
 #include "nsIStatefulFrame.h"
 #include "nsThreadUtils.h"
+#include "Units.h"
 
 class nsStyleContext;
 class nsIListControlFrame;
@@ -211,6 +212,15 @@ public:
     { return 0; }
 
   virtual nsIWidget* GetRollupWidget() override;
+
+  virtual bool IsCombobox() override
+    { return true; }
+
+  virtual LayoutDeviceIntRect GetDropdownRect() override {
+    int32_t appPerDev = PresContext()->AppUnitsPerDevPixel();
+    nsRect dropdownRect = mDropdownFrame->GetRect();
+    return LayoutDevicePixel::FromAppUnitsToNearest(dropdownRect, appPerDev);
+  }
 
   //nsIStatefulFrame
   NS_IMETHOD SaveState(nsPresState** aState) override;

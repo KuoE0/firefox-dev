@@ -562,7 +562,7 @@ void nsChildView::TearDownView()
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-nsCocoaWindow*
+nsIWidget*
 nsChildView::GetXULWindowWidget() const
 {
   id windowDelegate = [[mView window] delegate];
@@ -671,7 +671,7 @@ nsTransparencyMode nsChildView::GetTransparencyMode()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
 
-  nsCocoaWindow* windowWidget = GetXULWindowWidget();
+  nsCocoaWindow* windowWidget = (nsCocoaWindow*)GetXULWindowWidget();
   return windowWidget ? windowWidget->GetTransparencyMode() : eTransparencyOpaque;
 
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(eTransparencyOpaque);
@@ -683,7 +683,7 @@ void nsChildView::SetTransparencyMode(nsTransparencyMode aMode)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-  nsCocoaWindow* windowWidget = GetXULWindowWidget();
+  nsCocoaWindow* windowWidget = (nsCocoaWindow*)GetXULWindowWidget();
   if (windowWidget) {
     windowWidget->SetTransparencyMode(aMode);
   }
@@ -699,7 +699,7 @@ bool nsChildView::IsVisible() const
     return mVisible;
   }
 
-  if (!GetXULWindowWidget()->IsVisible()) {
+  if (!((nsCocoaWindow*)GetXULWindowWidget())->IsVisible()) {
     return false;
   }
 
@@ -1266,7 +1266,7 @@ bool
 nsChildView::SendEventToNativeMenuSystem(NSEvent* aEvent)
 {
   bool handled = false;
-  nsCocoaWindow* widget = GetXULWindowWidget();
+  nsCocoaWindow* widget = (nsCocoaWindow*)GetXULWindowWidget();
   if (widget) {
     nsMenuBarX* mb = widget->GetMenuBar();
     if (mb) {
@@ -1336,7 +1336,7 @@ nsChildView::ForceUpdateNativeMenuAt(const nsAString& indexString)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
-  nsCocoaWindow *widget = GetXULWindowWidget();
+  nsCocoaWindow *widget = (nsCocoaWindow*)GetXULWindowWidget();
   if (widget) {
     nsMenuBarX* mb = widget->GetMenuBar();
     if (mb) {
@@ -2049,7 +2049,7 @@ nsChildView::PrepareWindowEffects()
     mIsCoveringTitlebar = [(ChildView*)mView isCoveringTitlebar];
     NSInteger styleMask = [[mView window] styleMask];
     bool wasFullscreen = mIsFullscreen;
-    nsCocoaWindow* windowWidget = GetXULWindowWidget();
+    nsCocoaWindow* windowWidget = (nsCocoaWindow*)GetXULWindowWidget();
     mIsFullscreen = (styleMask & NSFullScreenWindowMask) ||
                     (windowWidget && windowWidget->InFullScreenMode());
 
@@ -3678,7 +3678,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
 
 - (void)viewWillStartLiveResize
 {
-  nsCocoaWindow* windowWidget = mGeckoChild ? mGeckoChild->GetXULWindowWidget() : nullptr;
+  nsCocoaWindow* windowWidget = mGeckoChild ? (nsCocoaWindow*)mGeckoChild->GetXULWindowWidget() : nullptr;
   if (windowWidget) {
     windowWidget->NotifyLiveResizeStarted();
   }
@@ -3692,7 +3692,7 @@ NSEvent* gLastDragMouseDownEvent = nil;
   // is null here, that might be problematic because we might get stuck with
   // a content process that has the displayport suppressed. If that scenario
   // arises (I'm not sure that it does) we will need to handle it gracefully.
-  nsCocoaWindow* windowWidget = mGeckoChild ? mGeckoChild->GetXULWindowWidget() : nullptr;
+  nsCocoaWindow* windowWidget = mGeckoChild ? (nsCocoaWindow*)mGeckoChild->GetXULWindowWidget() : nullptr;
   if (windowWidget) {
     windowWidget->NotifyLiveResizeStopped();
   }
@@ -4099,9 +4099,17 @@ NSEvent* gLastDragMouseDownEvent = nil;
   nsIRollupListener* rollupListener = nsBaseWidget::GetActiveRollupListener();
   NS_ENSURE_TRUE(rollupListener, false);
   nsCOMPtr<nsIWidget> rollupWidget = rollupListener->GetRollupWidget();
+  printf("<kuoe0> %s: widget=%p\n", __func__, rollupWidget.get());
   if (rollupWidget) {
     NSWindow* currentPopup = static_cast<NSWindow*>(rollupWidget->GetNativeData(NS_NATIVE_WINDOW));
-    if (!nsCocoaUtils::IsEventOverWindow(theEvent, currentPopup)) {
+    bool isCombobox = rollupListener->IsCombobox();
+    NSRect dropdownRect = nsCocoaUtils::GeckoRectToCocoaRectDevPix(rollupListener->GetDropdownRect(), 0);
+    bool isOverDropdown = NSPointInRect(nsCocoaUtils::ScreenLocationForEvent(theEvent), dropdownRect);
+
+    printf("<kuoe0> %s: self=%p isOverDropdown: %s\n", __func__, self, isOverDropdown ? "TRUE" : "FALSE");
+
+    if (!nsCocoaUtils::IsEventOverWindow(theEvent, currentPopup) || (isCombobox && !isOverDropdown)) {
+   printf("<kuoe0> %s: IsEventOverWindow: %s\n", __func__, "FALSE");
       // event is not over the rollup window, default is to roll up
       bool shouldRollup = true;
 
@@ -4931,6 +4939,7 @@ GetIntegerDeltaForEvent(NSEvent* aEvent)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+  printf("<kuoe0> %s: self=%p\n", __func__, self);
   if (gfxPrefs::AsyncPanZoomSeparateEventThread() && [self apzctm]) {
     // Disable main-thread scrolling completely when using APZ with the
     // separate event thread. This is bug 1013412.

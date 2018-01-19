@@ -52,6 +52,7 @@
 #include "mozilla/Unused.h"
 #include "gfx2DGlue.h"
 #include "mozilla/widget/nsAutoRollup.h"
+#include "nsBaseWidget.h"
 
 #ifdef XP_WIN
 #define COMBOBOX_ROLLUP_CONSUME_EVENT 0
@@ -345,6 +346,13 @@ nsComboboxControlFrame::ShowList(bool aShowList)
   // when content-select is enabled. And the following callee, ShowPopup(), will
   // also be ignored, it is only used to show and hide the widget.
   if (nsLayoutUtils::IsContentSelectEnabled()) {
+    nsIWidget* widget = static_cast<nsBaseWidget*>(PresContext()->GetRootWidget())->GetXULWindowWidget();
+    printf("<kuoe0> %s: widget=%p\n", __func__, widget);
+
+    if (!aShowList) {
+      widget->CaptureRollupEvents(this, false);
+    }
+
     mDroppedDown = aShowList;
 
     // Update the dropdown frame in the canvas frame
@@ -354,6 +362,16 @@ nsComboboxControlFrame::ShowList(bool aShowList)
     } else {
       canvasFrame->SetDropdownFrame(nullptr);
     }
+
+    if (mDroppedDown) {
+      // The listcontrol frame will call back to the nsComboboxControlFrame's
+      // ListWasSelected which will stop the capture.
+      mListControlFrame->AboutToDropDown();
+      mListControlFrame->CaptureMouseEvents(true);
+      printf("<kuoe0> %s: Set RollupListener to %p\n", __func__, this);
+      widget->CaptureRollupEvents(this, true);
+    }
+
     return true;
   }
 
@@ -1205,12 +1223,6 @@ nsComboboxControlFrame::HandleEvent(nsPresContext* aPresContext,
     return nsBlockFrame::HandleEvent(aPresContext, aEvent, aEventStatus);
   }
 
-  // We handle the drop-down and roll-up actions here.
-  if (nsLayoutUtils::IsContentSelectEnabled() &&
-      aEvent->mMessage == eMouseDown) {
-    ShowDropDown(!mDroppedDown);
-  }
-
   return NS_OK;
 }
 
@@ -1544,7 +1556,8 @@ nsIWidget*
 nsComboboxControlFrame::GetRollupWidget()
 {
   if (nsLayoutUtils::IsContentSelectEnabled()) {
-    return nullptr;
+    printf("<kuoe0> %s: return root widget\n", __func__);
+    return PresContext()->GetRootWidget();
   }
 
   nsView* view = mDropdownFrame->GetView();
